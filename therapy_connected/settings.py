@@ -27,6 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     'therapy-connected-dev.us-east-1.elasticbeanstalk.com',
+    'dev.therapy-connected.com',
     'localhost',
     '127.0.0.1',
 ]
