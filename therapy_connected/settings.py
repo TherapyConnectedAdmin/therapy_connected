@@ -25,7 +25,12 @@ SECRET_KEY = 'django-insecure-u)-bx8tcc8k0kl2y6)pv85vpvhlnryzpf1e3u1^f2&^)jczvt_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'therapy-connected-dev.us-east-1.elasticbeanstalk.com',
+    'localhost',
+    '127.0.0.1',
+]
+
 
 
 # Application definition
