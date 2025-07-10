@@ -14,6 +14,13 @@ import os
 load_dotenv()
 from pathlib import Path
 
+COGNITO_REGION = os.getenv("COGNITO_REGION")
+COGNITO_USER_POOL_ID = os.getenv("COGNITO_USER_POOL_ID")
+COGNITO_CLIENT_ID = os.getenv("COGNITO_CLIENT_ID")
+COGNITO_DOMAIN = os.getenv("COGNITO_DOMAIN")
+COGNITO_REDIRECT_URI = os.getenv("COGNITO_REDIRECT_URI")
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -56,7 +63,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'middleware.cognito.CognitoMiddleware',
+    # your custom Cognito middleware
+    'users.middleware.CognitoMiddleware',
 
 ]
 

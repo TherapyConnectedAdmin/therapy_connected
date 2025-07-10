@@ -35,3 +35,11 @@ class CognitoMiddleware:
                 request.user = None  # Optional fallback
 
         return self.get_response(request)
+
+class CognitoMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # token decoding logic
+        return self.get_response(request)
