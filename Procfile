@@ -1,1 +1,2 @@
-web: gunicorn therapy_connected.wsgi
+web: gunicorn therapy_connected.wsgi:application
+
