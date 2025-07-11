@@ -25,7 +25,13 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-REPLACE_ME')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['therapy-connected-app-7081572ea900.herokuapp.com', '.herokuapp.com', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = [
+    'dev.therapy-connected.com',
+    'therapy-connected-app-7081572ea900.herokuapp.com',
+    '.herokuapp.com',
+    'localhost',
+    '127.0.0.1'
+]
 
 # Application definition
 
