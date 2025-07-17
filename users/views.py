@@ -5,12 +5,18 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from .forms import UserRegistrationForm
 from django import forms
-from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.crypto import get_random_string
+from acs_email_service import AcsEmailService
 
 # Temporary in-memory store for tokens (use a model for production)
 confirmation_tokens = {}
+
+# Initialize ACS Email Service
+service = AcsEmailService(
+    connection_string=settings.ACS_CONNECTION_STRING,
+    sender_address=settings.ACS_SENDER_ADDRESS
+)
 
 class UserLoginForm(forms.Form):
     email = forms.EmailField()
@@ -26,14 +32,18 @@ def register(request):
             token = get_random_string(32)
             confirmation_tokens[token] = user.id
             confirm_url = request.build_absolute_uri(f'/users/confirm/{token}/')
-            send_mail(
-                'Confirm your email',
-                f'Click the link to confirm your email: {confirm_url}',
-                settings.DEFAULT_FROM_EMAIL,
-                [email],
-                fail_silently=False,
+            subject = 'Confirm your email'
+            plain_text = f'Click the link to confirm your email: {confirm_url}'
+            success, message_id = service.send_email(
+                recipient=email,
+                subject=subject,
+                plain_text=plain_text,
+                display_name=email
             )
-            messages.success(request, 'Registration successful! Please check your email to confirm your account.')
+            if success:
+                messages.success(request, 'Registration successful! Please check your email to confirm your account.')
+            else:
+                messages.error(request, f'Failed to send confirmation email: {message_id}')
             return redirect('register')
     else:
         form = UserRegistrationForm()
