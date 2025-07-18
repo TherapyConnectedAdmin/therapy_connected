@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'users',
     'tailwind',
     'theme',
+    'sslserver',  # For local HTTPS
 ]
 
 MIDDLEWARE = [
@@ -134,11 +135,12 @@ ACS_SENDER_ADDRESS = "DoNotReply@therapy-connected.com"
 
 TAILWIND_APP_NAME = 'theme'
 
-# --- Security: Force HTTPS and secure cookies in production ---
-SECURE_SSL_REDIRECT = True
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = 31536000  # 1 year
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+# --- Security: Force HTTPS and secure cookies only in production ---
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
