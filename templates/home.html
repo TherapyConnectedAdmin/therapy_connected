@@ -1,105 +1,78 @@
 {% extends "base.html" %}
-{% load static %}
-
-{# Therapy Connected Homepage - Tailwind CSS #}
-
 {% block content %}
-<div class="bg-[#E8E9F3] min-h-screen">
-    <!-- Header -->
-    <nav class="flex items-center justify-between py-4 px-6 bg-white shadow">
-        <div class="text-2xl font-bold text-[#272635]">Therapy Connected</div>
-        <div class="flex space-x-6">
-            <a href="#" class="text-[#272635] hover:text-[#B1E5F2]">Find a Therapist</a>
-            <a href="#" class="text-[#272635] hover:text-[#B1E5F2]">Get Help</a>
-            <a href="#" class="text-[#272635] hover:text-[#B1E5F2]">Magazine</a>
-            <a href="#" class="text-[#272635] hover:text-[#B1E5F2]">Tests</a>
-        </div>
-        <div class="flex items-center space-x-4">
-            <span class="text-sm text-[#A6A6A8]">US</span>
-            <img src="{% static 'img/user-placeholder.png' %}" alt="User" class="w-8 h-8 rounded-full" />
-        </div>
-    </nav>
+<div class="flex-1 flex flex-col" style="background-color: #FAF9F9;">
 
     <!-- Hero Section -->
-    <div class="max-w-4xl mx-auto mt-8">
-        <div class="rounded-lg overflow-hidden shadow bg-[#CECECE] flex items-center justify-center h-48 mb-6">
-            <span class="text-2xl font-bold text-[#272635]">How to Invest in Your Health</span>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            <div class="bg-white rounded-lg shadow p-4 flex flex-col items-center">
-                <div class="font-semibold text-[#272635] mb-2">Find a Therapist</div>
-                <form class="flex flex-col md:flex-row gap-2 w-full">
-                    <select class="border border-[#CECECE] rounded px-3 py-2 w-full md:w-auto">
-                        <option>Therapists</option>
-                    </select>
-                    <input type="text" placeholder="City or Zip" class="border border-[#CECECE] rounded px-3 py-2 w-full md:w-auto" />
-                    <button class="bg-[#B1E5F2] text-[#272635] font-semibold rounded px-4 py-2 hover:bg-[#A6A6A8]">Search</button>
-                </form>
-            </div>
-            <div class="bg-white rounded-lg shadow p-4 flex flex-col items-center">
-                <div class="font-semibold text-[#272635] mb-2">Professionals</div>
-                <button class="bg-[#B1E5F2] text-[#272635] font-semibold rounded px-4 py-2 hover:bg-[#A6A6A8] mb-2">Sign Up and Get Listed</button>
-                <a href="#" class="text-[#B1E5F2] hover:underline">Login</a>
+    <section class="py-8" style="background-color: #BEE3DB;">
+        <div class="max-w-3xl mx-auto text-center px-2 sm:px-4">
+            <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4" style="color: #555B6E;">Your Journey to Better Mental Health Starts Here</h1>
+            <p class="text-base sm:text-lg mb-8" style="color: #555B6E;">Connect with licensed therapists, explore resources, and read expert advice to support your well-being.</p>
+            <form class="flex flex-col md:flex-row gap-4 justify-center items-center mb-4 w-full max-w-2xl mx-auto">
+                <div class="flex w-full">
+                    <input type="text" placeholder="Search therapists, practices, or specialties..." class="border border-r-0 rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" />
+                    <button type="submit" class="font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base" style="background-color: #89B0AE; color: #FAF9F9;">Search</button>
+                </div>
+            </form>
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center items-center">
+                <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">Browse All Therapists</a>
+                <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">How Therapy Works</a>
+                <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">FAQs</a>
             </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- News Column -->
-            <div>
-                <div class="font-bold text-[#272635] mb-2">News</div>
-                <ul class="space-y-1 text-sm text-[#272635]">
-                    <li>How Many People Are Taking a Break From Sex?</li>
-                    <li>Can Your Pet Help Protect Your Mind as You Age?</li>
-                    <li>Men's Health, It's Time Has Come</li>
-                    <li>It's Time to Clean Up The Dark Triad's Dirty Dozen</li>
-                    <li>Find Your Dating Why: 6 Key Motivations for Seeking Love</li>
-                </ul>
-                <a href="#" class="text-[#B1E5F2] hover:underline text-xs mt-2 block">See More News</a>
-            </div>
-            <!-- Essential Reads Column -->
-            <div>
-                <div class="font-bold text-[#272635] mb-2">Today's Essential Reads</div>
-                <div class="space-y-4">
-                    <div class="bg-[#E8E9F3] rounded p-3">
-                        <div class="text-xs font-semibold text-[#B1E5F2]">CROSS-CULTURAL PSYCHOLOGY</div>
-                        <div class="font-bold text-[#272635]">Are You Independent or Interdependent?</div>
-                        <div class="text-xs text-[#A6A6A8]">Brief self-exploration exercises.</div>
-                    </div>
-                    <div class="bg-[#E8E9F3] rounded p-3">
-                        <div class="text-xs font-semibold text-[#B1E5F2]">MEMORY</div>
-                        <div class="font-bold text-[#272635]">Are We Overthinking Ourselves?</div>
-                        <div class="text-xs text-[#A6A6A8]">How meaning-making mind reshapes memories.</div>
-                    </div>
-                    <div class="bg-[#E8E9F3] rounded p-3">
-                        <div class="text-xs font-semibold text-[#B1E5F2]">ALTRUISM</div>
-                        <div class="font-bold text-[#272635]">For Pain Relief: Schadenfreude or Altruism?</div>
-                        <div class="text-xs text-[#A6A6A8]">Schadenfreude is a survival emotion.</div>
-                    </div>
+    </section>
+
+    <!-- Featured Therapists Section -->
+    <section class="py-8 sm:py-12 flex-grow">
+        <div class="max-w-5xl mx-auto px-2 sm:px-4">
+            <h2 class="text-xl sm:text-2xl font-bold mb-6 text-center" style="color: #555B6E;">Featured Therapists in Your Area</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+                <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+                    <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Dr. Alex Morgan</div>
+                    <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Licensed Clinical Psychologist</div>
+                    <div class="text-xs text-gray-500 mb-2">Specialties: Anxiety, Depression, Couples</div>
+                    <button class="mt-2 px-3 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm" style="background-color: #89B0AE; color: #FAF9F9;">View Profile</button>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+                    <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Jamie Lee, LCSW</div>
+                    <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Licensed Clinical Social Worker</div>
+                    <div class="text-xs text-gray-500 mb-2">Specialties: Trauma, Grief, Family Therapy</div>
+                    <button class="mt-2 px-3 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm" style="background-color: #89B0AE; color: #FAF9F9;">View Profile</button>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+                    <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Taylor Kim, LMFT</div>
+                    <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Licensed Marriage & Family Therapist</div>
+                    <div class="text-xs text-gray-500 mb-2">Specialties: Relationships, Stress, Parenting</div>
+                    <button class="mt-2 px-3 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm" style="background-color: #89B0AE; color: #FAF9F9;">View Profile</button>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+                    <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Morgan Patel, PsyD</div>
+                    <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Clinical Psychologist</div>
+                    <div class="text-xs text-gray-500 mb-2">Specialties: ADHD, Child Therapy, Stress</div>
+                    <button class="mt-2 px-3 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm" style="background-color: #89B0AE; color: #FAF9F9;">View Profile</button>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+                    <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Riley Chen, MSW</div>
+                    <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Licensed Social Worker</div>
+                    <div class="text-xs text-gray-500 mb-2">Specialties: LGBTQ+, Identity, Life Transitions</div>
+                    <button class="mt-2 px-3 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm" style="background-color: #89B0AE; color: #FAF9F9;">View Profile</button>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+                    <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Jordan Smith, PhD</div>
+                    <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Counseling Psychologist</div>
+                    <div class="text-xs text-gray-500 mb-2">Specialties: Career, Burnout, Self-Esteem</div>
+                    <button class="mt-2 px-3 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm" style="background-color: #89B0AE; color: #FAF9F9;">View Profile</button>
                 </div>
             </div>
-            <!-- Most Popular Column -->
-            <div>
-                <div class="font-bold text-[#272635] mb-2">Most Popular</div>
-                <ul class="space-y-1 text-sm text-[#272635]">
-                    <li>The Job Search Process Is Changing</li>
-                    <li>The IKEA Effect in Dating</li>
-                    <li>2 Compliments That Are Terms and Conditions In Disguise</li>
-                    <li>3 Ways to Reconnect When Your Adult Child Pulls Away</li>
-                    <li>How the Brain Builds Conversations Across Time</li>
-                    <li>Why Your Body Is Smarter Than Your Brain</li>
-                </ul>
-            </div>
         </div>
-        <!-- Editorial Process & Contributors -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-            <div></div>
-            <div></div>
-            <div>
-                <div class="font-bold text-[#272635] mb-2">Editorial Process</div>
-                <div class="text-xs text-[#A6A6A8] mb-2">Reviewed by Therapy Connected Staff</div>
-                <button class="bg-[#B1E5F2] text-[#272635] font-semibold rounded px-4 py-2 hover:bg-[#A6A6A8] mb-2 text-sm">See our editorial process</button>
-                <a href="#" class="text-[#B1E5F2] hover:underline text-xs">See all of our contributors</a>
-            </div>
-        </div>
-    </div>
-</div>
+    </section>
+
+    <!-- Blog & News Section removed: focusing on therapist search only -->
+
+
 {% endblock %}

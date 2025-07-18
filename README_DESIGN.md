@@ -1,34 +1,38 @@
 # Therapy Connected Design Guidelines
 
 ## Color Palette
-- **Lightest:** `#E8E9F3` (backgrounds, subtle sections)
-- **Light Gray:** `#CECECE` (borders, muted backgrounds)
-- **Medium Gray:** `#A6A6A8` (secondary text, icons)
-- **Dark:** `#272635` (main text, headings, nav)
-- **Accent Blue:** `#B1E5F2` (buttons, highlights, links)
+## Color Palette
+This project uses a custom pastel-inspired palette for a modern, calming look. Use these hex codes for backgrounds, text, and accents as described below.
 
-## Typography
-- **Font:** Tailwind's default `font-sans`.
-- **Headings:** `font-bold`, `text-2xl` and up for titles.
-- **Body:** `text-base` for normal text, `text-sm` for captions.
+| Name         | Hex     | Usage                       |
+|--------------|---------|-----------------------------|
+| Peach        | #FFD6BA | Header, footer, blog cards  |
+| Off White    | #FAF9F9 | Main background             |
+| Mint         | #BEE3DB | Hero, news cards            |
+| Blue Gray    | #89B0AE | Buttons, links, accents     |
+| Charcoal     | #555B6E | Main text, headings, links  |
 
-## Layout
-- **Container:** `max-w-4xl mx-auto px-4` for main content.
+**Example Usage:**
+- **Header/Footer:** Peach background (#FFD6BA), Charcoal text (#555B6E)
+- **Main Background:** Off White (#FAF9F9)
+- **Hero/News Cards:** Mint background (#BEE3DB), Charcoal text (#555B6E)
+- **Blog Cards:** Peach background (#FFD6BA), Charcoal text (#555B6E)
+- **Buttons/Links:** Blue Gray (#89B0AE) for primary actions, Charcoal (#555B6E) for secondary
+
+Use inline `style` attributes or extend Tailwind config for these colors as needed.
 - **Spacing:** Use Tailwind spacing utilities (`py-8`, `mb-4`, etc.) for whitespace.
-- **Cards:** `rounded-lg shadow bg-white p-6` for card components.
-
 ## Buttons
-- **Primary:** `bg-[#B1E5F2] text-[#272635] font-semibold rounded px-4 py-2 hover:bg-[#A6A6A8]`
-- **Secondary:** `bg-[#CECECE] text-[#272635] rounded px-4 py-2 hover:bg-[#A6A6A8]`
+- **Primary:** `bg-blue-600 text-white font-semibold rounded px-4 py-2 hover:bg-blue-700`
+- **Secondary:** `bg-gray-200 text-gray-900 rounded px-4 py-2 hover:bg-gray-300`
 
 ## Forms
-- **Inputs:** `border border-[#CECECE] rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#B1E5F2]`
-- **Labels:** `block text-sm font-medium text-[#272635] mb-1`
-- **Validation:** `text-rose-500 text-sm mt-1` for errors.
+- **Inputs:** `border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`
+- **Labels:** `block text-sm font-medium text-gray-700 mb-1`
+- **Validation:** `text-red-500 text-sm mt-1` for errors.
 
 ## Navigation
-- **Navbar:** `flex items-center justify-between py-4 px-6 bg-[#E8E9F3] shadow`
-- **Links:** `text-[#B1E5F2] hover:underline`
+- **Navbar:** `flex items-center justify-between py-4 px-6 bg-white shadow`
+- **Links:** `text-blue-600 hover:underline`
 
 ## Accessibility
 - Use semantic HTML elements.

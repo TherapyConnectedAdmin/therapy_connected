@@ -9,19 +9,81 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     {% tailwind_css %}
 </head>
-
 <body class="bg-gray-50 text-black font-serif leading-normal tracking-normal">
-
-    <div class="toast toast-top toast-end">
-        <div class="alert alert-info">
-            <span>Hello from daisyUi 👋</span>
+    <!-- Header -->
+    <div class="min-h-screen flex flex-col">
+    <header class="shadow-sm sticky top-0 z-10" style="background-color: #FAF9F9;">
+        <style>
+        .nav-link {
+            transition: color 0.2s;
+        }
+        .nav-link:hover {
+            color: #FFD6BA !important;
+        }
+        .signup-btn {
+            transition: background 0.2s, color 0.2s;
+        }
+        .signup-btn:hover {
+            color: #FFD6BA !important;
+        }
+        </style>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative flex flex-col lg:flex-row items-center h-auto lg:h-16 py-2 lg:py-0">
+            <!-- Logo and mobile menu button -->
+            <div class="flex w-full lg:w-auto items-center justify-between lg:justify-start">
+                <a href="/" class="text-2xl font-bold" style="color: #555B6E;">Therapy Connected</a>
+                <!-- Mobile menu button -->
+                <button id="mobile-menu-btn" class="lg:hidden p-2 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] ml-2" aria-label="Open navigation">
+                    <svg class="h-6 w-6 text-[#555B6E]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+            </div>
+            <!-- Desktop nav centered absolutely -->
+            <nav class="hidden lg:flex absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex-wrap gap-4 lg:space-x-6 lg:gap-0 mx-auto justify-center">
+                <a href="/" class="font-medium nav-link" style="color: #555B6E;">Home</a>
+                <a href="#" class="font-medium nav-link" style="color: #555B6E;">Therapists</a>
+                <a href="#" class="font-medium nav-link" style="color: #555B6E;">Features</a>
+                <a href="#" class="font-medium nav-link" style="color: #555B6E;">Pricing</a>
+                <a href="#" class="font-medium nav-link" style="color: #555B6E;">About</a>
+            </nav>
+            <div class="hidden lg:flex items-center space-x-2 lg:space-x-4 ml-auto">
+                <a href="#" class="text-sm font-medium" style="color: #89B0AE;">Login</a>
+                {% if request.path != '/users/register/' %}
+                <a href="/users/register/" class="px-4 py-2 rounded font-semibold text-sm signup-btn" style="background-color: #89B0AE; color: #555B6E;">Sign Up</a>
+                {% endif %}
+            </div>
+            <!-- Mobile nav dropdown -->
+            <div id="mobile-menu" class="lg:hidden hidden w-full mt-2">
+                <nav class="flex flex-col gap-2 bg-white rounded shadow p-4 items-center text-center">
+                    <a href="/" class="font-medium nav-link" style="color: #555B6E;">Home</a>
+                    <a href="#" class="font-medium nav-link" style="color: #555B6E;">Therapists</a>
+                    <a href="#" class="font-medium nav-link" style="color: #555B6E;">Features</a>
+                    <a href="#" class="font-medium nav-link" style="color: #555B6E;">Pricing</a>
+                    <a href="#" class="font-medium nav-link" style="color: #555B6E;">About</a>
+                    <div class="flex flex-col gap-2 mt-2">
+                        <a href="#" class="text-sm font-medium" style="color: #89B0AE;">Login</a>
+                        {% if request.path != '/users/register/' %}
+                        <a href="/users/register/" class="px-4 py-2 rounded font-semibold text-sm text-center signup-btn" style="background-color: #89B0AE; color: #555B6E;">Sign Up</a>
+                        {% endif %}
+                    </div>
+                </nav>
+            </div>
         </div>
+        <script>
+        // Simple mobile nav toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            var btn = document.getElementById('mobile-menu-btn');
+            var menu = document.getElementById('mobile-menu');
+            if (btn && menu) {
+                btn.addEventListener('click', function() {
+                    menu.classList.toggle('hidden');
+                });
+            }
+        });
+        </script>
+    </header>
+    <main class="flex-1 flex flex-col">
+        {% block content %}{% endblock %}
+    </main>
+    {% include "footer.html" %}
     </div>
-
-<div class="container mx-auto">
-    <section class="flex items-center justify-center h-screen">
-        <h1 class="text-5xl">Django + Tailwind = ❤️</h1>
-    </section>
-</div>
 </body>
 </html>
