@@ -49,8 +49,11 @@ INSTALLED_APPS = [
     'users',
     'tailwind',
     'theme',
-    'sslserver',  # For local HTTPS
 ]
+
+# Add sslserver only in local development
+if DEBUG:
+    INSTALLED_APPS.append('sslserver')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
