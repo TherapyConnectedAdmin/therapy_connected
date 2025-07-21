@@ -19,7 +19,7 @@
 .homepage-search-input:focus {
   outline: none !important;
   border: 0.5px solid #555B6E !important;
-  box-shadow: 0 0 8px 2px #555B6E !important;
+  box-shadow: 0 0 4px 1px #555B6E33 !important;
   transition: box-shadow 0.2s, border-color 0.2s !important;
   --tw-ring-color: #555B6E !important;
   --tw-ring-shadow: none !important;
@@ -40,7 +40,7 @@
   border-right: 0.5px solid #555B6E !important;
   border-bottom: 0.5px solid #555B6E !important;
   border-left: none !important; /* Fully remove left border */
-  box-shadow: 0 0 8px 2px #555B6E !important;
+  box-shadow: 0 0 4px 1px #555B6E33 !important;
   transition: box-shadow 0.2s, border-color 0.2s !important;
   --tw-ring-color: #555B6E !important;
   --tw-ring-shadow: none !important;
@@ -60,8 +60,8 @@
   border-top: 0.5px solid #555B6E !important;
   border-right: 0.5px solid #555B6E !important;
   border-bottom: 0.5px solid #555B6E !important;
-  border-left: none !important; /* Fully remove left border */
-  box-shadow: 0 0 8px 2px #555B6E !important;
+  border-left: none !important;
+  box-shadow: 0 0 4px 1px #555B6E33 !important;
   transition: box-shadow 0.2s, border-color 0.2s !important;
   --tw-ring-color: #555B6E !important;
   --tw-ring-shadow: none !important;

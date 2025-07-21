@@ -33,19 +33,46 @@
                 <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">Browse All Therapists</a>
                 <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">How Therapy Works</a>
                 <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">FAQs</a>
+                <a href="/blog/" class="text-sm font-medium underline" style="color: #555B6E;">Blog</a>
             </div>
         </div>
 
-    <!-- Today's Featured Therapist -->
-    <section class="py-8" style="background-color: #FFE5D1;">
-        <div class="max-w-2xl mx-auto flex flex-col sm:flex-row items-center gap-8 px-4 sm:px-8 py-8 sm:py-10 rounded-xl shadow-lg" style="background-color: #fff;">
-<img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Dr. Alex Morgan" class="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover shadow-lg mb-4 sm:mb-0" style="border: 4px solid #BEE3DB; box-shadow: 0 0 12px 2px #555B6E44;" />
-            <div class="flex-1 text-center sm:text-left">
-                <h3 class="text-xl font-bold mb-2" style="color: #FF9950;">Today's Featured Therapist</h3>
-                <div class="font-semibold text-lg mb-1" style="color: #555B6E;">Dr. Alex Morgan</div>
-                <div class="text-sm mb-2" style="color: #89B0AE;">Licensed Clinical Psychologist</div>
-                <div class="text-xs text-gray-500 mb-2">Specialties: Anxiety, Depression, Couples</div>
-                <button class="mt-2 px-4 py-2 rounded-full font-semibold text-sm" style="background-color: #FF9950; color: #fff;">View Profile</button>
+    <!-- Today's Featured Therapist & Blog Post -->
+    <section class="py-8 w-full px-2 sm:px-6" style="background-color: #FFE5D1;">
+        <div class="w-full flex flex-col sm:flex-row gap-8 py-8 sm:py-10 rounded-xl shadow-lg mx-auto items-start justify-center" style="background-color: #fff;">
+            <div class="flex-1 px-4 sm:px-8 flex flex-col items-center justify-start w-full">
+                <!-- Featured Therapist -->
+                <div class="flex flex-col items-center justify-center w-full">
+                    <h3 class="text-xl font-bold mb-2" style="color: #FF9950;">Today's Featured Therapist</h3>
+                    <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Dr. Alex Morgan" class="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover shadow-lg mb-4" style="border: 4px solid #BEE3DB; box-shadow: 0 0 12px 2px #555B6E44;" />
+                    <div class="flex-1 text-center sm:text-left">
+                        <div class="font-semibold text-lg mb-1" style="color: #555B6E;">Dr. Alex Morgan</div>
+                        <div class="text-sm mb-2" style="color: #89B0AE;">Licensed Clinical Psychologist</div>
+                        <div class="text-xs text-gray-500 mb-2">Specialties: Anxiety, Depression, Couples</div>
+                        <button class="mt-2 px-4 py-2 rounded-full font-semibold text-sm" style="background-color: #FF9950; color: #fff;">View Profile</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Divider: horizontal for mobile, vertical for sm+ -->
+            <div class="sm:hidden flex w-full items-center justify-center py-4">
+                <div style="height:2px; width:80%; background:linear-gradient(to right, #BEE3DB 60%, #FFE5D1 100%); border-radius:1px;"></div>
+            </div>
+            <div class="hidden sm:flex flex-col items-center justify-center px-2" style="height:100%;">
+                <div style="width:2px; min-height:120px; max-height:400px; height:75%; margin-top:auto; margin-bottom:auto; background:linear-gradient(to bottom, #BEE3DB 60%, #FFE5D1 100%); border-radius:1px;"></div>
+            </div>
+            <div class="flex-1 px-4 sm:px-8 flex flex-col justify-start">
+                <!-- Featured Blog Post -->
+                <div class="flex flex-col justify-center items-center sm:items-start text-center sm:text-left">
+                    <h3 class="text-xl font-bold mb-2" style="color: #89B0AE;">Today's Featured Blog Post</h3>
+                    <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden mb-4 bg-[#BEE3DB] flex items-center justify-center mx-auto sm:mx-0">
+                        <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80" alt="Featured Blog" class="object-cover w-full h-full rounded-lg" />
+                    </div>
+                    <div class="font-semibold text-lg mb-1" style="color: #555B6E;">"5 Ways to Practice Mindfulness Every Day"</div>
+                    <div class="text-xs text-gray-500 mb-2">by Jamie Lee, LCSW</div>
+                    <p class="text-sm mb-2" style="color: #555B6E;">Discover simple strategies to bring mindfulness into your daily routine and improve your mental well-being.</p>
+                    <a href="/blog/featured-mindfulness" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E]">Read Blog</a>
+                </div>
+            </div>
             </div>
         </div>
     </section>
