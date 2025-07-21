@@ -1,11 +1,72 @@
 @import "tailwindcss";
 @plugin "daisyui";
-
-/**
-  * A catch-all path to Django template files, JavaScript, and Python files
-  * that contain Tailwind CSS classes and will be scanned by Tailwind to generate the final CSS file.
-  *
-  * If your final CSS file is not being updated after code changes, you may want to broaden or narrow
-  * the scope of this path.
-  */
 @source "../../../**/*.{html,py,js}";
+
+/* Homepage search input and button focus styles */
+
+
+
+
+
+
+
+
+
+
+
+
+
+.homepage-search-input:focus {
+  outline: none !important;
+  border: 0.5px solid #555B6E !important;
+  box-shadow: 0 0 8px 2px #555B6E !important;
+  transition: box-shadow 0.2s, border-color 0.2s !important;
+  --tw-ring-color: #555B6E !important;
+  --tw-ring-shadow: none !important;
+}
+
+
+
+
+
+
+
+
+
+
+.homepage-search-btn:focus {
+  outline: none !important;
+  border-top: 0.5px solid #555B6E !important;
+  border-right: 0.5px solid #555B6E !important;
+  border-bottom: 0.5px solid #555B6E !important;
+  border-left: none !important; /* Fully remove left border */
+  box-shadow: 0 0 8px 2px #555B6E !important;
+  transition: box-shadow 0.2s, border-color 0.2s !important;
+  --tw-ring-color: #555B6E !important;
+  --tw-ring-shadow: none !important;
+}
+
+
+
+
+
+
+
+
+
+
+.homepage-search-input:focus + .homepage-search-btn {
+  outline: none !important;
+  border-top: 0.5px solid #555B6E !important;
+  border-right: 0.5px solid #555B6E !important;
+  border-bottom: 0.5px solid #555B6E !important;
+  border-left: none !important; /* Fully remove left border */
+  box-shadow: 0 0 8px 2px #555B6E !important;
+  transition: box-shadow 0.2s, border-color 0.2s !important;
+  --tw-ring-color: #555B6E !important;
+  --tw-ring-shadow: none !important;
+}
+
+.homepage-search-btn {
+  border: 1px solid #89B0AE;
+}

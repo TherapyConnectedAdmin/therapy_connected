@@ -9,8 +9,24 @@
             <p class="text-base sm:text-lg mb-8" style="color: #555B6E;">Connect with licensed therapists, explore resources, and read expert advice to support your well-being.</p>
             <form class="flex flex-col md:flex-row gap-4 justify-center items-center mb-4 w-full max-w-2xl mx-auto">
                 <div class="flex w-full">
-                    <input type="text" placeholder="Search therapists, practices, or specialties..." class="border border-r-0 rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" />
-                    <button type="submit" class="font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base" style="background-color: #89B0AE; color: #FAF9F9;">Search</button>
+                    <input type="text" id="homepage-search-input" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" />
+                    <button type="submit" id="homepage-search-btn" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;">Search</button>
+                </div>
+            </form>
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var input = document.getElementById('homepage-search-input');
+                var btn = document.getElementById('homepage-search-btn');
+                if (input && btn) {
+                    input.addEventListener('focus', function() {
+                        btn.classList.add('homepage-search-input-focus');
+                    });
+                    input.addEventListener('blur', function() {
+                        btn.classList.remove('homepage-search-input-focus');
+                    });
+                }
+            });
+            </script>
                 </div>
             </form>
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center items-center">
@@ -19,50 +35,63 @@
                 <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">FAQs</a>
             </div>
         </div>
+
+    <!-- Today's Featured Therapist -->
+    <section class="py-8" style="background-color: #FFE5D1;">
+        <div class="max-w-2xl mx-auto flex flex-col sm:flex-row items-center gap-8 px-8 py-10 rounded-xl shadow-lg" style="background-color: #fff;">
+<img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Dr. Alex Morgan" class="w-32 h-32 sm:w-36 sm:h-36 rounded-full object-cover shadow-lg" style="border: 4px solid #BEE3DB; box-shadow: 0 0 12px 2px #555B6E44;" />
+            <div class="flex-1">
+                <h3 class="text-xl font-bold mb-2" style="color: #FF9950;">Today's Featured Therapist</h3>
+                <div class="font-semibold text-lg mb-1" style="color: #555B6E;">Dr. Alex Morgan</div>
+                <div class="text-sm mb-2" style="color: #89B0AE;">Licensed Clinical Psychologist</div>
+                <div class="text-xs text-gray-500 mb-2">Specialties: Anxiety, Depression, Couples</div>
+                <button class="mt-2 px-4 py-2 rounded-full font-semibold text-sm" style="background-color: #FF9950; color: #fff;">View Profile</button>
+            </div>
+        </div>
     </section>
 
     <!-- Featured Therapists Section -->
     <section class="py-8 sm:py-12 flex-grow">
         <div class="max-w-5xl mx-auto px-2 sm:px-4">
-            <h2 class="text-xl sm:text-2xl font-bold mb-6 text-center" style="color: #555B6E;">Featured Therapists in Your Area</h2>
+            <h2 class="text-xl sm:text-2xl font-bold mb-6 text-center" style="color: #555B6E;">Top Therapists in Your Area</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
                 <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
-                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+<img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Dr. Alex Morgan" class="w-32 h-32 sm:w-36 sm:h-36 rounded-full object-cover mb-4 shadow-lg" style="border: 4px solid #BEE3DB; box-shadow: 0 0 12px 2px #555B6E44;" />
                     <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Dr. Alex Morgan</div>
                     <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Licensed Clinical Psychologist</div>
                     <div class="text-xs text-gray-500 mb-2">Specialties: Anxiety, Depression, Couples</div>
                     <button class="mt-2 px-3 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm" style="background-color: #89B0AE; color: #FAF9F9;">View Profile</button>
                 </div>
                 <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
-                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+<img src="https://randomuser.me/api/portraits/women/44.jpg" alt="Jamie Lee, LCSW" class="w-32 h-32 sm:w-36 sm:h-36 rounded-full object-cover mb-4 shadow-lg" style="border: 4px solid #BEE3DB; box-shadow: 0 0 12px 2px #555B6E44;" />
                     <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Jamie Lee, LCSW</div>
                     <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Licensed Clinical Social Worker</div>
                     <div class="text-xs text-gray-500 mb-2">Specialties: Trauma, Grief, Family Therapy</div>
                     <button class="mt-2 px-3 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm" style="background-color: #89B0AE; color: #FAF9F9;">View Profile</button>
                 </div>
                 <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
-                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+<img src="https://randomuser.me/api/portraits/women/68.jpg" alt="Taylor Kim, LMFT" class="w-32 h-32 sm:w-36 sm:h-36 rounded-full object-cover mb-4 shadow-lg" style="border: 4px solid #BEE3DB; box-shadow: 0 0 12px 2px #555B6E44;" />
                     <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Taylor Kim, LMFT</div>
                     <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Licensed Marriage & Family Therapist</div>
                     <div class="text-xs text-gray-500 mb-2">Specialties: Relationships, Stress, Parenting</div>
                     <button class="mt-2 px-3 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm" style="background-color: #89B0AE; color: #FAF9F9;">View Profile</button>
                 </div>
                 <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
-                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+<img src="https://randomuser.me/api/portraits/men/85.jpg" alt="Morgan Patel, PsyD" class="w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover mb-4 shadow-lg" style="border: 4px solid #BEE3DB; box-shadow: 0 0 12px 2px #555B6E44;" />
                     <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Morgan Patel, PsyD</div>
                     <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Clinical Psychologist</div>
                     <div class="text-xs text-gray-500 mb-2">Specialties: ADHD, Child Therapy, Stress</div>
                     <button class="mt-2 px-3 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm" style="background-color: #89B0AE; color: #FAF9F9;">View Profile</button>
                 </div>
                 <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
-                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+<img src="https://randomuser.me/api/portraits/women/12.jpg" alt="Riley Chen, MSW" class="w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover mb-4 shadow-lg" style="border: 4px solid #BEE3DB; box-shadow: 0 0 12px 2px #555B6E44;" />
                     <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Riley Chen, MSW</div>
                     <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Licensed Social Worker</div>
                     <div class="text-xs text-gray-500 mb-2">Specialties: LGBTQ+, Identity, Life Transitions</div>
                     <button class="mt-2 px-3 sm:px-4 py-2 rounded-full font-semibold text-xs sm:text-sm" style="background-color: #89B0AE; color: #FAF9F9;">View Profile</button>
                 </div>
                 <div class="bg-white rounded-lg shadow p-4 sm:p-6 flex flex-col items-center">
-                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-200 mb-4"></div>
+<img src="https://randomuser.me/api/portraits/men/23.jpg" alt="Jordan Smith, PhD" class="w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover mb-4 shadow-lg" style="border: 4px solid #BEE3DB; box-shadow: 0 0 12px 2px #555B6E44;" />
                     <div class="font-semibold text-base sm:text-lg mb-1" style="color: #555B6E;">Jordan Smith, PhD</div>
                     <div class="text-xs sm:text-sm mb-2" style="color: #89B0AE;">Counseling Psychologist</div>
                     <div class="text-xs text-gray-500 mb-2">Specialties: Career, Burnout, Self-Esteem</div>

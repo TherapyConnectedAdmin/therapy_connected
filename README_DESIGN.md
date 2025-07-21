@@ -6,17 +6,17 @@ This project uses a custom pastel-inspired palette for a modern, calming look. U
 
 | Name         | Hex     | Usage                       |
 |--------------|---------|-----------------------------|
-| Peach        | #FFD6BA | Header, footer, blog cards  |
+| Peach        | #FF9950 | Header, footer, blog cards  |
 | Off White    | #FAF9F9 | Main background             |
 | Mint         | #BEE3DB | Hero, news cards            |
 | Blue Gray    | #89B0AE | Buttons, links, accents     |
 | Charcoal     | #555B6E | Main text, headings, links  |
 
 **Example Usage:**
-- **Header/Footer:** Peach background (#FFD6BA), Charcoal text (#555B6E)
+- **Header/Footer:** Peach background (#FF9950), Charcoal text (#555B6E)
 - **Main Background:** Off White (#FAF9F9)
 - **Hero/News Cards:** Mint background (#BEE3DB), Charcoal text (#555B6E)
-- **Blog Cards:** Peach background (#FFD6BA), Charcoal text (#555B6E)
+- **Blog Cards:** Peach background (#FF9950), Charcoal text (#555B6E)
 - **Buttons/Links:** Blue Gray (#89B0AE) for primary actions, Charcoal (#555B6E) for secondary
 
 Use inline `style` attributes or extend Tailwind config for these colors as needed.

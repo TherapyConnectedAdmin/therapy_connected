@@ -18,13 +18,13 @@
             transition: color 0.2s;
         }
         .nav-link:hover {
-            color: #FFD6BA !important;
+            color: #FF9950 !important;
         }
         .signup-btn {
             transition: background 0.2s, color 0.2s;
         }
         .signup-btn:hover {
-            color: #FFD6BA !important;
+            color: #555B6E !important;
         }
         </style>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative flex flex-col lg:flex-row items-center h-auto lg:h-16 py-2 lg:py-0">
@@ -47,7 +47,7 @@
             <div class="hidden lg:flex items-center space-x-2 lg:space-x-4 ml-auto">
                 <a href="#" class="text-sm font-medium" style="color: #89B0AE;">Login</a>
                 {% if request.path != '/users/register/' %}
-                <a href="/users/register/" class="px-4 py-2 rounded font-semibold text-sm signup-btn" style="background-color: #89B0AE; color: #555B6E;">Sign Up</a>
+                <a href="/users/register/" class="px-4 py-2 rounded font-semibold text-sm signup-btn" style="background-color: #FF9950; color: #fff;">Sign Up</a>
                 {% endif %}
             </div>
             <!-- Mobile nav dropdown -->
@@ -61,7 +61,7 @@
                     <div class="flex flex-col gap-2 mt-2">
                         <a href="#" class="text-sm font-medium" style="color: #89B0AE;">Login</a>
                         {% if request.path != '/users/register/' %}
-                        <a href="/users/register/" class="px-4 py-2 rounded font-semibold text-sm text-center signup-btn" style="background-color: #89B0AE; color: #555B6E;">Sign Up</a>
+                        <a href="/users/register/" class="px-4 py-2 rounded font-semibold text-sm text-center signup-btn" style="background-color: #FF9950; color: #fff;">Sign Up</a>
                         {% endif %}
                     </div>
                 </nav>
