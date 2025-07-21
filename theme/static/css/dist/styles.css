@@ -15,6 +15,7 @@
     --color-white: #fff;
     --spacing: 0.25rem;
     --container-md: 28rem;
+    --container-xl: 36rem;
     --container-2xl: 42rem;
     --container-3xl: 48rem;
     --container-5xl: 64rem;
@@ -1127,6 +1128,12 @@
   .h-16 {
     height: calc(var(--spacing) * 16);
   }
+  .h-20 {
+    height: calc(var(--spacing) * 20);
+  }
+  .h-24 {
+    height: calc(var(--spacing) * 24);
+  }
   .h-28 {
     height: calc(var(--spacing) * 28);
   }
@@ -1147,6 +1154,12 @@
   }
   .w-16 {
     width: calc(var(--spacing) * 16);
+  }
+  .w-20 {
+    width: calc(var(--spacing) * 20);
+  }
+  .w-24 {
+    width: calc(var(--spacing) * 24);
   }
   .w-28 {
     width: calc(var(--spacing) * 28);
@@ -1171,6 +1184,9 @@
   }
   .max-w-md {
     max-width: var(--container-md);
+  }
+  .max-w-xl {
+    max-width: var(--container-xl);
   }
   .flex-1 {
     flex: 1;
@@ -1278,6 +1294,10 @@
   .border-t {
     border-top-style: var(--tw-border-style);
     border-top-width: 1px;
+  }
+  .border-r-0 {
+    border-right-style: var(--tw-border-style);
+    border-right-width: 0px;
   }
   .border-\[\#FF9950\] {
     border-color: #FF9950;
@@ -1440,8 +1460,23 @@
     outline-style: none;
   }
   @media (width >= 40rem) {
+    .sm\:mb-0 {
+      margin-bottom: calc(var(--spacing) * 0);
+    }
+  }
+  @media (width >= 40rem) {
     .sm\:h-20 {
       height: calc(var(--spacing) * 20);
+    }
+  }
+  @media (width >= 40rem) {
+    .sm\:h-24 {
+      height: calc(var(--spacing) * 24);
+    }
+  }
+  @media (width >= 40rem) {
+    .sm\:h-28 {
+      height: calc(var(--spacing) * 28);
     }
   }
   @media (width >= 40rem) {
@@ -1457,6 +1492,16 @@
   @media (width >= 40rem) {
     .sm\:w-20 {
       width: calc(var(--spacing) * 20);
+    }
+  }
+  @media (width >= 40rem) {
+    .sm\:w-24 {
+      width: calc(var(--spacing) * 24);
+    }
+  }
+  @media (width >= 40rem) {
+    .sm\:w-28 {
+      width: calc(var(--spacing) * 28);
     }
   }
   @media (width >= 40rem) {
@@ -1510,13 +1555,28 @@
     }
   }
   @media (width >= 40rem) {
+    .sm\:px-8 {
+      padding-inline: calc(var(--spacing) * 8);
+    }
+  }
+  @media (width >= 40rem) {
     .sm\:py-8 {
       padding-block: calc(var(--spacing) * 8);
     }
   }
   @media (width >= 40rem) {
+    .sm\:py-10 {
+      padding-block: calc(var(--spacing) * 10);
+    }
+  }
+  @media (width >= 40rem) {
     .sm\:py-12 {
       padding-block: calc(var(--spacing) * 12);
+    }
+  }
+  @media (width >= 40rem) {
+    .sm\:text-left {
+      text-align: left;
     }
   }
   @media (width >= 40rem) {
