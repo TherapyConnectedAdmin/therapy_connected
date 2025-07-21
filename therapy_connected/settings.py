@@ -138,8 +138,8 @@ ACS_SENDER_ADDRESS = "DoNotReply@therapy-connected.com"
 
 TAILWIND_APP_NAME = 'theme'
 
-# --- Security: Force HTTPS and secure cookies only in production ---
-if not DEBUG:
+# --- Security: Force HTTPS and secure cookies only in production (never on localhost or 127.0.0.1) ---
+if not DEBUG and not (os.getenv('DJANGO_LOCAL', '').lower() in ('true', '1', 'yes') or 'localhost' in ALLOWED_HOSTS or '127.0.0.1' in ALLOWED_HOSTS):
     SECURE_SSL_REDIRECT = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
