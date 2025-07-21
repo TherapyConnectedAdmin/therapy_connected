@@ -1,0 +1,32 @@
+<section class="py-8" style="background-color: #BEE3DB;">
+    <div class="max-w-3xl mx-auto text-center px-2 sm:px-4">
+        <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4" style="color: #555B6E;">Your Journey to Better Mental Health Starts Here</h1>
+        <p class="text-base sm:text-lg mb-8" style="color: #555B6E;">Connect with licensed therapists, explore resources, and read expert advice to support your well-being.</p>
+        <form class="flex flex-col md:flex-row gap-4 justify-center items-center mb-4 w-full max-w-2xl mx-auto">
+            <div class="flex w-full">
+                <input type="text" id="homepage-search-input" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" />
+                <button type="submit" id="homepage-search-btn" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;">Search</button>
+            </div>
+        </form>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var input = document.getElementById('homepage-search-input');
+            var btn = document.getElementById('homepage-search-btn');
+            if (input && btn) {
+                input.addEventListener('focus', function() {
+                    btn.classList.add('homepage-search-input-focus');
+                });
+                input.addEventListener('blur', function() {
+                    btn.classList.remove('homepage-search-input-focus');
+                });
+            }
+        });
+        </script>
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center items-center">
+            <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">Browse All Therapists</a>
+            <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">How Therapy Works</a>
+            <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">FAQs</a>
+            <a href="/blog/" class="text-sm font-medium underline" style="color: #555B6E;">Blog</a>
+        </div>
+    </div>
+</section>
