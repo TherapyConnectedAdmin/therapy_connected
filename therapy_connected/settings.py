@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'users',
     'tailwind',
     'theme',
+    'ckeditor',
 ]
 
 # Add sslserver only in local development
@@ -137,6 +138,14 @@ ACS_CONNECTION_STRING = os.getenv("ACS_CONNECTION_STRING")
 ACS_SENDER_ADDRESS = "DoNotReply@therapy-connected.com"
 
 TAILWIND_APP_NAME = 'theme'
+
+
+# Stripe settings
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+
+# Use custom login URL for @login_required
+LOGIN_URL = '/users/login/'
 
 # --- Security: Force HTTPS and secure cookies only in production (never on localhost or 127.0.0.1) ---
 if not DEBUG and not (os.getenv('DJANGO_LOCAL', '').lower() in ('true', '1', 'yes') or 'localhost' in ALLOWED_HOSTS or '127.0.0.1' in ALLOWED_HOSTS):

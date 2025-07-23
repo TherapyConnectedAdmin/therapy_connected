@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="min-h-screen bg-[#FAF9F9] py-8">
+  <div class="max-w-2xl mx-auto">
+    <div class="rounded-lg shadow-lg bg-white border border-gray-200">
+      <div class="px-6 py-4 bg-[#FF9950] rounded-t-lg">
+        <h4 class="text-2xl font-bold text-[#555B6E]">Complete Your Therapist Profile</h4>
+      </div>
+      <div class="px-6 py-8">
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="text-red-500 text-sm mb-4">{{ form.non_field_errors }}</div>
+          {% endif %}
+          {% for field in form.visible_fields %}
+            <div class="mb-6">
+              <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-[#555B6E] mb-1">{{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}</label>
+              {% if field.field.widget.input_type == 'selectmultiple' %}
+                <div x-data="{ open: false, search: '', selected: {{ field.value|safe }}, options: [
+                  {% for choice in field.field.choices %}{% if choice.0 %}{ value: '{{ choice.0 }}', label: '{{ choice.1 }}' },{% endif %}{% endfor %}
+                ] }" class="relative" @click.away="open = false">
+                  <div class="relative">
+                    <input type="text" x-model="search" @focus="open = true" @input="open = true" placeholder="Select..." class="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#FAF9F9] text-[#555B6E] pr-10" />
+                    <span class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                      <svg class="h-5 w-5 text-[#89B0AE]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                    </span>
+                  </div>
+                  <ul x-show="open" class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                    <template x-for="option in options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))" :key="option.value">
+                      <li @click="selected.includes(option.value) ? selected.splice(selected.indexOf(option.value), 1) : selected.push(option.value)" class="px-4 py-2 cursor-pointer hover:bg-[#BEE3DB] text-[#555B6E]" :class="selected.includes(option.value) ? 'bg-[#BEE3DB]' : ''" x-text="option.label"></li>
+                    </template>
+                  </ul>
+                  <div class="flex flex-wrap gap-2 mt-2">
+                    <template x-for="val in selected" :key="val">
+                      <span class="bg-[#BEE3DB] text-[#555B6E] px-2 py-1 rounded" x-text="options.find(o => o.value == val) ? options.find(o => o.value == val).label : val"></span>
+                    </template>
+                  </div>
+                  <template x-for="val in selected" :key="val">
+                    <input type="hidden" name="{{ field.name }}" :value="val" />
+                  </template>
+                </div>
+              {% elif field.field.widget.input_type == 'select' %}
+                <div x-data="{ open: false, search: '', selected: '{{ field.value }}', options: [
+                  {% for choice in field.field.choices %}{% if choice.0 %}{ value: '{{ choice.0 }}', label: '{{ choice.1 }}' },{% endif %}{% endfor %}
+                ] }" class="relative" @click.away="open = false">
+                  <div class="relative">
+                    <input type="text" x-model="search" @focus="open = true" @input="open = true" placeholder="Select..." class="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#FAF9F9] text-[#555B6E] pr-10" />
+                    <span class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                      <svg class="h-5 w-5 text-[#89B0AE]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                    </span>
+                  </div>
+                  <ul x-show="open" class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto">
+                    <template x-for="option in options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))" :key="option.value">
+                      <li @click="selected = option.value; search = option.label; open = false" class="px-4 py-2 cursor-pointer hover:bg-[#BEE3DB] text-[#555B6E]" x-text="option.label"></li>
+                    </template>
+                  </ul>
+                  <input type="hidden" name="{{ field.name }}" :value="selected" />
+                </div>
+              {% else %}
+                {{ field }}
+              {% endif %}
+              {% if field.help_text %}
+                <div class="text-xs text-[#89B0AE] mt-1">{{ field.help_text }}</div>
+              {% endif %}
+              {% for error in field.errors %}
+                <div class="text-red-500 text-sm mt-1">{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+          <button type="submit" class="bg-[#89B0AE] text-white font-semibold rounded px-4 py-2 w-full hover:bg-[#555B6E] transition">Complete Profile</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

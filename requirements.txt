@@ -7,3 +7,6 @@ whitenoise>=6.0.0
 dj-database-url>=1.0.0
 
 azure-communication-email
+django-ckeditor
+stripe
+Pillow

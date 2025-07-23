@@ -22,4 +22,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
     path('users/', include('users.urls')),
+    path('subscribe/', views.subscribe, name='subscribe'),
+    path('subscribe/pay/', views.select_plan, name='select_plan'),
 ]

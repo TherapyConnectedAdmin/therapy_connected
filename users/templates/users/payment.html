@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="py-12 bg-[#FAF9F9] w-full flex flex-col items-center">
+  <div class="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 mx-auto mt-8">
+    <h2 class="text-2xl font-bold mb-6 text-[#555B6E] text-center">Enter Your Payment Details</h2>
+    <form id="payment-form" method="post" action="" class="flex flex-col gap-6">
+      {% csrf_token %}
+      <div class="mb-2 text-yellow-700 bg-yellow-100 border border-yellow-300 rounded px-3 py-2 text-sm">
+        <strong>Note:</strong> If you just logged in, please reload this page before submitting payment. This ensures your payment is processed securely and avoids CSRF errors.
+      </div>
+      <div>
+        <label for="cardholder" class="block text-sm font-medium text-[#555B6E] mb-1">Cardholder Name</label>
+        <input type="text" id="cardholder" name="cardholder" class="border rounded px-4 py-2 w-full" required>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-[#555B6E] mb-1">Card Details</label>
+        <div id="card-element" class="border rounded px-4 py-2 w-full"></div>
+      </div>
+      <input type="hidden" name="payment_method_id" id="payment-method-id">
+      <button type="submit" class="px-6 py-2 rounded-full font-semibold text-white w-full" style="background-color: #FF9950;">Submit Payment</button>
+      <div id="card-errors" class="mt-2 text-red-500 text-sm"></div>
+    </form>
+    <div class="mt-4 text-sm text-[#555B6E] text-center">Your payment is securely processed. You will be redirected to your dashboard after successful payment.</div>
+  </div>
+</section>
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var stripe = Stripe("{{ STRIPE_PUBLISHABLE_KEY }}");
+  var elements = stripe.elements();
+  var card = elements.create('card');
+  card.mount('#card-element');
+
+  var form = document.getElementById('payment-form');
+  form.addEventListener('submit', function(event) {
+    event.preventDefault();
+    var cardholderName = document.getElementById('cardholder').value;
+    stripe.createPaymentMethod({
+      type: 'card',
+      card: card,
+      billing_details: { name: cardholderName }
+    }).then(function(result) {
+      if (result.error) {
+        document.getElementById('card-errors').textContent = result.error.message;
+      } else {
+        document.getElementById('payment-method-id').value = result.paymentMethod.id;
+        form.submit();
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

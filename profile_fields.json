@@ -1,0 +1,481 @@
+[
+  {
+    "section": "Basic Information",
+    "field": "Full Name",
+    "type": "Text",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "First & Last"
+  },
+  {
+    "section": "Basic Information",
+    "field": "Credentials",
+    "type": "Text",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "e.g., LPC, LCSW, PsyD"
+  },
+  {
+    "section": "Basic Information",
+    "field": "Display Name",
+    "type": "Text",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Practice or professional name"
+  },
+  {
+    "section": "Basic Information",
+    "field": "Tagline / Quote",
+    "type": "Textarea",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "e.g., “Empowering healthy minds”"
+  },
+  {
+    "section": "Basic Information",
+    "field": "Short Bio",
+    "type": "Textarea",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "200–300 characters"
+  },
+
+  {
+    "section": "License & Verification",
+    "field": "License Number",
+    "type": "Text",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "State board identifier"
+  },
+  {
+    "section": "License & Verification",
+    "field": "License Type",
+    "type": "Dropdown",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "e.g., PsyD, MSW"
+  },
+  {
+    "section": "License & Verification",
+    "field": "Issuing State/Board",
+    "type": "Dropdown",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "U.S. states & territories"
+  },
+  {
+    "section": "License & Verification",
+    "field": "Issue / Expiry Dates",
+    "type": "Date",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "MM/DD/YYYY"
+  },
+  {
+    "section": "License & Verification",
+    "field": "Verify via API",
+    "type": "Button",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Calls NPI/state registry → ✓/✗"
+  },
+  {
+    "section": "License & Verification",
+    "field": "License Upload (alt)",
+    "type": "File Upload",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Scan/PDF fallback"
+  },
+
+  {
+    "section": "Location & Contact",
+    "field": "Primary Office Address",
+    "type": "Address",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Street, City, State, ZIP"
+  },
+  {
+    "section": "Location & Contact",
+    "field": "Additional Locations",
+    "type": "Multiple Address",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "For multi-office practices"
+  },
+  {
+    "section": "Location & Contact",
+    "field": "Phone Number",
+    "type": "Text",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Public & masked for clients"
+  },
+  {
+    "section": "Location & Contact",
+    "field": "Email Address",
+    "type": "Email",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "For public display"
+  },
+  {
+    "section": "Location & Contact",
+    "field": "Website URL",
+    "type": "URL",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Personal or practice website"
+  },
+  {
+    "section": "Location & Contact",
+    "field": "Contact Form Toggle",
+    "type": "Checkbox",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Show/hide secure messaging form"
+  },
+
+  {
+    "section": "Service Modalities & Availability",
+    "field": "In-Person Sessions",
+    "type": "Checkbox",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Toggle on/off"
+  },
+  {
+    "section": "Service Modalities & Availability",
+    "field": "Telehealth (Video/Phone)",
+    "type": "Checkbox + Dropdown",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "Select virtual formats"
+  },
+  {
+    "section": "Service Modalities & Availability",
+    "field": "Office Hours / Schedule",
+    "type": "Time Slots or Text",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "e.g., “M–F 9 am–5 pm”"
+  },
+  {
+    "section": "Service Modalities & Availability",
+    "field": "External Scheduling Link",
+    "type": "URL",
+    "required": false,
+    "tier": ["Professional"],
+    "lookup_model": false,
+    "notes": "Calendly, Acuity, etc."
+  },
+  {
+    "section": "Service Modalities & Availability",
+    "field": "Telehealth Platforms",
+    "type": "Multi-select",
+    "required": false,
+    "tier": ["Professional"],
+    "lookup_model": true,
+    "notes": "Zoom, Doxy.me, SimplePractice"
+  },
+  {
+    "section": "Service Modalities & Availability",
+    "field": "Secure Document Upload",
+    "type": "Checkbox / Link",
+    "required": false,
+    "tier": ["Professional"],
+    "lookup_model": false,
+    "notes": "Intake forms & consents portal"
+  },
+
+  {
+    "section": "Areas Served",
+    "field": "Cities / Counties",
+    "type": "Multi-select",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "e.g., Miramar Beach, OKC"
+  },
+  {
+    "section": "Areas Served",
+    "field": "ZIP Codes",
+    "type": "Multi-select",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "e.g., 32550, 10001"
+  },
+
+  {
+    "section": "Specialties & Practice Details",
+    "field": "Practice Areas / Tags",
+    "type": "Multi-select",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "Anxiety, Couples, Trauma, etc."
+  },
+  {
+    "section": "Specialties & Practice Details",
+    "field": "Treatment Approaches",
+    "type": "Multi-select",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "CBT, EMDR, Mindfulness, etc."
+  },
+  {
+    "section": "Specialties & Practice Details",
+    "field": "Client Populations",
+    "type": "Multi-select",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "Adults, Teens, LGBTQ+, Veterans"
+  },
+  {
+    "section": "Specialties & Practice Details",
+    "field": "Languages Spoken",
+    "type": "Multi-select",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "English, Spanish, etc."
+  },
+  {
+    "section": "Specialties & Practice Details",
+    "field": "Trauma-Informed Training",
+    "type": "Checkbox",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Indicates specialized competence"
+  },
+  {
+    "section": "Specialties & Practice Details",
+    "field": "Neurodiversity Training",
+    "type": "Checkbox",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "e.g., Autism Spectrum expertise"
+  },
+
+  {
+    "section": "Media & Branding",
+    "field": "Profile Photo",
+    "type": "Image",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Square, high-resolution"
+  },
+  {
+    "section": "Media & Branding",
+    "field": "Intro Video URL / Upload",
+    "type": "Video",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Vimeo/YouTube link or direct upload"
+  },
+  {
+    "section": "Media & Branding",
+    "field": "Practice Logo / Colors",
+    "type": "Branding",
+    "required": false,
+    "tier": ["Professional"],
+    "lookup_model": false,
+    "notes": "Tier-gated design customization"
+  },
+  {
+    "section": "Media & Branding",
+    "field": "Certificate Logos",
+    "type": "Image",
+    "required": false,
+    "tier": ["Professional"],
+    "lookup_model": false,
+    "notes": "Association or certification badges"
+  },
+
+  {
+    "section": "Education & Credentials",
+    "field": "Degrees & Institutions",
+    "type": "Text",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "e.g., MA Counseling, UCLA"
+  },
+  {
+    "section": "Education & Credentials",
+    "field": "Graduation Year(s)",
+    "type": "Number",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": ""
+  },
+  {
+    "section": "Education & Credentials",
+    "field": "Professional Associations",
+    "type": "Multi-select",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "APA, NASW, etc."
+  },
+  {
+    "section": "Education & Credentials",
+    "field": "Continuing Ed / Certifications",
+    "type": "Text",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "EMDR certification, DBT training"
+  },
+
+  {
+    "section": "Pricing & Policies",
+    "field": "Session Fee / Package Rates",
+    "type": "Text / Number",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Hourly or package pricing"
+  },
+  {
+    "section": "Pricing & Policies",
+    "field": "Insurances Accepted",
+    "type": "Multi-select",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "Major providers + Self-pay options"
+  },
+  {
+    "section": "Pricing & Policies",
+    "field": "Sliding Scale / Scholarship",
+    "type": "Checkbox + Text",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Describe discount or eligibility"
+  },
+  {
+    "section": "Pricing & Policies",
+    "field": "Free 15-Min Consultation Offer",
+    "type": "Checkbox",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Lowers barrier for new clients"
+  },
+  {
+    "section": "Pricing & Policies",
+    "field": "Cancellation / No-Show Policy",
+    "type": "Textarea",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Sets clear expectations"
+  },
+
+  {
+    "section": "Accessibility & Inclusivity",
+    "field": "Wheelchair Access / ADA Features",
+    "type": "Checkbox + Text",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Describe facility accommodations"
+  },
+  {
+    "section": "Accessibility & Inclusivity",
+    "field": "Multilingual Materials Offered",
+    "type": "Multi-select",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": true,
+    "notes": "Website/forms in other languages"
+  },
+
+  {
+    "section": "Technology & Tools",
+    "field": "Client Portal Demo Link",
+    "type": "URL",
+    "required": false,
+    "tier": ["Professional"],
+    "lookup_model": false,
+    "notes": "Preview secure portal experience"
+  },
+  {
+    "section": "Technology & Tools",
+    "field": "Digital Homework & Worksheets",
+    "type": "File Upload / Link",
+    "required": false,
+    "tier": ["Professional"],
+    "lookup_model": false,
+    "notes": "Interactive client resources"
+  },
+
+  {
+    "section": "Professional Development & Community",
+    "field": "Publications, Books & Podcasts",
+    "type": "Text / URL",
+    "required": false,
+    "tier": ["Professional"],
+    "lookup_model": false,
+    "notes": "Positions therapist as thought leader"
+  },
+  {
+    "section": "Professional Development & Community",
+    "field": "Workshops & Group Programs",
+    "type": "Text",
+    "required": false,
+    "tier": ["Professional"],
+    "lookup_model": false,
+    "notes": "Highlights broader offerings"
+  },
+  {
+    "section": "Professional Development & Community",
+    "field": "Pro Bono / Community Outreach",
+    "type": "Checkbox + Text",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Showcases social responsibility"
+  },
+  {
+    "section": "Professional Development & Community",
+    "field": "Memberships & Awards",
+    "type": "Text",
+    "required": false,
+    "tier": ["Professional"],
+    "lookup_model": false,
+    "notes": "Signals peer recognition & expertise"
+  }
+]
