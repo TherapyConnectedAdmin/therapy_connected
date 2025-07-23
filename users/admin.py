@@ -43,7 +43,7 @@ class LicenseTypeInline(admin.TabularInline):
 
 # TherapistProfile admin customization
 class TherapistProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'license_type', 'onboarding_status_display')
+    list_display = ('user', 'first_name', 'last_name', 'license_type', 'onboarding_status_display')
     list_filter = ('license_type',)
     search_fields = ('user__email', 'user__first_name', 'user__last_name')
     # Add only valid ManyToMany fields below. Adjust as needed for your model:

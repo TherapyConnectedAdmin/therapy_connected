@@ -1,12 +1,22 @@
 [
   {
     "section": "Basic Information",
-    "field": "Full Name",
+    "description": "Enter your personal and professional details for your public profile.",
+    "field": "First Name",
     "type": "Text",
     "required": true,
     "tier": ["Starter", "Professional"],
     "lookup_model": false,
-    "notes": "First & Last"
+    "notes": "Given name"
+  },
+  {
+    "section": "Basic Information",
+    "field": "Last Name",
+    "type": "Text",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Family name"
   },
   {
     "section": "Basic Information",
@@ -47,6 +57,7 @@
 
   {
     "section": "License & Verification",
+    "description": "Provide your license details for verification and compliance.",
     "field": "License Number",
     "type": "Text",
     "required": true,
@@ -102,6 +113,7 @@
 
   {
     "section": "Location & Contact",
+    "description": "Share your office address and contact information for clients.",
     "field": "Primary Office Address",
     "type": "Address",
     "required": true,
@@ -157,6 +169,7 @@
 
   {
     "section": "Service Modalities & Availability",
+    "description": "Indicate how and when clients can access your services.",
     "field": "In-Person Sessions",
     "type": "Checkbox",
     "required": true,
@@ -212,6 +225,7 @@
 
   {
     "section": "Areas Served",
+    "description": "List the geographic areas where you offer services.",
     "field": "Cities / Counties",
     "type": "Multi-select",
     "required": false,
@@ -231,6 +245,7 @@
 
   {
     "section": "Specialties & Practice Details",
+    "description": "Highlight your specialties, approaches, and populations served.",
     "field": "Practice Areas / Tags",
     "type": "Multi-select",
     "required": true,
@@ -286,6 +301,7 @@
 
   {
     "section": "Media & Branding",
+    "description": "Upload photos, videos, and branding assets for your profile.",
     "field": "Profile Photo",
     "type": "Image",
     "required": true,
@@ -323,6 +339,7 @@
 
   {
     "section": "Education & Credentials",
+    "description": "Share your educational background and professional associations.",
     "field": "Degrees & Institutions",
     "type": "Text",
     "required": false,
@@ -360,6 +377,7 @@
 
   {
     "section": "Pricing & Policies",
+    "description": "Set your session rates, insurance, and practice policies.",
     "field": "Session Fee / Package Rates",
     "type": "Text / Number",
     "required": true,
@@ -406,6 +424,7 @@
 
   {
     "section": "Accessibility & Inclusivity",
+    "description": "Describe how your practice supports accessibility and inclusivity.",
     "field": "Wheelchair Access / ADA Features",
     "type": "Checkbox + Text",
     "required": false,
@@ -425,6 +444,7 @@
 
   {
     "section": "Technology & Tools",
+    "description": "Showcase the digital tools and resources you offer clients.",
     "field": "Client Portal Demo Link",
     "type": "URL",
     "required": false,
@@ -444,6 +464,7 @@
 
   {
     "section": "Professional Development & Community",
+    "description": "Share your community involvement, publications, and awards.",
     "field": "Publications, Books & Podcasts",
     "type": "Text / URL",
     "required": false,

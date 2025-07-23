@@ -8,5 +8,7 @@ urlpatterns = [
     path('dashboard/', views.dashboard, name='dashboard'),
     path('logout/', views.logout_view, name='logout'),
     path('payment/', views.payment, name='payment'),
-    path('complete-profile/', views.complete_profile, name='complete_profile'),
+    path('profile-wizard/',
+         __import__('users.views_profile_wizard').views_profile_wizard.TherapistProfileWizard.as_view(),
+         name='profile_wizard'),
 ]

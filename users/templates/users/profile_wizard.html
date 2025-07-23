@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="min-h-screen bg-[#FAF9F9] py-8">
+  <div class="max-w-2xl mx-auto">
+    <!-- Progress Bar at Top -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm text-[#555B6E] font-semibold">Step {{ step_number }} of {{ total_steps }}</span>
+        <span class="text-sm text-[#555B6E]">{{ section_title }}</span>
+      </div>
+      <div class="w-full h-3 bg-[#BEE3DB] rounded-full overflow-hidden relative">
+        <div class="absolute left-0 top-0 h-3 rounded-full transition-all duration-300 bg-gradient-to-r from-[#FF9950] via-[#89B0AE] to-[#BEE3DB]" style="width: {{ progress_percent }}%;"></div>
+        <div class="absolute left-0 top-0 h-3 w-full rounded-full border border-[#BEE3DB] pointer-events-none"></div>
+      </div>
+    </div>
+    <div class="rounded-xl shadow-xl bg-white border border-[#BEE3DB]">
+      <div class="px-6 py-4 bg-[#FF9950] rounded-t-xl border-b border-[#BEE3DB]">
+        <h2 class="text-2xl font-bold text-[#232323] tracking-tight">{{ section_title }}</h2>
+        {% if section_description %}
+          <div class="mt-1 text-base text-[#232323]">{{ section_description }}</div>
+        {% endif %}
+        {% if wizard.section_notes_list %}
+          <ul class="mt-2 text-base text-[#555B6E] list-disc list-inside space-y-1">
+            {% for note in wizard.section_notes_list %}
+              <li>{{ note }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+      <div class="px-6 py-8">
+        {% if progress_saved %}
+          <div class="mb-4 px-4 py-2 rounded-lg bg-[#BEE3DB] text-[#232323] text-center font-semibold shadow">Progress saved!</div>
+        {% endif %}
+        <form method="post" enctype="multipart/form-data" class="space-y-6">
+          {% csrf_token %}
+          {{ wizard.management_form }}
+          {% if wizard.form.non_field_errors %}
+            <div class="text-red-500 text-sm mb-4">{{ wizard.form.non_field_errors }}</div>
+          {% endif %}
+          {% for field in wizard.form.visible_fields %}
+            <div class="mb-6">
+              <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-[#555B6E] mb-1">{{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}</label>
+              {% if field.field.widget.input_type == 'select' or field.field.widget|default_if_none:''|slice:0 == 'Select' or field.field.widget|default_if_none:''|slice:0 == 'SelectMultiple' %}
+                <div x-data="{ open: false, selected: '{{ field.value|stringformat:'s' }}', options: {{ field.alpine_choices|safe }} }" class="relative">
+                  <button type="button" @click="open = !open" @keydown.escape="open = false" class="border border-[#BEE3DB] rounded-lg px-3 py-2 w-full bg-[#FAF9F9] text-[#555B6E] focus:outline-none focus:ring-2 focus:ring-[#FF9950] hover:border-[#FF9950] transition duration-150 ease-in-out shadow-sm flex justify-between items-center">
+                    <span x-text="options.find(o => o[0] == selected)?.[1] || 'Select...'" class="truncate"></span>
+                    <svg class="h-4 w-4 text-[#555B6E] ml-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  <div x-show="open" @click.away="open = false" class="absolute z-10 mt-1 w-full bg-white border border-[#BEE3DB] rounded-lg shadow-xl max-h-60 overflow-auto">
+                    <template x-for="option in options" :key="option[0]">
+                      <div @click="selected = option[0]; open = false; $el.closest('form').querySelector('[name=\'{{ field.html_name }}\']').value = option[0]" class="px-4 py-2 cursor-pointer hover:bg-[#BEE3DB] text-[#555B6E]" :class="{'bg-[#BEE3DB]': selected == option[0]}">
+                        <span x-text="option[1]"></span>
+                      </div>
+                    </template>
+                  </div>
+                  <input type="hidden" name="{{ field.html_name }}" :value="selected">
+                </div>
+              {% else %}
+                {{ field }}
+              {% endif %}
+              {% if field.help_text %}
+                <div class="text-xs text-[#89B0AE] mt-1">{{ field.help_text }}</div>
+              {% endif %}
+              {% for error in field.errors %}
+                <div class="text-red-500 text-sm mt-1">{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+          <div class="flex justify-between mt-8">
+            {% if wizard.steps.prev %}
+              <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="px-4 py-2 bg-[#BEE3DB] text-[#555B6E] rounded-lg shadow hover:bg-[#89B0AE] transition">Previous</button>
+            {% endif %}
+            <button type="submit"
+              class="px-6 py-2 font-semibold rounded-lg shadow transition
+                {% if wizard.steps.current == wizard.steps.last %}bg-primary text-white hover:bg-primary-dark{% else %}bg-[#BEE3DB] text-[#555B6E] hover:bg-[#89B0AE]{% endif %}">
+              {% if wizard.steps.current == wizard.steps.last %}Submit{% else %}Next{% endif %}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

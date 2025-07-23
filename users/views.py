@@ -95,7 +95,7 @@ def login_view(request):
                     if user.onboarding_status == 'payment':
                         return redirect('payment')
                     elif user.onboarding_status == 'pending_profile_completion':
-                        return redirect('complete_profile')
+                        return redirect('profile_wizard')
                 return redirect('dashboard')
             else:
                 messages.error(request, 'Invalid credentials or inactive account.')
@@ -162,31 +162,3 @@ def payment(request):
         return redirect('dashboard')
     return render(request, 'users/payment.html', {'STRIPE_PUBLISHABLE_KEY': settings.STRIPE_PUBLISHABLE_KEY})
 
-from .forms_profile import TherapistProfileForm
-from .models_profile import TherapistProfile
-
-@login_required
-def complete_profile(request):
-    user = request.user
-    if hasattr(user, 'onboarding_status') and user.onboarding_status != 'pending_profile_completion':
-        return redirect('dashboard')
-    try:
-        profile = TherapistProfile.objects.get(user=user)
-    except TherapistProfile.DoesNotExist:
-        profile = None
-    if request.method == 'POST':
-        form = TherapistProfileForm(request.POST, request.FILES, instance=profile)
-        if form.is_valid():
-            profile = form.save(commit=False)
-            profile.user = user
-            profile.save()
-            user.onboarding_status = 'active'
-            user.save(update_fields=['onboarding_status'])
-            messages.success(request, 'Profile completed!')
-            return redirect('dashboard')
-    else:
-        initial = {}
-        if not profile:
-            initial['user'] = user.pk
-        form = TherapistProfileForm(instance=profile, initial=initial)
-    return render(request, 'users/complete_profile.html', {'form': form})
