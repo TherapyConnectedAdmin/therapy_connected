@@ -72,8 +72,13 @@ class TherapistProfileWizard(SessionWizardView):
         # Save partial data to TherapistProfile after each step
         user = self.request.user
         profile, _ = TherapistProfile.objects.get_or_create(user=user)
+        from django.db.models.fields.related import ManyToManyField
         for field, value in form.cleaned_data.items():
-            setattr(profile, field, value)
+            model_field = TherapistProfile._meta.get_field(field)
+            if isinstance(model_field, ManyToManyField):
+                getattr(profile, field).set(value)
+            else:
+                setattr(profile, field, value)
         profile.save()
         # Set a flag in the session to show progress saved message
         self.request.session['profile_progress_saved'] = True
@@ -120,9 +125,14 @@ class TherapistProfileWizard(SessionWizardView):
     def done(self, form_list, **kwargs):
         user = self.request.user
         profile, created = TherapistProfile.objects.get_or_create(user=user)
+        from django.db.models.fields.related import ManyToManyField
         for form in form_list:
             for field, value in form.cleaned_data.items():
-                setattr(profile, field, value)
+                model_field = TherapistProfile._meta.get_field(field)
+                if isinstance(model_field, ManyToManyField):
+                    getattr(profile, field).set(value)
+                else:
+                    setattr(profile, field, value)
         profile.save()
         user.onboarding_status = 'active'
         user.save(update_fields=['onboarding_status'])

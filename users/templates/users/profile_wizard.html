@@ -72,7 +72,11 @@
             {% endif %}
             <button type="submit"
               class="px-6 py-2 font-semibold rounded-lg shadow transition
-                {% if wizard.steps.current == wizard.steps.last %}bg-primary text-white hover:bg-primary-dark{% else %}bg-[#BEE3DB] text-[#555B6E] hover:bg-[#89B0AE]{% endif %}">
+                {% if wizard.steps.current == wizard.steps.last %}
+                  bg-[#89B0AE] text-white hover:bg-[#555B6E]
+                {% else %}
+                  bg-[#BEE3DB] text-[#555B6E] hover:bg-[#89B0AE]
+                {% endif %}">
               {% if wizard.steps.current == wizard.steps.last %}Submit{% else %}Next{% endif %}
             </button>
           </div>

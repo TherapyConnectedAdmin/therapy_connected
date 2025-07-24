@@ -1,11 +1,16 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>User Dashboard</title>
-</head>
-<body>
-    <h2>Welcome to your dashboard!</h2>
-    <p>You are logged in as {{ user.email }}.</p>
-    <a href="/users/logout/">Logout</a>
-</body>
-</html>
+{% extends 'base.html' %}
+{% block content %}
+<div class="min-h-screen bg-[#FAF9F9] py-8">
+  <div class="max-w-2xl mx-auto">
+    <div class="rounded-xl shadow-xl bg-white border border-[#BEE3DB]">
+      <div class="px-6 py-4 bg-[#FF9950] rounded-t-xl border-b border-[#BEE3DB]">
+        <h2 class="text-2xl font-bold text-[#555B6E] tracking-tight">Welcome to your dashboard!</h2>
+      </div>
+      <div class="px-6 py-8">
+        <p class="text-lg text-[#555B6E] mb-4">You are logged in as <span class="font-semibold">{{ user.email }}</span>.</p>
+        <a href="/users/logout/" class="px-4 py-2 rounded font-semibold text-sm signup-btn bg-[#89B0AE] text-white hover:bg-[#555B6E] transition">Logout</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
