@@ -1,4 +1,5 @@
-<section class="py-10 w-full" style="background-color: #FAF9F9;">
+
+<section x-data="{ showModal: false, selected: null }" class="py-10 w-full" style="background-color: #FAF9F9;">
   <div class="max-w-7xl mx-auto px-4">
     <h2 class="text-2xl sm:text-3xl font-bold mb-8 text-center" style="color: #555B6E;">Top Therapists in Your Area</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-8 justify-items-center">
@@ -24,9 +25,54 @@
             {{ tag.name }}{% if not forloop.last %}, {% endif %}
           {% endfor %}
         </div>
-        <button class="mt-2 px-4 py-2 rounded-full font-semibold text-sm" style="background-color: #FF9950; color: #fff;">View Profile</button>
+        {% if therapist.profile_photo %}
+          {% with photo_url=therapist.profile_photo.url %}
+            <button @click="showModal = true; selected = {
+              photo: '{{ photo_url }}',
+              name: '{{ therapist.first_name }} {{ therapist.last_name }}',
+              credentials: '{{ therapist.credentials }}',
+              credential_description: '{{ therapist.credential_description|default:therapist.license_type.description|default:"" }}',
+              city: '{{ therapist.city }}',
+              state: '{{ therapist.state }}',
+              bio: '{{ therapist.short_bio|escapejs }}',
+              tagline: '{{ therapist.tagline|escapejs }}',
+              specialties: '{% for tag in therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}'
+            }" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm" style="background-color: #FF9950; color: #fff;">View Profile</button>
+          {% endwith %}
+        {% else %}
+          {% with photo_url="https://randomuser.me/api/portraits/lego/1.jpg" %}
+            <button @click="showModal = true; selected = {
+              photo: '{{ photo_url }}',
+              name: '{{ therapist.first_name }} {{ therapist.last_name }}',
+              credentials: '{{ therapist.credentials }}',
+              credential_description: '{{ therapist.credential_description|default:therapist.license_type.description|default:"" }}',
+              city: '{{ therapist.city }}',
+              state: '{{ therapist.state }}',
+              bio: '{{ therapist.short_bio|escapejs }}',
+              tagline: '{{ therapist.tagline|escapejs }}',
+              specialties: '{% for tag in therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}'
+            }" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm" style="background-color: #FF9950; color: #fff;">View Profile</button>
+          {% endwith %}
+        {% endif %}
       </div>
       {% endfor %}
+    </div>
+    <!-- Modal -->
+    <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full relative" @click.away="showModal = false">
+        <button @click="showModal = false" class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl">&times;</button>
+        <template x-if="selected">
+          <div class="flex flex-col items-center">
+            <img :src="selected.photo" :alt="selected.name" class="w-24 h-24 rounded-full object-cover shadow mb-4" />
+            <div class="font-semibold text-lg mb-1" style="color: #555B6E;" x-text="selected.name + ', ' + selected.credentials"></div>
+            <div class="text-xs text-gray-500 mb-1" x-text="selected.city + ', ' + selected.state"></div>
+            <div class="text-sm mb-2" style="color: #89B0AE;" x-text="selected.credential_description"></div>
+            <div class="text-xs text-gray-500 mb-2"><span class="font-semibold">Specialties:</span> <span x-text="selected.specialties"></span></div>
+            <div class="text-sm italic mb-2" x-text="selected.tagline"></div>
+            <div class="text-sm text-gray-700" x-text="selected.bio"></div>
+          </div>
+        </template>
+      </div>
     </div>
   </div>
 </section>
