@@ -24,4 +24,5 @@ urlpatterns = [
     path('users/', include('users.urls')),
     path('subscribe/', views.subscribe, name='subscribe'),
     path('subscribe/pay/', views.select_plan, name='select_plan'),
+    path('set_zip/', views.set_zip, name='set_zip'),
 ]

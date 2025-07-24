@@ -13,3 +13,5 @@ django-ckeditor
 stripe
 Pillow
 django-formtools
+uszipcode
+sqlalchemy-mate<2.0

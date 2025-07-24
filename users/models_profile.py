@@ -1,10 +1,12 @@
 from django.db import models
 from django.conf import settings
+from django.core.validators import RegexValidator
 
 
 # Lookup models
 class LicenseType(models.Model):
     name = models.CharField(max_length=64, unique=True)
+    description = models.CharField(max_length=256, blank=True, default="")
     def __str__(self): return self.name
 
 class StateBoard(models.Model):
@@ -58,6 +60,7 @@ class TherapistProfile(models.Model):
     first_name = models.CharField(max_length=64, default="")
     last_name = models.CharField(max_length=64, default="")
     credentials = models.CharField(max_length=128)
+    credential_description = models.CharField(max_length=256, blank=True, default="")
     display_name = models.CharField(max_length=128, blank=True)
     tagline = models.CharField(max_length=256, blank=True)
     short_bio = models.TextField()
@@ -71,6 +74,8 @@ class TherapistProfile(models.Model):
     license_upload = models.FileField(upload_to='licenses/', blank=True, null=True)
     # Location & Contact
     primary_office_address = models.CharField(max_length=256)
+    city = models.CharField(max_length=64, blank=True, default="")
+    state = models.CharField(max_length=32, blank=True, default="")
     additional_locations = models.TextField(blank=True)
     phone_number = models.CharField(max_length=32)
     email_address = models.EmailField()
@@ -85,7 +90,12 @@ class TherapistProfile(models.Model):
     secure_document_upload = models.BooleanField(default=False)
     # Areas Served
     cities_counties = models.ManyToManyField(CityCounty, blank=True)
-    zip_codes = models.ManyToManyField(ZipCode, blank=True)
+    zip_code = models.CharField(max_length=10, blank=True, validators=[
+        RegexValidator(
+            regex=r'^\d{5}$',
+            message='Enter a valid 5-digit US ZIP code.'
+        )
+    ])
     # Specialties & Practice Details
     practice_areas_tags = models.ManyToManyField(PracticeAreaTag)
     treatment_approaches = models.ManyToManyField(TreatmentApproach, blank=True)

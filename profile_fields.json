@@ -235,12 +235,12 @@
   },
   {
     "section": "Areas Served",
-    "field": "ZIP Codes",
-    "type": "Multi-select",
-    "required": false,
+    "field": "ZIP Code",
+    "type": "Text",
+    "required": true,
     "tier": ["Starter", "Professional"],
-    "lookup_model": true,
-    "notes": "e.g., 32550, 10001"
+    "lookup_model": false,
+    "notes": "Enter a valid 5-digit US ZIP code."
   },
 
   {
