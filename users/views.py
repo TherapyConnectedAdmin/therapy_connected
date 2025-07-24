@@ -158,7 +158,7 @@ def payment(request):
         # Set onboarding_status to 'pending_profile_completion' after payment
         user.onboarding_status = 'pending_profile_completion'
         user.save()
-        # Redirect to dashboard after payment (simulate success)
-        return redirect('dashboard')
+        # Redirect to profile wizard after payment
+        return redirect('profile_wizard')
     return render(request, 'users/payment.html', {'STRIPE_PUBLISHABLE_KEY': settings.STRIPE_PUBLISHABLE_KEY})
 
