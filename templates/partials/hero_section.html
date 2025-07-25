@@ -2,12 +2,54 @@
     <div class="max-w-3xl mx-auto text-center px-2 sm:px-4">
         <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4" style="color: #555B6E;">Your Journey to Better Mental Health Starts Here</h1>
         <p class="text-base sm:text-lg mb-8" style="color: #555B6E;">Connect with licensed therapists, explore resources, and read expert advice to support your well-being.</p>
-        <form class="flex flex-col md:flex-row gap-4 justify-center items-center mb-4 w-full max-w-2xl mx-auto">
-            <div class="flex w-full">
-                <input type="text" id="homepage-search-input" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" />
-                <button type="submit" id="homepage-search-btn" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;">Search</button>
+        <div x-data="searchModal()">
+          <form @submit.prevent="fetchResults" class="flex flex-col md:flex-row gap-4 justify-center items-center mb-4 w-full max-w-2xl mx-auto">
+              <div class="flex w-full">
+                  <input type="text" id="homepage-search-input" x-model="query" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" />
+                  <button type="submit" id="homepage-search-btn" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;">Search</button>
+              </div>
+          </form>
+          <!-- Modal for search results -->
+          <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5);">
+            <div class="rounded-xl shadow-lg p-8 w-[98vw] max-w-7xl relative overflow-y-auto max-h-[80vh]" @click.away="showModal = false" style="background-color: #BEE3DB;">
+              <button @click="showModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
+                <span class="sr-only">Close</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <h3 class="text-xl font-bold mb-4" style="color: #555B6E;">Search Results</h3>
+              <template x-if="results.length === 0">
+                <div class="text-center text-gray-500">No therapists found.</div>
+              </template>
+              <div>
+                <template x-for="therapist in results" :key="therapist.id">
+                  <div class="mb-6">
+                    <!-- Therapist card partial rendered by Django for initial results, or by JS for dynamic -->
+                    <div x-html="therapist.card_html"></div>
+                  </div>
+                </template>
+              </div>
             </div>
-        </form>
+          </div>
+          <script>
+          document.addEventListener('alpine:init', () => {
+            Alpine.data('searchModal', () => ({
+              showModal: false,
+              results: [],
+              query: '',
+              fetchResults() {
+                fetch(`/search_therapists/?q=${encodeURIComponent(this.query)}`)
+                  .then(response => response.json())
+                  .then(data => {
+                    this.results = data.results;
+                    this.showModal = true;
+                  });
+              }
+            }));
+          });
+          </script>
+        </div>
         <script>
         document.addEventListener('DOMContentLoaded', function() {
             var input = document.getElementById('homepage-search-input');

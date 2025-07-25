@@ -25,4 +25,6 @@ urlpatterns = [
     path('subscribe/', views.subscribe, name='subscribe'),
     path('subscribe/pay/', views.select_plan, name='select_plan'),
     path('set_zip/', views.set_zip, name='set_zip'),
+    path('search_therapists/', views.search_therapists, name='search_therapists'),
+    path('therapists/', views.therapists_page, name='therapists_page'),
 ]

@@ -1,0 +1,21 @@
+{
+  "name": "therapy-connected",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TherapyConnectedAdmin/therapy_connected.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/TherapyConnectedAdmin/therapy_connected/issues"
+  },
+  "homepage": "https://github.com/TherapyConnectedAdmin/therapy_connected#readme"
+}

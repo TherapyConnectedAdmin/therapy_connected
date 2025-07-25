@@ -1,0 +1,42 @@
+{# Therapist Card Partial - Use with therapist context variable #}
+<div class="rounded-xl shadow-lg p-6 flex flex-col md:flex-row items-center w-full mb-6" style="background-color: #FAF9F9; color: #555B6E;">
+  <div class="flex-shrink-0">
+    {% if therapist.profile_photo %}
+      <img src="{{ therapist.profile_photo.url }}" alt="{{ therapist.first_name }} {{ therapist.last_name }}" class="w-32 h-32 rounded-full object-cover shadow mb-4 md:mb-0 md:mr-6" style="box-shadow: 0 0 8px 1px #555B6E44;" />
+    {% else %}
+      <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="{{ therapist.first_name }} {{ therapist.last_name }}" class="w-32 h-32 rounded-full object-cover shadow mb-4 md:mb-0 md:mr-6" style="box-shadow: 0 0 8px 1px #555B6E44;" />
+    {% endif %}
+  </div>
+  <div class="flex-1 flex flex-col justify-center">
+    <div class="font-bold text-xl mb-1" style="color: #555B6E;">
+      {{ therapist.first_name }} {{ therapist.last_name }}, {{ therapist.credentials }}
+    </div>
+    <div class="text-sm mb-1" style="color: #555B6E;">
+      {{ therapist.city }}, {{ therapist.state }}
+    </div>
+    <div class="text-base mb-2" style="color: #89B0AE;">
+      {{ therapist.credential_description|default:therapist.license_type.description|default:"" }}
+    </div>
+    <div class="text-sm mb-2" style="color: #555B6E;">
+      <span class="font-semibold">Specialties:</span>
+      {% for tag in therapist.practice_areas_tags.all %}
+        {{ tag.name }}{% if not forloop.last %}, {% endif %}
+      {% endfor %}
+    </div>
+    <div class="text-sm italic mb-2" style="color: #555B6E;">
+      {{ therapist.tagline }}
+    </div>
+    <div class="text-sm mb-2" style="color: #555B6E;">
+      {{ therapist.short_bio }}
+    </div>
+    <div class="flex flex-wrap gap-2 mt-2">
+      <span class="bg-[#BEE3DB] text-[#555B6E] px-3 py-1 rounded-full text-xs font-semibold">Tier: {{ therapist.professional_tier|default:"Standard" }}</span>
+      <span class="bg-[#FAF9F9] text-[#555B6E] border border-[#89B0AE] px-3 py-1 rounded-full text-xs font-semibold">Last Login: {{ therapist.user.last_login|date:"M d, Y H:i" }}</span>
+      <span class="bg-[#FF9950] text-white px-3 py-1 rounded-full text-xs font-semibold">Distance: {{ therapist.distance|default:"N/A" }} mi</span>
+    </div>
+    <div class="mt-4 flex gap-2">
+      <a href="mailto:{{ therapist.email_address }}" class="bg-[#89B0AE] text-white font-semibold rounded px-4 py-2 hover:bg-[#555B6E]">Contact</a>
+      <a href="/users/profile/{{ therapist.user.id }}/" class="bg-[#FF9950] text-white font-semibold rounded px-4 py-2 hover:bg-[#555B6E]">View Full Profile</a>
+    </div>
+  </div>
+</div>

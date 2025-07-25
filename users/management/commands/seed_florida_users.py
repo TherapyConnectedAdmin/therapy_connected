@@ -13,10 +13,17 @@ class Command(BaseCommand):
         from django.core.files.base import ContentFile
         User = get_user_model()
         fake = Faker()
-        florida_cities = [
-            ("Miami", "33101"), ("Orlando", "32801"), ("Tampa", "33601"), ("Jacksonville", "32201"),
-            ("St. Petersburg", "33701"), ("Fort Lauderdale", "33301"), ("Tallahassee", "32301"),
-            ("Sarasota", "34230"), ("West Palm Beach", "33401"), ("Pensacola", "32501")
+        panhandle_cities = [
+            ("Destin", "32541"),
+            ("Panama City", "32401"),
+            ("Pensacola", "32501"),
+            ("Fort Walton Beach", "32548"),
+            ("Niceville", "32578"),
+            ("Navarre", "32566"),
+            ("Crestview", "32536"),
+            ("Lynn Haven", "32444"),
+            ("Mary Esther", "32569"),
+            ("Chipley", "32428")
         ]
         license_types = list(LicenseType.objects.all())
         if not license_types:
@@ -28,7 +35,7 @@ class Command(BaseCommand):
         if not practice_tags:
             practice_tags = [PracticeAreaTag.objects.create(name="Anxiety"), PracticeAreaTag.objects.create(name="Couples"), PracticeAreaTag.objects.create(name="Trauma")]
         genders = ["men", "women"]
-        for i in range(20):
+        for i in range(10):
             first_name = fake.first_name()
             last_name = fake.last_name()
             email = f"fl_{first_name.lower()}.{last_name.lower()}{i}@example.com"
@@ -45,7 +52,7 @@ class Command(BaseCommand):
             gender = random.choice(genders)
             photo_id = random.randint(1, 99)
             profile_photo_url = f"https://randomuser.me/api/portraits/{gender}/{photo_id}.jpg"
-            city, zip_code = random.choice(florida_cities)
+            city, zip_code = random.choice(panhandle_cities)
             chosen_license = random.choice(license_types)
             profile, _ = TherapistProfile.objects.get_or_create(
                 user=user,

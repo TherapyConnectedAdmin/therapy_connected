@@ -1,3 +1,8 @@
+.homepage-search-btn:hover {
+  background-color: #555B6E !important;
+  color: #FAF9F9 !important;
+  transition: background 0.2s, color 0.2s !important;
+}
 @import "tailwindcss";
 @plugin "daisyui";
 @source "../../../**/*.{html,py,js}";
