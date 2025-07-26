@@ -133,6 +133,10 @@ class TherapistProfile(models.Model):
     pro_bono_community_outreach = models.BooleanField(default=False)
     pro_bono_description = models.CharField(max_length=256, blank=True)
     memberships_awards = models.CharField(max_length=256, blank=True)
+    # --- Statistics ---
+    visit_count = models.PositiveIntegerField(default=0)
+    contact_count = models.PositiveIntegerField(default=0)
+    last_viewed_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}".strip()

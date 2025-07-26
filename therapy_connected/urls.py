@@ -28,5 +28,8 @@ urlpatterns = [
     path('set_zip/', views.set_zip, name='set_zip'),
     path('search_therapists/', views.search_therapists, name='search_therapists'),
     path('therapists/', views.therapists_page, name='therapists_page'),
+    path('features/', views.features_page, name='features_page'),
+    path('pricing/', views.pricing_page, name='pricing_page'),
+    path('about/', views.about_page, name='about_page'),
     path('', include('users.urls_blog')),
 ]

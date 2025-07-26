@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="min-h-screen bg-[#FAF9F9] py-12">
+  <div class="max-w-3xl mx-auto">
+    <div class="rounded-2xl shadow-xl bg-white border border-[#BEE3DB]">
+      <div class="px-8 py-6 bg-[#BEE3DB] rounded-t-2xl border-b border-[#BEE3DB]">
+        <h1 class="text-3xl font-bold text-[#555B6E] tracking-tight">Pricing & Subscriptions</h1>
+        <p class="text-lg text-[#555B6E] mt-2">Choose the plan that fits your needs. All plans include access to our therapist directory, blog, and dashboard features.</p>
+      </div>
+      <div class="px-8 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {% for plan in plans %}
+          <div class="rounded-xl border border-[#BEE3DB] bg-[#FAF9F9] p-6 flex flex-col shadow">
+            <h2 class="text-2xl font-bold text-[#555B6E] mb-2">{{ plan.name }}</h2>
+            <div class="text-[#555B6E] mb-4">{{ plan.description|safe }}</div>
+            <div class="flex flex-col gap-2 mb-4">
+              <div class="text-lg font-semibold text-[#555B6E]">Monthly: <span class="text-[#FF9950]">${{ plan.price_monthly }}</span></div>
+              <div class="text-lg font-semibold text-[#555B6E]">Annual: <span class="text-[#FF9950]">${{ plan.price_annual }}</span></div>
+            </div>
+            <a href="/subscribe/" class="mt-auto px-4 py-2 rounded font-semibold text-base bg-[#89B0AE] text-white hover:bg-[#555B6E] transition text-center">Get Started</a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

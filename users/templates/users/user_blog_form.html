@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-2xl mx-auto py-10">
+  <h2 class="text-2xl font-bold text-[#555B6E] mb-6">New Blog Post</h2>
+  <form method="post" enctype="multipart/form-data" class="bg-white rounded-xl shadow p-8 border border-[#BEE3DB] flex flex-col gap-6">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div>
+      <label class="block text-sm font-medium text-[#555B6E] mb-1">Title</label>
+      {{ form.title }}
+      {{ form.title.errors }}
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-[#555B6E] mb-1">Content</label>
+      {{ form.content }}
+      {{ form.content.errors }}
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-[#555B6E] mb-1">Image</label>
+      {{ form.image }}
+      {{ form.image.errors }}
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-[#555B6E] mb-1">Tags</label>
+      {{ form.tags }}
+      {{ form.tags.errors }}
+    </div>
+    <div class="flex items-center gap-2">
+      {{ form.published }}
+      <label class="text-sm text-[#555B6E]">Publish</label>
+    </div>
+    <button type="submit" class="px-6 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E]">Save Post</button>
+  </form>
+</div>
+{% endblock %}

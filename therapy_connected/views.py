@@ -1,4 +1,18 @@
+# About page view
+def about_page(request):
+    return render(request, 'about.html')
+# Pricing page view
+from users.models import SubscriptionType
+def pricing_page(request):
+    plans = SubscriptionType.objects.filter(active=True).order_by('price_monthly')
+    return render(request, 'pricing.html', {'plans': plans})
+from django.shortcuts import render
+# Features page view
+def features_page(request):
+    return render(request, 'features.html')
 from users.models_profile import TherapistProfile, PracticeAreaTag
+from users.models_blog import BlogPost
+from django.utils import timezone
 from django.db.models import Q
 
 def therapists_page(request):
@@ -142,6 +156,7 @@ from django.shortcuts import render, redirect
 from users.models import SubscriptionType
 from users.models_profile import TherapistProfile, ZipCode
 
+
 def home(request):
     user_zip = request.session.get('user_zip')
     therapists = TherapistProfile.objects.filter(user__is_active=True, user__onboarding_status='active')
@@ -152,24 +167,18 @@ def home(request):
         zipcode_obj = search.by_zipcode(user_zip)
         nearby_zips = []
         if zipcode_obj and zipcode_obj.lat and zipcode_obj.lng:
-            # Get zip codes within 50 miles using lat/lng
             results = search.query(lat=zipcode_obj.lat, lng=zipcode_obj.lng, radius=50, returns=100)
             nearby_zips = [z.zipcode for z in results]
         therapists_nearby = therapists.filter(zip_code__in=nearby_zips).order_by('-user__last_login')
         count = therapists_nearby.count()
         if count < 6:
-            # Find all therapists with zip codes, calculate distance, and fill with next closest
-            from uszipcode import SearchEngine
-            search = SearchEngine()
             user_zip_obj = search.by_zipcode(user_zip)
             def get_distance(zip_code):
                 zip_obj = search.by_zipcode(zip_code)
                 if zip_obj and user_zip_obj:
                     return ((zip_obj.lat - user_zip_obj.lat)**2 + (zip_obj.lng - user_zip_obj.lng)**2) ** 0.5
                 return float('inf')
-            # Exclude already selected, get all others with zip_code
             other_therapists = therapists.exclude(id__in=therapists_nearby.values_list('id', flat=True)).exclude(zip_code="").all()
-            # Sort by distance
             sorted_others = sorted(other_therapists, key=lambda t: get_distance(t.zip_code))
             therapists_final = list(therapists_nearby) + list(sorted_others[:6-count])
         else:
@@ -177,9 +186,21 @@ def home(request):
     else:
         therapists_final = list(therapists.order_by('-user__last_login')[:6])
 
-    # Optionally, you could prompt for zip code if not set
+    # Get today's date
+    today = timezone.now().date()
+    # Top blog post for today (most recent published post from today, fallback to most recent published)
+    top_blog_post = BlogPost.objects.filter(published=True, created_at__date=today).order_by('-created_at').first()
+    if not top_blog_post:
+        top_blog_post = BlogPost.objects.filter(published=True).order_by('-created_at').first()
 
-    return render(request, 'home.html', {'therapists': therapists_final})
+    # Top therapist for today (most recently active, fallback to first in therapists_final)
+    top_therapist = therapists.order_by('-user__last_login').first() or (therapists_final[0] if therapists_final else None)
+
+    return render(request, 'home.html', {
+        'therapists': therapists_final,
+        'top_blog_post': top_blog_post,
+        'top_therapist': top_therapist,
+    })
 
 def subscribe(request):
     plans = SubscriptionType.objects.filter(active=True)

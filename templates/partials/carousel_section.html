@@ -1,57 +1,7 @@
 <section class="py-8 w-full px-0 sm:px-0" style="background-color: #FFE5D1;">
   <div class="w-full flex flex-col items-center justify-center">
-    <div class="w-full max-w-7xl flex flex-row items-center justify-between mb-4">
-      <button id="carousel-prev" class="p-2 rounded-full bg-[#BEE3DB] text-[#555B6E] shadow hover:bg-[#FF9950] transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
-      <div class="flex-1 flex flex-col sm:flex-row gap-8 py-8 sm:py-10 rounded-xl shadow-lg mx-auto items-start justify-center bg-white">
-        <!-- Carousel Slides -->
-        {% include "partials/carousel_slides.html" %}
-      </div>
-      <button id="carousel-next" class="p-2 rounded-full bg-[#BEE3DB] text-[#555B6E] shadow hover:bg-[#FF9950] transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+    <div class="w-full max-w-7xl flex flex-col sm:flex-row gap-8 py-8 sm:py-10 rounded-xl shadow-lg mx-auto items-start justify-center bg-white">
+      {% include "partials/carousel_slides.html" %}
     </div>
-    <!-- Carousel indicators -->
-    <div class="flex justify-center gap-2 mt-2">
-      <span class="w-3 h-3 rounded-full carousel-indicator"></span>
-      <span class="w-3 h-3 rounded-full carousel-indicator"></span>
-      <span class="w-3 h-3 rounded-full carousel-indicator"></span>
-      <span class="w-3 h-3 rounded-full carousel-indicator"></span>
-      <span class="w-3 h-3 rounded-full carousel-indicator"></span>
-      <span class="w-3 h-3 rounded-full carousel-indicator"></span>
-      <span class="w-3 h-3 rounded-full carousel-indicator"></span>
-    </div>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Always start with the most recent date (slide 7)
-      let currentSlide = 7;
-      const totalSlides = 7;
-      const slides = [
-        document.getElementById('carousel-slide-1'),
-        document.getElementById('carousel-slide-2'),
-        document.getElementById('carousel-slide-3'),
-        document.getElementById('carousel-slide-4'),
-        document.getElementById('carousel-slide-5'),
-        document.getElementById('carousel-slide-6'),
-        document.getElementById('carousel-slide-7')
-      ];
-      const indicators = document.querySelectorAll('.carousel-indicator');
-      function showSlide(n) {
-        slides.forEach((slide, i) => {
-          if (slide) slide.style.display = (i === n - 1) ? 'flex' : 'none';
-        });
-        indicators.forEach((ind, i) => {
-          ind.style.opacity = (i === n - 1) ? '0.8' : '0.4';
-          ind.style.backgroundColor = (i === n - 1) ? '#FF9950' : '#BEE3DB';
-        });
-      }
-      document.getElementById('carousel-prev').addEventListener('click', function() {
-        currentSlide = (currentSlide === 1) ? totalSlides : currentSlide - 1;
-        showSlide(currentSlide);
-      });
-      document.getElementById('carousel-next').addEventListener('click', function() {
-        currentSlide = (currentSlide === totalSlides) ? 1 : currentSlide + 1;
-        showSlide(currentSlide);
-      });
-      showSlide(currentSlide);
-    });
-    </script>
   </div>
 </section>

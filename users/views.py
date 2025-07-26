@@ -9,6 +9,7 @@ from django.conf import settings
 from django.utils.crypto import get_random_string
 from acs_email_service import AcsEmailService
 import stripe
+from users.models_profile import TherapistProfile
 
 # Temporary in-memory store for tokens (use a model for production)
 confirmation_tokens = {}
@@ -105,7 +106,15 @@ def login_view(request):
 
 @login_required
 def dashboard(request):
-    return render(request, 'users/dashboard.html')
+    profile = TherapistProfile.objects.filter(user=request.user).first()
+    stats = None
+    if profile:
+        stats = {
+            'visit_count': profile.visit_count,
+            'contact_count': profile.contact_count,
+            'last_viewed_at': profile.last_viewed_at,
+        }
+    return render(request, 'users/dashboard.html', {'stats': stats})
 
 def logout_view(request):
     logout(request)

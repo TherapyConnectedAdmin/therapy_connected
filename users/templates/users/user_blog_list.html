@@ -1,0 +1,29 @@
+<div class="max-w-3xl mx-auto py-10">
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold text-[#555B6E]">My Blog Posts</h2>
+    <a href="{% url 'user_blog_create' %}" class="px-4 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E]">New Post</a>
+  </div>
+  {% if posts %}
+    <div class="flex flex-col gap-6">
+      {% for post in posts %}
+        <div class="rounded-xl shadow bg-white p-6 border border-[#BEE3DB]">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-xl font-bold text-[#555B6E] mb-0">{{ post.title }}</h3>
+            <span class="text-xs px-2 py-1 rounded-full {% if post.published %}bg-[#BEE3DB] text-[#555B6E]{% else %}bg-gray-200 text-gray-500{% endif %}">{% if post.published %}Published{% else %}Draft{% endif %}</span>
+          </div>
+          <div class="text-sm text-gray-500 mb-2">{{ post.created_at|date:"M d, Y" }}</div>
+          <div class="line-clamp-2 text-base mb-2">{{ post.content|truncatewords:20|safe }}</div>
+          <div class="flex flex-wrap gap-2 mt-2">
+            {% for tag in post.tags.all %}
+            <span class="bg-[#BEE3DB] text-[#555B6E] px-3 py-1 rounded-full text-xs font-semibold">{{ tag.name }}</span>
+            {% endfor %}
+          </div>
+          <a href="{% url 'blog_detail' slug=post.slug %}" class="text-[#89B0AE] hover:underline text-sm mt-2 inline-block">View Post</a>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center text-[#555B6E] text-lg">You haven't written any blog posts yet.</div>
+  {% endif %}
+</div>
+
