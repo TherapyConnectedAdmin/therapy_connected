@@ -1,3 +1,19 @@
+from django.contrib import admin
+from .models_blog import BlogPost, BlogTag
+# Blog admin
+class BlogPostAdmin(admin.ModelAdmin):
+    list_display = ('title', 'author', 'published', 'created_at')
+    list_filter = ('published', 'created_at', 'tags')
+    search_fields = ('title', 'content', 'author__email')
+    prepopulated_fields = {"slug": ("title",)}
+    filter_horizontal = ('tags',)
+
+class BlogTagAdmin(admin.ModelAdmin):
+    search_fields = ('name',)
+    list_display = ('name',)
+
+admin.site.register(BlogPost, BlogPostAdmin)
+admin.site.register(BlogTag, BlogTagAdmin)
 
 from django.contrib import admin
 from .models import Subscription, SubscriptionType

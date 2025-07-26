@@ -40,9 +40,9 @@
             </div>
             <!-- Desktop nav centered absolutely -->
             <nav class="hidden lg:flex absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex-wrap gap-4 lg:space-x-6 lg:gap-0 mx-auto justify-center">
-                <a href="/" class="font-medium nav-link" style="color: #555B6E;">Home</a>
-                <a href="/therapists/" class="font-medium nav-link" style="color: #555B6E;">Therapists</a>
-                <a href="/blog/" class="font-medium nav-link" style="color: #555B6E;">Blog</a>
+                <a href="/" class="font-medium nav-link{% if request.path == '/' %} active-nav{% endif %}" style="color: {% if request.path == '/' %}#FF9950{% else %}#555B6E{% endif %};">Home</a>
+                <a href="/therapists/" class="font-medium nav-link{% if request.path|slice:':12' == '/therapists/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':12' == '/therapists/' %}#FF9950{% else %}#555B6E{% endif %};">Therapists</a>
+                <a href="{% url 'blog_index' %}" class="font-medium nav-link{% if request.path|slice:':6' == '/blog/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/blog/' %}#FF9950{% else %}#555B6E{% endif %};">Blog</a>
                 <a href="#" class="font-medium nav-link" style="color: #555B6E;">Features</a>
                 <a href="#" class="font-medium nav-link" style="color: #555B6E;">Pricing</a>
                 <a href="#" class="font-medium nav-link" style="color: #555B6E;">About</a>
@@ -51,7 +51,7 @@
                 {% if request.user.is_authenticated %}
                     <a href="/users/logout/" class="text-sm font-medium" style="color: #89B0AE;">Logout</a>
                     {% if request.path != '/users/profile-wizard/' %}
-                        <a href="/users/profile/" class="px-4 py-2 rounded font-semibold text-sm signup-btn" style="background-color: #FF9950; color: #fff;">Profile</a>
+                        <a href="/users/dashboard/" class="px-4 py-2 rounded font-semibold text-sm signup-btn" style="background-color: #FF9950; color: #fff;">Dashboard</a>
                     {% endif %}
                 {% else %}
                     <a href="/users/login/" class="text-sm font-medium" style="color: #89B0AE;">Login</a>
@@ -63,9 +63,9 @@
             <!-- Mobile nav dropdown -->
             <div id="mobile-menu" class="lg:hidden hidden w-full mt-2">
                 <nav class="flex flex-col gap-2 bg-white rounded shadow p-4 items-center text-center">
-                    <a href="/" class="font-medium nav-link" style="color: #555B6E;">Home</a>
-                    <a href="/therapists/" class="font-medium nav-link" style="color: #555B6E;">Therapists</a>
-                    <a href="/blog/" class="font-medium nav-link" style="color: #555B6E;">Blog</a>
+                    <a href="/" class="font-medium nav-link{% if request.path == '/' %} active-nav{% endif %}" style="color: {% if request.path == '/' %}#FF9950{% else %}#555B6E{% endif %};">Home</a>
+                    <a href="/therapists/" class="font-medium nav-link{% if request.path|slice:':12' == '/therapists/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':12' == '/therapists/' %}#FF9950{% else %}#555B6E{% endif %};">Therapists</a>
+                    <a href="{% url 'blog_index' %}" class="font-medium nav-link{% if request.path|slice:':6' == '/blog/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/blog/' %}#FF9950{% else %}#555B6E{% endif %};">Blog</a>
                     <a href="#" class="font-medium nav-link" style="color: #555B6E;">Features</a>
                     <a href="#" class="font-medium nav-link" style="color: #555B6E;">Pricing</a>
                     <a href="#" class="font-medium nav-link" style="color: #555B6E;">About</a>

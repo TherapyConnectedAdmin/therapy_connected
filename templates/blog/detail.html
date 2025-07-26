@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="py-10 w-full min-h-screen" style="background-color: #FFE5D0;">
+  <div class="max-w-3xl mx-auto px-4">
+    <div class="rounded-2xl shadow-lg p-8 sm:p-12" style="background-color: #FAF9F9;">
+      <a href="{% url 'blog_index' %}" class="text-[#89B0AE] hover:underline mb-4 inline-block">&larr; Back to Blog</a>
+      <h1 class="text-4xl font-bold mb-6" style="color: #555B6E;">{{ post.title }}</h1>
+      {% with profile=post.author.therapistprofile %}
+      <div class="flex items-center gap-4 mb-8">
+        {% if profile.profile_photo %}
+          <img src="{{ profile.profile_photo.url }}" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-14 h-14 rounded-full object-cover border-2 border-[#BEE3DB]" />
+        {% else %}
+          <div class="flex-shrink-0 w-14 h-14 rounded-full bg-[#BEE3DB] flex items-center justify-center text-2xl font-bold" style="color: #555B6E;">
+            {{ profile.first_name|slice:":1" }}{{ profile.last_name|slice:":1" }}
+          </div>
+        {% endif %}
+        <div>
+          <div class="font-semibold text-xl" style="color: #555B6E;">{{ profile.first_name }} {{ profile.last_name }}</div>
+          <div class="text-base text-[#89B0AE] font-medium">{{ profile.credentials }}</div>
+          <div class="text-xs text-[#555B6E]">{{ post.created_at|date:"M d, Y" }}</div>
+        </div>
+      </div>
+      {% endwith %}
+      {% if post.image %}
+      <img src="{{ post.image.url }}" alt="{{ post.title }}" class="w-full h-64 object-cover rounded mb-6" />
+      {% endif %}
+      <div class="prose prose-lg max-w-none mb-6" style="color: #555B6E;">{{ post.content|safe }}</div>
+      <div class="flex flex-wrap gap-2 mt-2">
+        {% for tag in post.tags.all %}
+        <span class="bg-[#BEE3DB] text-[#555B6E] px-3 py-1 rounded-full text-xs font-semibold">{{ tag.name }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

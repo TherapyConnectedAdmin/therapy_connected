@@ -11,24 +11,33 @@
           </form>
           <!-- Modal for search results -->
           <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5);">
-            <div class="rounded-xl shadow-lg p-8 w-[98vw] max-w-7xl relative overflow-y-auto max-h-[80vh]" @click.away="showModal = false" style="background-color: #BEE3DB;">
-              <button @click="showModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
-                <span class="sr-only">Close</span>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              <h3 class="text-xl font-bold mb-4" style="color: #555B6E;">Search Results</h3>
-              <template x-if="results.length === 0">
-                <div class="text-center text-gray-500">No therapists found.</div>
-              </template>
-              <div>
-                <template x-for="therapist in results" :key="therapist.id">
-                  <div class="mb-6">
-                    <!-- Therapist card partial rendered by Django for initial results, or by JS for dynamic -->
-                    <div x-html="therapist.card_html"></div>
-                  </div>
+            <div class="rounded-xl shadow-lg w-[98vw] max-w-7xl relative overflow-y-auto max-h-[80vh] flex flex-col p-0" @click.away="showModal = false" style="background-color: #BEE3DB;">
+              <div class="sticky top-0 z-10 flex flex-col items-center justify-center px-8 py-6 border-b border-[#BEE3DB] shadow-[0_4px_12px_-4px_rgba(85,91,110,0.10)]" style="background-color: #FAF9F9;">
+                <div class="relative w-full flex items-center justify-center">
+                  <h3 class="text-xl font-bold m-0 text-center w-full" style="color: #555B6E;">Search Results</h3>
+                  <button @click="showModal = false" class="absolute right-0 top-1/2 -translate-y-1/2 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
+                    <span class="sr-only">Close</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <template x-if="query">
+                  <div class="mt-2 text-[#89B0AE] text-base text-center w-full">Showing results for <span class="font-semibold">"<span x-text="query"></span>"</span></div>
                 </template>
+              </div>
+              <div class="px-8 py-8">
+                <template x-if="results.length === 0">
+                  <div class="text-center text-gray-500">No therapists found.</div>
+                </template>
+                <div>
+                  <template x-for="therapist in results" :key="therapist.id">
+                    <div class="mb-6">
+                      <!-- Therapist card partial rendered by Django for initial results, or by JS for dynamic -->
+                      <div x-html="therapist.card_html"></div>
+                    </div>
+                  </template>
+                </div>
               </div>
             </div>
           </div>
@@ -65,7 +74,7 @@
         });
         </script>
         <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center items-center">
-            <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">Browse All Therapists</a>
+            <a href="/therapists/" class="text-sm font-medium underline" style="color: #555B6E;">Browse All Therapists</a>
             <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">How Therapy Works</a>
             <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">FAQs</a>
             <a href="/blog/" class="text-sm font-medium underline" style="color: #555B6E;">Blog</a>
