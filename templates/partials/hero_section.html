@@ -6,12 +6,12 @@
           <form @submit.prevent="fetchResults" class="flex flex-col md:flex-row gap-4 justify-center items-center mb-4 w-full max-w-2xl mx-auto">
               <div class="flex w-full">
                   <input type="text" id="homepage-search-input" x-model="query" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" />
-                  <button type="submit" id="homepage-search-btn" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;">Search</button>
+                  <button type="submit" id="homepage-search-btn" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#FAF9F9';">Search</button>
               </div>
           </form>
           <!-- Modal for search results -->
-          <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5);">
-            <div class="rounded-xl shadow-lg w-[98vw] max-w-7xl relative overflow-y-auto max-h-[80vh] flex flex-col p-0" @click.away="showModal = false" style="background-color: #BEE3DB;">
+          <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5); height: 100%;">
+            <div class="rounded-xl shadow-lg w-[98vw] max-w-7xl relative overflow-y-auto h-full flex flex-col p-0" @click.away="showModal = false" style="background-color: #BEE3DB; height: 100%;">
               <div class="sticky top-0 z-10 flex flex-col items-center justify-center px-8 py-6 border-b border-[#BEE3DB] shadow-[0_4px_12px_-4px_rgba(85,91,110,0.10)]" style="background-color: #FAF9F9;">
                 <div class="relative w-full flex items-center justify-center">
                   <h3 class="text-xl font-bold m-0 text-center w-full" style="color: #555B6E;">Search Results</h3>

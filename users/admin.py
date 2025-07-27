@@ -1,3 +1,18 @@
+
+from django.contrib import admin
+from .models_featured import FeaturedTherapistHistory, FeaturedBlogPostHistory
+
+@admin.register(FeaturedTherapistHistory)
+class FeaturedTherapistHistoryAdmin(admin.ModelAdmin):
+    list_display = ("therapist", "date", "cycle")
+    list_filter = ("cycle",)
+    search_fields = ("therapist__first_name", "therapist__last_name")
+
+@admin.register(FeaturedBlogPostHistory)
+class FeaturedBlogPostHistoryAdmin(admin.ModelAdmin):
+    list_display = ("blog_post", "date", "cycle")
+    list_filter = ("cycle",)
+    search_fields = ("blog_post__title",)
 from django.contrib import admin
 from .models_blog import BlogPost, BlogTag
 # Blog admin

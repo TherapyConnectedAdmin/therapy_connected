@@ -37,7 +37,7 @@
               bio: '{{ therapist.short_bio|escapejs }}',
               tagline: '{{ therapist.tagline|escapejs }}',
               specialties: '{% for tag in therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}'
-            }" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm" style="background-color: #FF9950; color: #fff;">View Profile</button>
+            }" class="get-started-btn mt-2 px-4 py-2 rounded-full font-semibold text-sm cursor-pointer">View Profile</button>
           {% endwith %}
         {% else %}
           {% with photo_url="https://randomuser.me/api/portraits/lego/1.jpg" %}
@@ -51,7 +51,7 @@
               bio: '{{ therapist.short_bio|escapejs }}',
               tagline: '{{ therapist.tagline|escapejs }}',
               specialties: '{% for tag in therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}'
-            }" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm" style="background-color: #FF9950; color: #fff;">View Profile</button>
+            }" class="get-started-btn mt-2 px-4 py-2 rounded-full font-semibold text-sm cursor-pointer">View Profile</button>
           {% endwith %}
         {% endif %}
       </div>

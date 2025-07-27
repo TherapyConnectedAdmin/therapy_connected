@@ -1,9 +1,9 @@
 
-<section class="w-full flex flex-col md:flex-row items-stretch justify-center gap-0 py-8">
+<section class="w-full flex flex-col md:flex-row items-stretch justify-center gap-0 py-0">
   <!-- Therapist Left -->
-  <div class="flex-1 px-4 sm:px-8 flex flex-col items-center justify-center">
+  <div class="flex-1 px-4 sm:px-8 flex flex-col items-center justify-center" x-data="{ showModal: false, selected: null }">
     <div class="flex flex-col items-center justify-center w-full">
-      <h3 class="text-xl font-bold mb-2" style="color: #FF9950;">Featured Therapist</h3>
+      <h3 class="text-xl font-bold mb-8" style="color: #89B0AE;">Therapist</h3>
       {% if top_therapist and top_therapist.profile_photo %}
         <img src="{{ top_therapist.profile_photo.url }}" alt="{{ top_therapist.first_name }} {{ top_therapist.last_name }}" class="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover shadow-lg mb-4" style="border: 4px solid #BEE3DB; box-shadow: 0 0 12px 2px #555B6E44;" />
       {% else %}
@@ -14,10 +14,42 @@
           <div class="font-semibold text-lg mb-1" style="color: #555B6E;">{{ top_therapist.first_name }} {{ top_therapist.last_name }}, {{ top_therapist.credentials }}</div>
           <div class="text-sm mb-2" style="color: #89B0AE;">{{ top_therapist.credential_description|default:top_therapist.license_type.description|default:"" }}</div>
           <div class="text-xs text-gray-500 mb-2">Specialties: {% for tag in top_therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
-          <a href="/users/profile/{{ top_therapist.user.id }}/" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm" style="background-color: #FF9950; color: #fff;">View Profile</a>
+          <button @click="showModal = true; selected = {
+            photo: '{% if top_therapist.profile_photo %}{{ top_therapist.profile_photo.url }}{% else %}https://randomuser.me/api/portraits/lego/1.jpg{% endif %}',
+            name: '{{ top_therapist.first_name }} {{ top_therapist.last_name }}',
+            credentials: '{{ top_therapist.credentials }}',
+            credential_description: '{{ top_therapist.credential_description|default:top_therapist.license_type.description|default:"" }}',
+            city: '{{ top_therapist.city }}',
+            state: '{{ top_therapist.state }}',
+            bio: '{{ top_therapist.short_bio|escapejs }}',
+            tagline: '{{ top_therapist.tagline|escapejs }}',
+            specialties: '{% for tag in top_therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}'
+          }" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E] transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #fff;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#fff';">View Profile</button>
         {% else %}
           <div class="font-semibold text-lg mb-1" style="color: #555B6E;">No therapist available</div>
         {% endif %}
+      </div>
+    </div>
+    <!-- Modal (copied from top_therapists_section.html) -->
+    <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5);">
+      <div class="rounded-xl shadow-lg p-8 w-[98vw] max-w-7xl relative overflow-y-auto max-h-[80vh]" @click.away="showModal = false" style="background-color: #FAF9F9;">
+        <button @click="showModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
+          <span class="sr-only">Close</span>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <template x-if="selected">
+          <div class="flex flex-col items-center">
+            <img :src="selected.photo" :alt="selected.name" class="w-24 h-24 rounded-full object-cover shadow mb-4" />
+            <div class="font-semibold text-lg mb-1" style="color: #555B6E;" x-text="selected.name + ', ' + selected.credentials"></div>
+            <div class="text-xs text-gray-500 mb-1" x-text="selected.city + ', ' + selected.state"></div>
+            <div class="text-sm mb-2" style="color: #89B0AE;" x-text="selected.credential_description"></div>
+            <div class="text-xs text-gray-500 mb-2"><span class="font-semibold">Specialties:</span> <span x-text="selected.specialties"></span></div>
+            <div class="text-sm italic mb-2" x-text="selected.tagline"></div>
+            <div class="text-sm text-[#555B6E]" x-text="selected.bio"></div>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -26,9 +58,9 @@
     <div style="width:2px; min-height:120px; max-height:400px; height:75%; margin-top:auto; margin-bottom:auto; background:linear-gradient(to bottom, #BEE3DB 60%, #FFE5D1 100%); border-radius:1px;"></div>
   </div>
   <!-- Blog Post Right -->
-  <div class="flex-1 px-4 sm:px-8 flex flex-col items-center justify-center">
+  <div class="flex-1 px-4 sm:px-8 flex flex-col items-center justify-center" x-data="{ showBlogModal: false }">
     <div class="flex flex-col justify-center items-center w-full text-center">
-      <h3 class="text-xl font-bold mb-2" style="color: #89B0AE;">Featured Blog Post</h3>
+      <h3 class="text-xl font-bold mb-8" style="color: #89B0AE;">Blog Post</h3>
       <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden mb-4 bg-[#BEE3DB] flex items-center justify-center mx-auto">
         {% if top_blog_post and top_blog_post.image %}
           <img src="{{ top_blog_post.image.url }}" alt="{{ top_blog_post.title }}" class="object-cover w-full h-full rounded-lg" />
@@ -38,9 +70,51 @@
       </div>
       {% if top_blog_post %}
         <div class="font-semibold text-lg mb-1" style="color: #555B6E;">{{ top_blog_post.title|truncatechars:40 }}</div>
-        <div class="text-xs text-gray-500 mb-2">by {{ top_blog_post.author.get_full_name|default:top_blog_post.author.email }}</div>
+        {% with profile=top_blog_post.author.therapistprofile %}
+        <div class="text-xs text-gray-500 mb-2">by {{ profile.first_name }} {{ profile.last_name }}, {{ profile.credentials }}</div>
+        {% endwith %}
         <p class="text-sm mb-2" style="color: #555B6E;">{{ top_blog_post.content|truncatewords:20|safe }}</p>
-        <a href="/blog/{{ top_blog_post.slug }}" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E]">Read Blog</a>
+        <button @click="showBlogModal = true" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E] transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #fff;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#fff';">Read Blog</button>
+        <!-- Blog Modal -->
+        <div x-show="showBlogModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5);">
+          <div class="rounded-xl shadow-lg p-0 w-[98vw] max-w-3xl relative overflow-y-auto max-h-[90vh] bg-white" @click.away="showBlogModal = false" style="background-color: #FAF9F9;">
+            <button @click="showBlogModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
+              <span class="sr-only">Close</span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            {% if top_blog_post %}
+              <article class="flex flex-col items-center px-6 pt-10 pb-8">
+                <div class="w-full max-w-2xl mx-auto mb-6">
+                  {% if top_blog_post.image %}
+                    <img src="{{ top_blog_post.image.url }}" alt="{{ top_blog_post.title }}" class="object-cover w-full h-64 rounded-xl shadow mb-4" />
+                  {% else %}
+                    <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80" alt="Featured Blog" class="object-cover w-full h-64 rounded-xl shadow mb-4" />
+                  {% endif %}
+                </div>
+                <h2 class="text-3xl font-extrabold mb-2 text-center" style="color: #555B6E;">{{ top_blog_post.title }}</h2>
+                {% with profile=top_blog_post.author.therapistprofile %}
+                <div class="flex items-center justify-center gap-3 mb-4">
+                  {% if profile.profile_photo %}
+                    <img src="{{ profile.profile_photo.url }}" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-12 h-12 rounded-full object-cover border-2 border-[#BEE3DB] shadow" />
+                  {% else %}
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-[#BEE3DB] flex items-center justify-center text-lg font-bold" style="color: #555B6E;">
+                      {{ profile.first_name|slice:"0:1" }}{{ profile.last_name|slice:"0:1" }}
+                    </div>
+                  {% endif %}
+                  <div class="text-left">
+                    <div class="font-semibold text-base" style="color: #555B6E;">{{ profile.first_name }} {{ profile.last_name }}</div>
+                    <div class="text-xs text-[#89B0AE] font-medium">{{ profile.credentials }}</div>
+                  </div>
+                </div>
+                {% endwith %}
+                <div class="prose prose-lg max-w-none mb-6" style="color: #555B6E;">{{ top_blog_post.content|safe }}</div>
+                <a :href="'/blog/{{ top_blog_post.slug }}'" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E] transition-colors duration-150" style="background-color: #89B0AE; color: #fff;">View Full Blog Post</a>
+              </article>
+            {% endif %}
+          </div>
+        </div>
       {% else %}
         <div class="font-semibold text-lg mb-1" style="color: #555B6E;">No blog post available</div>
       {% endif %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="py-8 flex-1 flex flex-col justify-center items-center" style="background-color: #BEE3DB;">
+<section class="py-8 flex-1 flex flex-col justify-center items-center" style="background-color: #FAF9F9;">
     <div class="w-full max-w-md bg-white rounded-lg shadow p-6 sm:p-8 mx-2">
         <h2 class="text-2xl sm:text-3xl font-extrabold mb-6 text-center" style="color: #555B6E;">Create Your Account</h2>
         {% if messages %}
@@ -24,53 +24,23 @@
                     {% endfor %}
                 </div>
             {% endfor %}
-            <button type="submit" class="w-full px-4 py-2 rounded font-semibold text-sm signup-btn" style="background-color: #FF9950; color: #555B6E;">Register</button>
+            <a href="#" onclick="this.closest('form').submit(); return false;" class="w-full block px-4 py-2 rounded font-semibold text-sm transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] signup-btn" style="background-color: #89B0AE; color: #fff; text-align: center; border: none; cursor: pointer;"
+               onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';"
+               onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#fff';"
+               onfocus="this.style.backgroundColor='#555B6E'; this.style.color='#fff';"
+               onblur="this.style.backgroundColor='#89B0AE'; this.style.color='#fff';">
+              Register
+            </a>
         </form>
     </div>
     </section>
 
-    <!-- Features Section -->
-    <section class="py-8 bg-[#FAF9F9] w-full flex flex-col items-center">
-        <div class="max-w-2xl w-full px-4">
-            <h3 class="text-xl sm:text-2xl font-bold mb-6 text-center" style="color: #555B6E;">Why Join Therapy Connected?</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div class="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-                    <div class="w-12 h-12 rounded-full flex items-center justify-center mb-4" style="background-color: #BEE3DB;">
-                        <span class="text-2xl" style="color: #555B6E;">💬</span>
-                    </div>
-                    <div class="font-semibold mb-2" style="color: #555B6E;">Connect with Licensed Therapists</div>
-                    <div class="text-sm text-center" style="color: #89B0AE;">Browse a diverse network of experienced professionals ready to support your mental health journey.</div>
-                </div>
-                <div class="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-                    <div class="w-12 h-12 rounded-full flex items-center justify-center mb-4" style="background-color: #BEE3DB;">
-                        <span class="text-2xl" style="color: #555B6E;">🔒</span>
-                    </div>
-                    <div class="font-semibold mb-2" style="color: #555B6E;">Private & Secure</div>
-                    <div class="text-sm text-center" style="color: #89B0AE;">Your privacy is our priority. All communications and data are protected and confidential.</div>
-                </div>
-                <div class="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-                    <div class="w-12 h-12 rounded-full flex items-center justify-center mb-4" style="background-color: #BEE3DB;">
-                        <span class="text-2xl" style="color: #555B6E;">📅</span>
-                    </div>
-                    <div class="font-semibold mb-2" style="color: #555B6E;">Flexible Scheduling</div>
-                    <div class="text-sm text-center" style="color: #89B0AE;">Book sessions at times that work for you, with easy online scheduling and reminders.</div>
-                </div>
-                <div class="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-                    <div class="w-12 h-12 rounded-full flex items-center justify-center mb-4" style="background-color: #BEE3DB;">
-                        <span class="text-2xl" style="color: #555B6E;">🌱</span>
-                    </div>
-                    <div class="font-semibold mb-2" style="color: #555B6E;">Resources & Support</div>
-                    <div class="text-sm text-center" style="color: #89B0AE;">Access articles, tips, and tools to help you thrive between sessions and beyond.</div>
-                </div>
-            </div>
-        </div>
-    </section>
 <style>
     .signup-btn {
         transition: background 0.2s, color 0.2s;
     }
-    .signup-btn:hover {
-        color: #FF9950 !important;
+    .signup-btn:hover, .signup-btn:focus {
+        color: #fff !important;
     }
     input[type="text"], input[type="email"], input[type="password"], select, textarea {
         width: 100%;

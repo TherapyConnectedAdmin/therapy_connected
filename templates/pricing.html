@@ -14,12 +14,51 @@
             <h2 class="text-2xl font-bold text-[#555B6E] mb-2">{{ plan.name }}</h2>
             <div class="text-[#555B6E] mb-4">{{ plan.description|safe }}</div>
             <div class="flex flex-col gap-2 mb-4">
-              <div class="text-lg font-semibold text-[#555B6E]">Monthly: <span class="text-[#FF9950]">${{ plan.price_monthly }}</span></div>
-              <div class="text-lg font-semibold text-[#555B6E]">Annual: <span class="text-[#FF9950]">${{ plan.price_annual }}</span></div>
+              <div class="text-lg font-semibold text-[#555B6E]">Monthly: <span class="text-[#33343A] font-bold">${{ plan.price_monthly }}</span></div>
+              <div class="text-lg font-semibold text-[#555B6E]">Annual: <span class="text-[#33343A] font-bold">${{ plan.price_annual }}</span></div>
             </div>
-            <a href="/subscribe/" class="mt-auto px-4 py-2 rounded font-semibold text-base bg-[#89B0AE] text-white hover:bg-[#555B6E] transition text-center">Get Started</a>
+            <a href="/subscribe/" class="get-started-btn mt-auto px-4 py-2 rounded font-semibold text-base transition text-center">Get Started</a>
+<style>
+  .get-started-btn {
+    background-color: #89B0AE;
+    color: #fff;
+    transition: background 0.2s, color 0.2s;
+    cursor: pointer;
+  }
+  .get-started-btn:hover, .get-started-btn:focus {
+    background-color: #555B6E !important;
+    color: #fff !important;
+  }
+</style>
           </div>
           {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- How It Works: Therapist Sign Up -->
+    <div class="max-w-3xl mx-auto mt-12">
+      <div class="rounded-2xl shadow-xl bg-white border border-[#BEE3DB]">
+        <div class="px-8 py-6 bg-[#FFE5D1] rounded-t-2xl border-b border-[#BEE3DB]">
+          <h2 class="text-2xl font-bold text-[#555B6E] tracking-tight mb-2">The Sign Up Process</h2>
+          <p class="text-[#555B6E] text-base">Getting started as a therapist is quick and easy. Here’s the sign up process:</p>
+        </div>
+        <div class="px-8 py-8 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+          <div>
+            <div class="w-14 h-14 mx-auto mb-4 flex items-center justify-center rounded-full bg-[#BEE3DB] text-2xl font-bold text-[#555B6E]">1</div>
+            <div class="font-semibold text-[#555B6E] mb-1">Create Your Account</div>
+            <div class="text-sm text-[#555B6E]">Sign up with your email and set a password to get started.</div>
+          </div>
+          <div>
+            <div class="w-14 h-14 mx-auto mb-4 flex items-center justify-center rounded-full bg-[#BEE3DB] text-2xl font-bold text-[#555B6E]">2</div>
+            <div class="font-semibold text-[#555B6E] mb-1">Complete Your Profile</div>
+            <div class="text-sm text-[#555B6E]">Add your credentials, specialties, and a profile photo to help clients find you.</div>
+          </div>
+          <div>
+            <div class="w-14 h-14 mx-auto mb-4 flex items-center justify-center rounded-full bg-[#BEE3DB] text-2xl font-bold text-[#555B6E]">3</div>
+            <div class="font-semibold text-[#555B6E] mb-1">Get Verified & Go Live</div>
+            <div class="text-sm text-[#555B6E]">Our team will review your information. Once approved, your profile will be visible to clients.</div>
+          </div>
         </div>
       </div>
     </div>

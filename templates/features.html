@@ -2,38 +2,72 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="min-h-screen bg-[#FAF9F9] py-12">
-  <div class="max-w-3xl mx-auto">
+  <div class="max-w-6xl mx-auto px-4">
     <div class="rounded-2xl shadow-xl bg-white border border-[#BEE3DB]">
       <div class="px-8 py-6 bg-[#BEE3DB] rounded-t-2xl border-b border-[#BEE3DB]">
         <h1 class="text-3xl font-bold text-[#555B6E] tracking-tight">Features</h1>
-        <p class="text-lg text-[#555B6E] mt-2">Discover everything you can do on Therapy Connected.</p>
+        <p class="text-lg text-[#555B6E] mt-2">Everything you need, beautifully designed.</p>
       </div>
-      <div class="px-8 py-8">
-        <h2 class="text-2xl font-semibold text-[#555B6E] mb-4">For Visitors &amp; Clients</h2>
-        <ul class="list-disc pl-6 mb-8 text-[#555B6E] space-y-2">
-          <li><span class="font-bold">Browse Therapists:</span> Search, filter, and sort therapists by specialty, location, credentials, and more. View detailed therapist profiles with bios, specialties, credentials, and contact info. See therapist availability and professional tier.</li>
-          <li><span class="font-bold">Contact Therapists:</span> Securely contact therapists via email directly from their profile card.</li>
-          <li><span class="font-bold">Read the Blog:</span> Explore articles written by therapists on mental health, wellness, and therapy tips. Search and filter blog posts by topic, author, or keyword.</li>
-        </ul>
-        <h2 class="text-2xl font-semibold text-[#555B6E] mb-4">For Therapists</h2>
-        <ul class="list-disc pl-6 mb-8 text-[#555B6E] space-y-2">
-          <li><span class="font-bold">Create &amp; Manage Your Profile:</span> Build a professional profile with photo, credentials, specialties, tagline, and bio. Update your information anytime.</li>
-          <li><span class="font-bold">Dashboard:</span> View statistics: profile visits, contact count, and last viewed date. Manage your blog posts (create, edit, delete, and view all your posts).</li>
-          <li><span class="font-bold">Blog Authoring:</span> Write and publish blog posts to share your expertise. Tag posts for discoverability.</li>
-          <li><span class="font-bold">Onboarding Wizard:</span> Guided onboarding to help you set up your profile step-by-step.</li>
-          <li><span class="font-bold">Subscription &amp; Payments:</span> Choose a professional tier and manage your subscription securely.</li>
-        </ul>
-        <h2 class="text-2xl font-semibold text-[#555B6E] mb-4">Platform Features</h2>
-        <ul class="list-disc pl-6 mb-8 text-[#555B6E] space-y-2">
-          <li><span class="font-bold">Modern, Accessible Design:</span> Calming pastel palette, responsive layout, and accessible navigation.</li>
-          <li><span class="font-bold">Advanced Search:</span> Powerful search and filtering for both therapists and blog content.</li>
-          <li><span class="font-bold">Secure &amp; Private:</span> Data privacy and secure contact forms.</li>
-          <li><span class="font-bold">Mobile Friendly:</span> Fully responsive for all devices.</li>
-          <li><span class="font-bold">Easy Navigation:</span> Clean navbar, search modal, and clear links to all major sections.</li>
-        </ul>
-        <div class="mt-8 flex flex-col sm:flex-row gap-4 items-center">
+      <div class="px-8 py-12">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <!-- Card 1 -->
+          <div class="bg-[#BEE3DB] rounded-2xl shadow p-6 flex flex-col items-center text-center">
+            <img src="https://img.icons8.com/ios-filled/100/555B6E/search--v1.png" alt="Browse Therapists" class="w-16 h-16 mb-4"/>
+            <h3 class="font-bold text-xl text-[#555B6E] mb-2">Browse Therapists</h3>
+            <p class="text-[#555B6E]">Find the right therapist by specialty, location, and more. View detailed profiles and availability.</p>
+          </div>
+          <!-- Card 2 -->
+          <div class="bg-[#FFF6ED] rounded-2xl shadow p-6 flex flex-col items-center text-center">
+            <img src="https://img.icons8.com/ios-filled/100/555B6E/secured-letter.png" alt="Contact Therapists" class="w-16 h-16 mb-4"/>
+            <h3 class="font-bold text-xl text-[#555B6E] mb-2">Contact Therapists</h3>
+            <p class="text-[#555B6E]">Message therapists securely and privately, right from their profile card.</p>
+          </div>
+          <!-- Card 3 -->
+          <div class="bg-[#BEE3DB] rounded-2xl shadow p-6 flex flex-col items-center text-center">
+            <img src="https://img.icons8.com/ios-filled/100/555B6E/blog.png" alt="Read the Blog" class="w-16 h-16 mb-4"/>
+            <h3 class="font-bold text-xl text-[#555B6E] mb-2">Read the Blog</h3>
+            <p class="text-[#555B6E]">Explore articles on mental health, wellness, and therapy tips from our expert community.</p>
+          </div>
+          <!-- Card 4 -->
+          <div class="bg-[#FFF6ED] rounded-2xl shadow p-6 flex flex-col items-center text-center">
+            <img src="https://img.icons8.com/ios-filled/100/555B6E/user-male-circle.png" alt="Therapist Profile" class="w-16 h-16 mb-4"/>
+            <h3 class="font-bold text-xl text-[#555B6E] mb-2">Therapist Profile</h3>
+            <p class="text-[#555B6E]">Create and manage your professional profile with photo, credentials, and specialties.</p>
+          </div>
+          <!-- Card 5 -->
+          <div class="bg-[#BEE3DB] rounded-2xl shadow p-6 flex flex-col items-center text-center">
+            <img src="https://img.icons8.com/ios-filled/100/555B6E/combo-chart--v1.png" alt="Dashboard & Stats" class="w-16 h-16 mb-4"/>
+            <h3 class="font-bold text-xl text-[#555B6E] mb-2">Dashboard & Stats</h3>
+            <p class="text-[#555B6E]">Track your profile visits, contacts, and blog post performance at a glance.</p>
+          </div>
+          <!-- Card 6 -->
+          <div class="bg-[#FFF6ED] rounded-2xl shadow p-6 flex flex-col items-center text-center">
+            <img src="https://img.icons8.com/ios-filled/100/555B6E/edit-file.png" alt="Blog Authoring" class="w-16 h-16 mb-4"/>
+            <h3 class="font-bold text-xl text-[#555B6E] mb-2">Blog Authoring</h3>
+            <p class="text-[#555B6E]">Write and publish blog posts to share your expertise and help others.</p>
+          </div>
+          <!-- Card 7 -->
+          <div class="bg-[#BEE3DB] rounded-2xl shadow p-6 flex flex-col items-center text-center">
+            <img src="https://img.icons8.com/ios-filled/100/555B6E/wizard.png" alt="Onboarding Wizard" class="w-16 h-16 mb-4"/>
+            <h3 class="font-bold text-xl text-[#555B6E] mb-2">Onboarding Wizard</h3>
+            <p class="text-[#555B6E]">Step-by-step onboarding to help therapists set up their profile quickly.</p>
+          </div>
+          <!-- Card 8 -->
+          <div class="bg-[#FFF6ED] rounded-2xl shadow p-6 flex flex-col items-center text-center">
+            <img src="https://img.icons8.com/ios-filled/100/555B6E/lock-2.png" alt="Secure & Private" class="w-16 h-16 mb-4"/>
+            <h3 class="font-bold text-xl text-[#555B6E] mb-2">Secure & Private</h3>
+            <p class="text-[#555B6E]">Your data and messages are always protected with secure forms and privacy-first design.</p>
+          </div>
+          <!-- Card 9 -->
+          <div class="bg-[#BEE3DB] rounded-2xl shadow p-6 flex flex-col items-center text-center">
+            <img src="https://img.icons8.com/ios-filled/100/555B6E/smartphone-tablet.png" alt="Mobile Friendly" class="w-16 h-16 mb-4"/>
+            <h3 class="font-bold text-xl text-[#555B6E] mb-2">Mobile Friendly</h3>
+            <p class="text-[#555B6E]">Enjoy a seamless experience on any device, with a fully responsive layout.</p>
+          </div>
+        </div>
+        <div class="mt-12 flex flex-col sm:flex-row gap-4 items-center justify-center">
           <a href="/users/register/" class="px-6 py-3 rounded-lg font-semibold text-base bg-[#89B0AE] text-white hover:bg-[#555B6E] transition">Register as a Therapist</a>
-          <a href="/therapists/" class="px-6 py-3 rounded-lg font-semibold text-base bg-[#FF9950] text-white hover:bg-[#555B6E] transition">Browse Therapists</a>
+          <a href="/therapists/" class="get-started-btn px-6 py-3 rounded-lg font-semibold text-base cursor-pointer">Browse Therapists</a>
         </div>
       </div>
     </div>

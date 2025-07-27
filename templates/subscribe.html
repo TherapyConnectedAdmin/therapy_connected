@@ -1,26 +1,26 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="py-12 bg-[#FAF9F9] w-full flex flex-col items-center">
-  <div class="max-w-3xl w-full bg-white rounded-xl shadow-lg p-8 mx-auto mt-8">
-    <h2 class="text-2xl font-bold mb-6 text-[#555B6E] text-center">Choose Your Subscription</h2>
+<section class="py-12 bg-[#F6FBF9] w-full flex flex-col items-center">
+  <div class="max-w-3xl w-full bg-white rounded-3xl shadow-2xl p-8 sm:p-12 mx-auto mt-8 border border-[#BEE3DB]">
+    <h2 class="text-3xl font-bold mb-6 text-[#555B6E] text-center tracking-tight">Choose Your Subscription</h2>
     <div class="flex justify-center mb-8">
-      <button id="toggle-monthly" class="px-4 py-2 rounded-l-full font-semibold text-white" style="background-color: #FF9950;">Monthly</button>
-      <button id="toggle-annual" class="px-4 py-2 rounded-r-full font-semibold text-[#555B6E] bg-[#BEE3DB]">Annual</button>
+      <button id="toggle-monthly" class="toggle-btn px-6 py-2 rounded-l-full font-semibold text-[#555B6E] bg-[#E3F6F5] border border-[#BEE3DB] focus:outline-none focus:ring-2 focus:ring-[#BEE3DB] transition-colors duration-150">Monthly</button>
+      <button id="toggle-annual" class="toggle-btn px-6 py-2 rounded-r-full font-semibold text-[#555B6E] bg-[#F6FBF9] border border-[#BEE3DB] focus:outline-none focus:ring-2 focus:ring-[#BEE3DB] transition-colors duration-150">Annual</button>
     </div>
-    <div id="subscription-plans" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+    <div id="subscription-plans" class="grid grid-cols-1 sm:grid-cols-2 gap-8">
       {% for plan in plans %}
-      <div class="border rounded-lg p-6 flex flex-col items-center bg-[#BEE3DB] mb-4">
-        <h3 class="text-xl font-semibold text-[#555B6E] mb-2">{{ plan.name }}</h3>
+      <div class="rounded-2xl border border-[#BEE3DB] p-8 flex flex-col items-center bg-[#F6FBF9] shadow-md hover:shadow-xl transition-shadow duration-200 mb-4">
+        <h3 class="text-2xl font-bold text-[#555B6E] mb-2 tracking-tight">{{ plan.name }}</h3>
         <div class="prose prose-sm text-[#555B6E] mb-2">{{ plan.description|safe }}</div>
-        <div class="price-group">
-          <div class="monthly-price text-lg font-bold text-[#555B6E]">${{ plan.price_monthly }} <span class="text-sm">/month</span></div>
-          <div class="annual-price text-lg font-bold text-[#555B6E]" style="display:none;">${{ plan.price_annual }} <span class="text-sm">/year</span></div>
+        <div class="price-group mb-4">
+          <div class="monthly-price text-xl font-bold text-[#555B6E]">${{ plan.price_monthly }} <span class="text-base font-normal">/month</span></div>
+          <div class="annual-price text-xl font-bold text-[#555B6E]" style="display:none;">${{ plan.price_annual }} <span class="text-base font-normal">/year</span></div>
         </div>
-        <form method="post" action="/subscribe/pay/" class="select-form">
+        <form method="post" action="/subscribe/pay/" class="select-form w-full flex flex-col items-center">
           {% csrf_token %}
           <input type="hidden" name="plan_id" value="{{ plan.id }}" />
           <input type="hidden" name="plan_interval" value="monthly" />
-          <button type="submit" class="px-6 py-2 mt-2 rounded-full font-semibold text-white" style="background-color: #FF9950;">Select</button>
+          <button type="submit" class="get-started-btn w-full px-6 py-2 mt-2 rounded-full font-semibold text-white cursor-pointer">Select</button>
         </form>
       </div>
       {% empty %}
@@ -29,6 +29,15 @@
     </div>
   </div>
 </section>
+<style>
+  .toggle-btn.active,
+  .toggle-btn:focus,
+  .toggle-btn:hover {
+    background-color: #BEE3DB !important;
+    color: #555B6E !important;
+    border-color: #89B0AE !important;
+  }
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const monthlyBtn = document.getElementById('toggle-monthly');
@@ -36,35 +45,43 @@ document.addEventListener('DOMContentLoaded', function() {
   const priceGroups = document.querySelectorAll('.price-group');
   const forms = document.querySelectorAll('.select-form');
 
-  monthlyBtn.addEventListener('click', function() {
-    monthlyBtn.style.backgroundColor = '#FF9950';
-    monthlyBtn.style.color = '#fff';
-    annualBtn.style.backgroundColor = '#BEE3DB';
-    annualBtn.style.color = '#555B6E';
-    priceGroups.forEach(function(group) {
-      group.querySelector('.monthly-price').style.display = 'block';
-      group.querySelector('.annual-price').style.display = 'none';
-    });
-    forms.forEach(function(form) {
-      form.querySelector('input[name="plan_interval"]').value = 'monthly';
-      form.querySelector('button[type="submit"]').textContent = 'Select';
-    });
+  function setActive(isMonthly) {
+    if (isMonthly) {
+      monthlyBtn.classList.add('active');
+      annualBtn.classList.remove('active');
+      priceGroups.forEach(function(group) {
+        group.querySelector('.monthly-price').style.display = 'block';
+        group.querySelector('.annual-price').style.display = 'none';
+      });
+      forms.forEach(function(form) {
+        form.querySelector('input[name="plan_interval"]').value = 'monthly';
+        form.querySelector('button[type="submit"]').textContent = 'Select';
+      });
+    } else {
+      annualBtn.classList.add('active');
+      monthlyBtn.classList.remove('active');
+      priceGroups.forEach(function(group) {
+        group.querySelector('.monthly-price').style.display = 'none';
+        group.querySelector('.annual-price').style.display = 'block';
+      });
+      forms.forEach(function(form) {
+        form.querySelector('input[name="plan_interval"]').value = 'annual';
+        form.querySelector('button[type="submit"]').textContent = 'Select';
+      });
+    }
+  }
+
+  monthlyBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    setActive(true);
+  });
+  annualBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    setActive(false);
   });
 
-  annualBtn.addEventListener('click', function() {
-    annualBtn.style.backgroundColor = '#FF9950';
-    annualBtn.style.color = '#fff';
-    monthlyBtn.style.backgroundColor = '#BEE3DB';
-    monthlyBtn.style.color = '#555B6E';
-    priceGroups.forEach(function(group) {
-      group.querySelector('.monthly-price').style.display = 'none';
-      group.querySelector('.annual-price').style.display = 'block';
-    });
-    forms.forEach(function(form) {
-      form.querySelector('input[name="plan_interval"]').value = 'annual';
-      form.querySelector('button[type="submit"]').textContent = 'Select';
-    });
-  });
+  // Set initial state
+  setActive(true);
 });
 </script>
 {% endblock %}

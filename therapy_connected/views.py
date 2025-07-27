@@ -186,15 +186,13 @@ def home(request):
     else:
         therapists_final = list(therapists.order_by('-user__last_login')[:6])
 
-    # Get today's date
+    from users.models_featured import FeaturedTherapistHistory, FeaturedBlogPostHistory
     today = timezone.now().date()
-    # Top blog post for today (most recent published post from today, fallback to most recent published)
-    top_blog_post = BlogPost.objects.filter(published=True, created_at__date=today).order_by('-created_at').first()
-    if not top_blog_post:
-        top_blog_post = BlogPost.objects.filter(published=True).order_by('-created_at').first()
-
-    # Top therapist for today (most recently active, fallback to first in therapists_final)
-    top_therapist = therapists.order_by('-user__last_login').first() or (therapists_final[0] if therapists_final else None)
+    # Try to get today's featured therapist and blog post from history
+    featured_therapist_entry = FeaturedTherapistHistory.objects.filter(date=today).first()
+    featured_blog_entry = FeaturedBlogPostHistory.objects.filter(date=today).first()
+    top_therapist = featured_therapist_entry.therapist if featured_therapist_entry else (therapists.order_by('-user__last_login').first() or (therapists_final[0] if therapists_final else None))
+    top_blog_post = featured_blog_entry.blog_post if featured_blog_entry else BlogPost.objects.filter(published=True).order_by('-created_at').first()
 
     return render(request, 'home.html', {
         'therapists': therapists_final,
