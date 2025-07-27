@@ -1,3 +1,14 @@
+/* Main call-to-action button style */
+.get-started-btn {
+  background-color: #89B0AE;
+  color: #fff;
+  transition: background 0.2s, color 0.2s;
+}
+.get-started-btn:hover,
+.get-started-btn:focus {
+  background-color: #555B6E !important;
+  color: #fff !important;
+}
 .homepage-search-btn:hover {
   background-color: #555B6E !important;
   color: #FAF9F9 !important;
