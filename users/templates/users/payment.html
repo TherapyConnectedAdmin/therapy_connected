@@ -1,13 +1,83 @@
 {% extends "base.html" %}
+{% load payment_extras %}
 {% block content %}
 <section class="py-12 bg-[#FAF9F9] w-full flex flex-col items-center">
   <div class="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 mx-auto mt-8">
+    {% if subscription %}
+      <div x-data="{ showModal: false }" class="mb-6 mt-6 text-center border rounded-xl pt-8 pb-8 px-5" style="background-color: #FFF6ED; border-color: #FFD6B3;">
+        <br>
+        <div class="text-xl font-bold text-[#555B6E] mb-2">Subscription Type</div>
+        <div class="text-lg font-semibold text-[#555B6E]">{{ subscription.name }}</div>
+        <div class="text-base text-[#89B0AE] font-medium mb-2">
+          {{ subscription.price|floatformat:2 }} {{ subscription.currency|default:"USD" }} / {{ subscription.frequency|default:"month" }}
+        </div>
+        {% if subscription.frequency == 'month' %}
+          {% now "Y-m-d" as today %}
+          <div class="text-sm text-[#555B6E]">Anticipated Next Payment: {{ today|add_days:30|date:'F j, Y' }}</div>
+        {% elif subscription.frequency == 'year' %}
+          {% now "Y-m-d" as today %}
+          <div class="text-sm text-[#555B6E]">Anticipated Next Payment: {{ today|add_years:1|date:'F j, Y' }}</div>
+        {% endif %}
+        <a href="#" @click.prevent="showModal = true" class="inline-block mt-2 text-sm font-medium underline text-[#FF9950] hover:text-[#555B6E] transition">Edit Subscription</a>
+        <!-- Modal for editing subscription -->
+        <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5);">
+          <div class="rounded-xl shadow-lg p-8 w-[98vw] max-w-lg relative overflow-y-auto max-h-[80vh] bg-white" @click.away="showModal = false">
+            <button @click="showModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:1.5rem;">
+              <span class="sr-only">Close</span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 class="text-xl font-bold mb-4 text-center" style="color: #555B6E;">Change Your Subscription</h3>
+            <div class="text-sm text-[#555B6E] mb-4 text-center">Select a new plan below.</div>
+            <div x-data="{ interval: '{{ subscription.frequency|default:'month' }}', selectedPlan: '{{ subscription.name }}' }">
+              <div class="flex justify-center mb-6">
+                <button type="button" :class="interval === 'month' ? 'active bg-[#E3F6F5] text-[#555B6E]' : 'bg-[#F6FBF9] text-[#555B6E]'" class="toggle-btn px-6 py-2 rounded-l-full font-semibold border border-[#BEE3DB] focus:outline-none focus:ring-2 focus:ring-[#BEE3DB] transition-colors duration-150" @click="interval = 'month'">Monthly</button>
+                <button type="button" :class="interval === 'year' ? 'active bg-[#E3F6F5] text-[#555B6E]' : 'bg-[#F6FBF9] text-[#555B6E]'" class="toggle-btn px-6 py-2 rounded-r-full font-semibold border border-[#BEE3DB] focus:outline-none focus:ring-2 focus:ring-[#BEE3DB] transition-colors duration-150" @click="interval = 'year'">Annual</button>
+              </div>
+              <div class="grid grid-cols-1 gap-6 mb-4">
+                {% for plan in plans %}
+                <div :class="selectedPlan === '{{ plan.name }}' ? 'border-[#FF9950] ring-2 ring-[#FF9950]' : 'border-[#BEE3DB]'" class="rounded-xl border bg-[#FAF9F9] p-6 flex flex-col shadow cursor-pointer transition-all duration-150" @click="selectedPlan = '{{ plan.name }}'">
+                  <h4 class="text-lg font-bold text-[#555B6E] mb-1">{{ plan.name }}</h4>
+                  <div class="prose prose-sm text-[#555B6E] mb-2">{{ plan.description|safe }}</div>
+                  <div class="flex gap-4 mb-2">
+                    <div class="monthly-price text-base font-semibold text-[#555B6E]" x-show="interval === 'month'">${{ plan.price_monthly }} <span class="text-xs font-normal">/month</span></div>
+                    <div class="annual-price text-base font-semibold text-[#555B6E]" x-show="interval === 'year'">${{ plan.price_annual }} <span class="text-xs font-normal">/year</span></div>
+                  </div>
+                  <button type="button" class="get-started-btn w-full px-4 py-2 mt-2 rounded-full font-semibold text-white cursor-pointer bg-[#FF9950] hover:bg-[#555B6E] transition" @click.prevent="updatePlan('{{ plan.id }}', interval)">Select</button>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <script>
+            function updatePlan(planId, interval) {
+              fetch('/users/update_subscription/', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ plan_id: planId, plan_interval: interval })
+              })
+              .then(response => response.json())
+              .then(data => {
+                if (data.success) {
+                  window.location.reload();
+                }
+              });
+            }
+            </script>
+            <div class="flex justify-center mt-6">
+              <button @click="showModal = false" class="px-6 py-2 rounded-full font-semibold text-white bg-[#89B0AE] hover:bg-[#555B6E] transition">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
     <h2 class="text-2xl font-bold mb-6 text-[#555B6E] text-center">Enter Your Payment Details</h2>
     <form id="payment-form" method="post" action="" class="flex flex-col gap-6">
       {% csrf_token %}
-      <div class="mb-2 text-yellow-700 bg-yellow-100 border border-yellow-300 rounded px-3 py-2 text-sm">
-        <strong>Note:</strong> If you just logged in, please reload this page before submitting payment. This ensures your payment is processed securely and avoids CSRF errors.
-      </div>
+      <!-- CSRF note removed -->
       <div>
         <label for="cardholder" class="block text-sm font-medium text-[#555B6E] mb-1">Cardholder Name</label>
         <input type="text" id="cardholder" name="cardholder" class="border rounded px-4 py-2 w-full" required>
@@ -17,8 +87,8 @@
         <div id="card-element" class="border rounded px-4 py-2 w-full"></div>
       </div>
       <input type="hidden" name="payment_method_id" id="payment-method-id">
-      <button type="submit" class="px-6 py-2 rounded-full font-semibold text-white w-full" style="background-color: #FF9950;">Submit Payment</button>
-      <button type="submit" class="get-started-btn px-6 py-2 rounded-full font-semibold text-white w-full">Submit Payment</button>
+      <!-- Removed duplicate peach button -->
+      <button type="submit" class="get-started-btn px-6 py-2 rounded-full font-semibold text-white w-full cursor-pointer">Submit Payment</button>
       <div id="card-errors" class="mt-2 text-red-500 text-sm"></div>
     </form>
     <div class="mt-4 text-sm text-[#555B6E] text-center">Your payment is securely processed. You will be redirected to your dashboard after successful payment.</div>

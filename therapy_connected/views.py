@@ -14,6 +14,7 @@ from users.models_profile import TherapistProfile, PracticeAreaTag
 from users.models_blog import BlogPost
 from django.utils import timezone
 from django.db.models import Q
+from users.models import TherapistProfileStats
 
 def therapists_page(request):
     query = request.GET.get('q', '').strip()
@@ -21,7 +22,18 @@ def therapists_page(request):
     specialty = request.GET.get('specialty', '').strip()
     therapists = TherapistProfile.objects.filter(user__is_active=True, user__onboarding_status='active')
     if query:
-        q_obj = Q(first_name__icontains=query) | Q(last_name__icontains=query) | Q(credentials__icontains=query) | Q(city__icontains=query) | Q(state__icontains=query) | Q(short_bio__icontains=query) | Q(tagline__icontains=query)
+        from users.utils.state_normalize import normalize_state
+        normalized_query = normalize_state(query)
+        q_obj = (
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(credentials__icontains=query) |
+            Q(city__icontains=query) |
+            Q(state__icontains=query) |
+            Q(state__iexact=normalized_query) |
+            Q(short_bio__icontains=query) |
+            Q(tagline__icontains=query)
+        )
         therapists = therapists.filter(q_obj)
     if tier:
         therapists = therapists.filter(license_type__name__iexact=tier)
@@ -58,6 +70,14 @@ def therapists_page(request):
     except EmptyPage:
         therapists_page_obj = paginator.page(paginator.num_pages)
 
+    # After pagination, log search impressions and rank
+    today = timezone.now().date()
+    for idx, therapist in enumerate(therapists_page_obj.object_list, start=1):
+        stats, _ = TherapistProfileStats.objects.get_or_create(therapist=therapist.user, date=today)
+        stats.search_impressions += 1
+        stats.search_rank = idx  # last rank seen for today
+        stats.save()
+
     practice_areas_tags = PracticeAreaTag.objects.all().order_by('name')
     return render(request, 'therapists.html', {
         'therapists': therapists_page_obj,
@@ -86,25 +106,50 @@ def search_therapists(request):
         if city_state_match:
             city = city_state_match.group(1).strip()
             state = city_state_match.group(2).strip().upper()
+    if query:
+        from django.db.models import Q
+        from users.utils.state_normalize import normalize_state
+        import re
+        city_state_match = re.match(r"([A-Za-z .'-]+),?\s*([A-Za-z]{2,})$", query)
+        terms = [t for t in query.split() if t]
+        city = None
+        state = None
+        nearby_cities = []
+        if city_state_match:
+            city = city_state_match.group(1).strip()
+            state = normalize_state(city_state_match.group(2).strip())
         else:
             if len(terms) > 0:
                 city = terms[0]
         # Use uszipcode to get nearby cities within 100 miles
-        if city:
-            try:
-                from uszipcode import SearchEngine
-                search = SearchEngine(simple_zipcode=True)
-                results = search.by_city_and_state(city, state if state else None)
-                if results:
-                    zipcodes = [r.zipcode for r in results if r.zipcode]
-                    # Get all cities within 100 miles of the first result
-                    if zipcodes:
-                        nearby = search.query(zipcode=zipcodes[0], radius=100, returns=100)
-                        nearby_cities = [(z.major_city, z.state) for z in nearby]
-            except Exception:
-                nearby_cities = []
-        # Build Q for nearby cities
-        q_nearby = Q()
+    if query:
+        from django.db.models import Q
+        from users.utils.state_normalize import normalize_state
+        import re
+        city_state_match = re.match(r"([A-Za-z .'-]+),?\s*([A-Za-z]{2,})$", query)
+        terms = [t for t in query.split() if t]
+        city = None
+        state = None
+        nearby_cities = []
+        normalized_query = normalize_state(query)
+        if city_state_match:
+            city = city_state_match.group(1).strip()
+            state = normalize_state(city_state_match.group(2).strip())
+        else:
+            if len(terms) > 0:
+                city = terms[0]
+        # Add normalization to Q for direct state search
+        q_obj = (
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(credentials__icontains=query) |
+            Q(city__icontains=query) |
+            Q(state__icontains=query) |
+            Q(state__iexact=normalized_query) |
+            Q(short_bio__icontains=query) |
+            Q(tagline__icontains=query)
+        )
+        therapists = therapists.filter(q_obj)
         for nc, ns in nearby_cities:
             q_nearby |= Q(city__iexact=nc, state__iexact=ns)
         # Build Q for other terms
@@ -122,13 +167,16 @@ def search_therapists(request):
             prioritized = list(therapists.filter(q_nearby & q_other).distinct())
             prioritized_ids = {t.id for t in prioritized}
         # Flexible search for all terms
+        from users.utils.state_normalize import normalize_state
         q_all = Q()
         for term in terms:
+            normalized_term = normalize_state(term)
             q_all |= Q(first_name__icontains=term)
             q_all |= Q(last_name__icontains=term)
             q_all |= Q(credentials__icontains=term)
             q_all |= Q(city__icontains=term)
             q_all |= Q(state__icontains=term)
+            q_all |= Q(state__iexact=normalized_term)
             q_all |= Q(practice_areas_tags__name__icontains=term)
             q_all |= Q(short_bio__icontains=term)
             q_all |= Q(tagline__icontains=term)
@@ -138,12 +186,18 @@ def search_therapists(request):
     # Combine prioritized and others, keeping order and uniqueness
     combined = prioritized + others
     results = []
-    for therapist in combined[:20]:
+    today = timezone.now().date()
+    for idx, therapist in enumerate(combined[:20], start=1):
         card_html = render_to_string('partials/therapist_card.html', {'therapist': therapist})
         results.append({
             'id': therapist.id,
             'card_html': card_html
         })
+        # Log search impression and rank
+        stats, _ = TherapistProfileStats.objects.get_or_create(therapist=therapist.user, date=today)
+        stats.search_impressions += 1
+        stats.search_rank = idx  # last rank seen for today
+        stats.save()
     return JsonResponse({'results': results})
 from django.http import JsonResponse
 def set_zip(request):
@@ -159,7 +213,22 @@ from users.models_profile import TherapistProfile, ZipCode
 
 def home(request):
     user_zip = request.session.get('user_zip')
+    query = request.GET.get('q', '').strip()
     therapists = TherapistProfile.objects.filter(user__is_active=True, user__onboarding_status='active')
+    if query:
+        from users.utils.state_normalize import normalize_state
+        normalized_query = normalize_state(query)
+        q_obj = (
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(credentials__icontains=query) |
+            Q(city__icontains=query) |
+            Q(state__icontains=query) |
+            Q(state__iexact=normalized_query) |
+            Q(short_bio__icontains=query) |
+            Q(tagline__icontains=query)
+        )
+        therapists = therapists.filter(q_obj)
 
     if user_zip:
         from uszipcode import SearchEngine

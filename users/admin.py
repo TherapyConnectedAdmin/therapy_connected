@@ -1,4 +1,3 @@
-
 from django.contrib import admin
 from .models_featured import FeaturedTherapistHistory, FeaturedBlogPostHistory
 
@@ -39,10 +38,8 @@ from .models_profile import (
     ProfessionalAssociation, Insurance, MultilingualMaterial
 )
 from ckeditor.widgets import CKEditorWidget
-from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-
-User = get_user_model()
+from .models import User
 
 # Extend UserAdmin to show onboarding_status
 class UserAdmin(BaseUserAdmin):
@@ -51,7 +48,6 @@ class UserAdmin(BaseUserAdmin):
         (None, {'fields': ('onboarding_status',)}),
     )
 
-admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
 
 
@@ -147,3 +143,11 @@ admin.site.register(Language, LanguageAdmin)
 admin.site.register(ProfessionalAssociation, ProfessionalAssociationAdmin)
 admin.site.register(Insurance, InsuranceAdmin)
 admin.site.register(MultilingualMaterial, MultilingualMaterialAdmin)
+from .models import TherapistProfileStats
+
+class TherapistProfileStatsAdmin(admin.ModelAdmin):
+    list_display = ('therapist', 'date', 'search_impressions', 'search_rank', 'profile_clicks', 'contact_clicks')
+    list_filter = ('date', 'therapist')
+    search_fields = ('therapist__email',)
+
+admin.site.register(TherapistProfileStats, TherapistProfileStatsAdmin)

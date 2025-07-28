@@ -3,7 +3,7 @@
 <div class="min-h-screen bg-[#FAF9F9] py-8">
   <div class="max-w-2xl mx-auto">
     <div class="rounded-xl shadow-xl bg-white border border-[#BEE3DB]">
-      <div class="px-6 py-4" style="background-color: #FFE5D0;" class="rounded-t-xl border-b border-[#BEE3DB]">
+      <div class="px-6 py-4" style="background-color: #BEE3DB;" class="rounded-t-xl border-b border-[#BEE3DB]">
         <h2 class="text-2xl font-bold text-[#555B6E] tracking-tight">Welcome to your dashboard!</h2>
       </div>
       <div class="px-6 py-8">
@@ -18,6 +18,14 @@
               <span class="text-2xl font-bold text-[#555B6E]">{{ stats.contact_count|default:0 }}</span>
               <span class="text-sm text-[#555B6E]">Contacted</span>
             </div>
+            <div class="rounded-lg bg-[#BEE3DB] p-4 flex flex-col items-center">
+              <span class="text-2xl font-bold text-[#555B6E]">{{ stats.search_impressions|default:0 }}</span>
+              <span class="text-sm text-[#555B6E]">Search Impressions (Today)</span>
+            </div>
+            <div class="rounded-lg bg-[#BEE3DB] p-4 flex flex-col items-center">
+              <span class="text-2xl font-bold text-[#555B6E]">{% if stats.search_rank %}{{ stats.search_rank }}{% else %}-{% endif %}</span>
+              <span class="text-sm text-[#555B6E]">Search Rank (Today)</span>
+            </div>
             <div class="rounded-lg bg-[#BEE3DB] p-4 flex flex-col items-center sm:col-span-2">
               <span class="text-2xl font-bold text-[#555B6E]">{% if stats.last_viewed_at %}{{ stats.last_viewed_at|date:'M d, Y H:i' }}{% else %}Never{% endif %}</span>
               <span class="text-sm text-[#555B6E]">Last Profile View</span>
@@ -26,11 +34,43 @@
         </div>
         <div class="mt-8">
           <h3 class="text-xl font-bold text-[#555B6E] mb-4">My Blog Posts</h3>
-          {% with user_posts=user.blogpost_set.all %}
-            {% if not user_posts.exists %}
-              <div class="text-[#555B6E] text-base mb-4">You haven't written any blog posts yet. Start by creating your first post below!</div>
-            {% endif %}
-          {% endwith %}
+          {% if user_blog_posts and user_blog_posts|length > 0 %}
+            <div class="flex flex-col gap-4 mb-4">
+              {% for post in user_blog_posts %}
+                <div class="rounded-lg border border-[#BEE3DB] bg-[#F6FFF8] p-4 shadow">
+                  <div class="flex flex-wrap justify-between items-center mb-1 gap-2">
+                    <span class="font-semibold text-[#232323]">{{ post.title }}</span>
+                    <span class="text-xs px-2 py-1 rounded-full {% if post.published %}bg-[#BEE3DB] text-[#555B6E]{% else %}bg-gray-200 text-gray-500{% endif %}">{% if post.published %}Published{% else %}Draft{% endif %}</span>
+                  </div>
+                  <div class="text-xs text-gray-500 mb-1">{{ post.created_at|date:"M d, Y" }}</div>
+                  <div class="line-clamp-2 text-sm text-[#555B6E]">{{ post.content|truncatewords:15|safe }}</div>
+                  <div class="flex gap-3 mt-1">
+                    {% if post.slug %}
+                      <a href="{% url 'blog_detail' slug=post.slug %}" class="text-[#89B0AE] hover:underline text-xs inline-block">View Post</a>
+                    {% endif %}
+                    <a href="{% url 'user_blog_edit' pk=post.pk %}" class="text-[#FF9950] hover:underline text-xs inline-block">Edit</a>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="flex justify-center mt-4">
+              <nav class="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                {% if user_blog_posts.has_previous %}
+                  <a href="?page={{ user_blog_posts.previous_page_number }}" class="px-3 py-1 rounded-l-lg bg-[#BEE3DB] text-[#555B6E] hover:bg-[#89B0AE]">Previous</a>
+                {% else %}
+                  <span class="px-3 py-1 rounded-l-lg bg-gray-200 text-gray-400 cursor-not-allowed">Previous</span>
+                {% endif %}
+                <span class="px-3 py-1 bg-white border border-[#BEE3DB] text-[#555B6E]">Page {{ user_blog_posts.number }} of {{ user_blog_posts.paginator.num_pages }}</span>
+                {% if user_blog_posts.has_next %}
+                  <a href="?page={{ user_blog_posts.next_page_number }}" class="px-3 py-1 rounded-r-lg bg-[#BEE3DB] text-[#555B6E] hover:bg-[#89B0AE]">Next</a>
+                {% else %}
+                  <span class="px-3 py-1 rounded-r-lg bg-gray-200 text-gray-400 cursor-not-allowed">Next</span>
+                {% endif %}
+              </nav>
+            </div>
+          {% else %}
+            <div class="text-[#555B6E] text-base mb-4">You haven't written any blog posts yet. Start by creating your first post below!</div>
+          {% endif %}
           <a href="{% url 'user_blog_create' %}" class="px-4 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E] mb-2 inline-block">Create New Post</a>
           <br>
           <a href="{% url 'user_blog_list' %}" class="text-[#89B0AE] hover:underline text-sm mt-2 inline-block">View All My Blog Posts</a>

@@ -14,7 +14,7 @@
       </div>
     </div>
     <div class="rounded-xl shadow-xl bg-white border border-[#BEE3DB]">
-      <div class="px-6 py-4 bg-[#FF9950] rounded-t-xl border-b border-[#BEE3DB]">
+      <div class="px-6 py-4 bg-[#BEE3DB] rounded-t-xl border-b border-[#BEE3DB]">
         <h2 class="text-2xl font-bold text-[#232323] tracking-tight">{{ section_title }}</h2>
         {% if section_description %}
           <div class="mt-1 text-base text-[#232323]">{{ section_description }}</div>
@@ -66,12 +66,12 @@
               {% endfor %}
             </div>
           {% endfor %}
-          <div class="flex justify-between mt-8">
+          <div class="mt-8 {% if wizard.steps.prev %}flex justify-between{% else %}flex justify-end{% endif %}">
             {% if wizard.steps.prev %}
-              <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="px-4 py-2 bg-[#BEE3DB] text-[#555B6E] rounded-lg shadow hover:bg-[#89B0AE] transition">Previous</button>
+              <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="px-4 py-2 bg-[#BEE3DB] text-[#555B6E] rounded-lg shadow hover:bg-[#89B0AE] transition cursor-pointer">Previous</button>
             {% endif %}
             <button type="submit"
-              class="px-6 py-2 font-semibold rounded-lg shadow transition
+              class="px-6 py-2 font-semibold rounded-lg shadow transition cursor-pointer
                 {% if wizard.steps.current == wizard.steps.last %}
                   bg-[#89B0AE] text-white hover:bg-[#555B6E]
                 {% else %}

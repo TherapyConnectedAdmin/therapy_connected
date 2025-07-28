@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<script>
+  window.onload = function() {
+    window.location.href = "mailto:{{ email_address }}";
+  };
+</script>
+<div class="min-h-screen flex items-center justify-center bg-[#FAF9F9]">
+  <div class="bg-white rounded-xl shadow-xl p-8 flex flex-col items-center">
+    <h2 class="text-xl font-bold text-[#555B6E] mb-4">Contact Therapist</h2>
+    <p class="mb-4 text-[#555B6E]">If your email client does not open automatically, <a href="mailto:{{ email_address }}" class="underline text-[#89B0AE]">click here to contact via email</a>.</p>
+  </div>
+</div>
+{% endblock %}

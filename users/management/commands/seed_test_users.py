@@ -43,24 +43,20 @@ class Command(BaseCommand):
             photo_id = random.randint(1, 99)
             profile_photo_url = f"https://randomuser.me/api/portraits/{gender}/{photo_id}.jpg"
             chosen_license = random.choice(license_types)
-            profile, _ = TherapistProfile.objects.get_or_create(
-                user=user,
-                defaults={
-                    'first_name': first_name,
-                    'last_name': last_name,
-                    'credentials': chosen_license.name,
-                    'display_name': f"Dr. {first_name} {last_name}",
-                    'tagline': fake.sentence(nb_words=6),
-                    'short_bio': fake.text(max_nb_chars=200),
-                    'license_number': ''.join(random.choices(string.digits, k=8)),
-                    'license_type': chosen_license,
-                    'primary_office_address': fake.address(),
-                    'phone_number': fake.phone_number(),
-                    'email_address': email,
-                    'zip_code': zip_codes[i],
-                    'session_fee_package_rates': "$100/hr",
-                }
-            )
+            profile, _ = TherapistProfile.objects.get_or_create(user=user)
+            profile.first_name = first_name
+            profile.last_name = last_name
+            profile.credentials = chosen_license.name
+            profile.display_name = f"Dr. {first_name} {last_name}"
+            profile.tagline = fake.sentence(nb_words=6)
+            profile.short_bio = fake.text(max_nb_chars=200)
+            profile.license_number = ''.join(random.choices(string.digits, k=8))
+            profile.license_type = chosen_license
+            profile.primary_office_address = fake.address()
+            profile.phone_number = fake.phone_number()
+            profile.email_address = email
+            profile.zip_code = zip_codes[i]
+            profile.session_fee_package_rates = "$100/hr"
             # Download and upload profile photo to S3 via ImageField
             try:
                 response = requests.get(profile_photo_url)

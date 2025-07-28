@@ -1,9 +1,31 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
 from .models_blog import BlogPost, BlogTag
 from django.core.paginator import Paginator
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect
 from .forms_blog import BlogPostForm
+from django.utils.text import slugify
+
+@login_required
+def user_blog_edit(request, pk):
+    post = get_object_or_404(BlogPost, pk=pk, author=request.user)
+    if request.method == 'POST':
+        form = BlogPostForm(request.POST, request.FILES, instance=post)
+        if form.is_valid():
+            post = form.save(commit=False)
+            if not post.slug:
+                base_slug = slugify(post.title)
+                slug = base_slug
+                i = 1
+                while BlogPost.objects.filter(slug=slug).exclude(pk=post.pk).exists():
+                    slug = f"{base_slug}-{i}"
+                    i += 1
+                post.slug = slug
+            post.save()
+            form.save_m2m()
+            return redirect('dashboard')
+    else:
+        form = BlogPostForm(instance=post)
+    return render(request, 'users/user_blog_form.html', {'form': form, 'edit_mode': True, 'post': post})
 
 def blog_index(request):
     posts = BlogPost.objects.filter(published=True).order_by('-created_at')
@@ -44,9 +66,17 @@ def user_blog_create(request):
         if form.is_valid():
             post = form.save(commit=False)
             post.author = request.user
+            if not post.slug:
+                base_slug = slugify(post.title)
+                slug = base_slug
+                i = 1
+                while BlogPost.objects.filter(slug=slug).exists():
+                    slug = f"{base_slug}-{i}"
+                    i += 1
+                post.slug = slug
             post.save()
             form.save_m2m()
-            return redirect('user_blog_list')
+            return redirect('dashboard')
     else:
         form = BlogPostForm()
     return render(request, 'users/user_blog_form.html', {'form': form})

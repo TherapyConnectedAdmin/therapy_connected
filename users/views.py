@@ -1,5 +1,28 @@
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+# AJAX endpoint to update subscription plan before payment
+@csrf_exempt
+def update_subscription(request):
+    if request.method == 'POST':
+        import json
+        data = json.loads(request.body)
+        plan_id = data.get('plan_id')
+        plan_interval = data.get('plan_interval', 'month')
+        # Normalize interval to match payment view logic
+        if plan_interval in ['month', 'monthly']:
+            session_interval = 'monthly'
+        elif plan_interval in ['year', 'annual']:
+            session_interval = 'annual'
+        else:
+            session_interval = 'monthly'
+        if plan_id:
+            request.session['selected_plan_id'] = plan_id
+            request.session['selected_plan_interval'] = session_interval
+            return JsonResponse({'success': True})
+    return JsonResponse({'success': False})
 from django.shortcuts import render, redirect
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+User = get_user_model()
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -10,6 +33,10 @@ from django.utils.crypto import get_random_string
 from acs_email_service import AcsEmailService
 import stripe
 from users.models_profile import TherapistProfile
+from users.models import TherapistProfileStats
+from django.utils import timezone
+from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse
 
 # Temporary in-memory store for tokens (use a model for production)
 confirmation_tokens = {}
@@ -106,15 +133,32 @@ def login_view(request):
 
 @login_required
 def dashboard(request):
+    from users.models_blog import BlogPost
     profile = TherapistProfile.objects.filter(user=request.user).first()
     stats = None
     if profile:
+        today = timezone.now().date()
+        stat_obj = TherapistProfileStats.objects.filter(therapist=request.user, date=today).first()
         stats = {
-            'visit_count': profile.visit_count,
-            'contact_count': profile.contact_count,
+            'visit_count': stat_obj.profile_clicks if stat_obj else 0,
+            'contact_count': stat_obj.contact_clicks if stat_obj else 0,
+            'search_impressions': stat_obj.search_impressions if stat_obj else 0,
+            'search_rank': stat_obj.search_rank if stat_obj else None,
             'last_viewed_at': profile.last_viewed_at,
         }
-    return render(request, 'users/dashboard.html', {'stats': stats})
+    # Get user's blog posts
+    from django.core.paginator import Paginator
+    user_blog_posts_qs = BlogPost.objects.filter(author=request.user).order_by('-created_at')
+    page_number = request.GET.get('page', 1)
+    paginator = Paginator(user_blog_posts_qs, 10)
+    user_blog_posts = paginator.get_page(page_number)
+    return render(request, 'users/dashboard.html', {
+        'stats': stats,
+        'user': request.user,
+        'user_blog_posts': user_blog_posts,
+        'paginator': paginator,
+        'page_obj': user_blog_posts
+    })
 
 def logout_view(request):
     logout(request)
@@ -144,30 +188,97 @@ def payment(request):
         )
         # Save Stripe IDs to user's subscription and create Stripe subscription
         from users.models import Subscription, SubscriptionType
+        # Always use latest selected plan/interval from session
+        selected_plan_id = request.session.get('selected_plan_id')
+        selected_plan_interval = request.session.get('selected_plan_interval', 'monthly')
         sub = Subscription.objects.filter(user=user).last()
-        if sub:
-            sub.stripe_customer_id = customer.id
-            sub.stripe_payment_method_id = payment_method_id
-            # Get Stripe price ID from SubscriptionType
-            plan = sub.subscription_type
-            interval = sub.interval
-            if interval == 'monthly':
-                price_id = plan.stripe_plan_id_monthly
-            else:
-                price_id = plan.stripe_plan_id_annual
-            # Create Stripe subscription
-            stripe_sub = stripe.Subscription.create(
-                customer=customer.id,
-                items=[{'price': price_id}],
-                default_payment_method=payment_method_id,
-                expand=["latest_invoice.payment_intent"]
-            )
-            sub.stripe_subscription_id = stripe_sub.id
-            sub.save()
+        if sub and selected_plan_id:
+            from users.models import SubscriptionType
+            try:
+                plan = SubscriptionType.objects.get(id=selected_plan_id)
+                interval = selected_plan_interval
+                sub.subscription_type = plan
+                sub.interval = interval
+                sub.stripe_customer_id = customer.id
+                sub.stripe_payment_method_id = payment_method_id
+                if interval == 'monthly':
+                    price_id = plan.stripe_plan_id_monthly
+                else:
+                    price_id = plan.stripe_plan_id_annual
+                stripe_sub = stripe.Subscription.create(
+                    customer=customer.id,
+                    items=[{'price': price_id}],
+                    default_payment_method=payment_method_id,
+                    expand=["latest_invoice.payment_intent"]
+                )
+                sub.stripe_subscription_id = stripe_sub.id
+                sub.save()
+            except SubscriptionType.DoesNotExist:
+                pass
         # Set onboarding_status to 'pending_profile_completion' after payment
         user.onboarding_status = 'pending_profile_completion'
         user.save()
         # Redirect to profile wizard after payment
         return redirect('profile_wizard')
-    return render(request, 'users/payment.html', {'STRIPE_PUBLISHABLE_KEY': settings.STRIPE_PUBLISHABLE_KEY})
+    # Get intended subscription plan from session
+    from users.models import SubscriptionType
+    selected_plan_id = request.session.get('selected_plan_id')
+    selected_plan_interval = request.session.get('selected_plan_interval', 'monthly')
+    subscription = None
+    plans = SubscriptionType.objects.filter(active=True).order_by('price_monthly')
+    if selected_plan_id:
+        try:
+            plan = SubscriptionType.objects.get(id=selected_plan_id)
+            # Build subscription info for template
+            if selected_plan_interval == 'monthly':
+                price = plan.price_monthly
+                frequency = 'month'
+            else:
+                price = plan.price_annual
+                frequency = 'year'
+            subscription = {
+                'name': plan.name,
+                'price': price,
+                'currency': 'USD',
+                'frequency': frequency
+            }
+        except SubscriptionType.DoesNotExist:
+            pass
+    return render(request, 'users/payment.html', {
+        'STRIPE_PUBLISHABLE_KEY': settings.STRIPE_PUBLISHABLE_KEY,
+        'subscription': subscription,
+        'plans': plans
+    })
+
+def therapist_profile(request, user_id):
+    from users.models_profile import TherapistProfile
+    from users.models import TherapistProfileStats
+    from django.utils import timezone
+    profile = TherapistProfile.objects.filter(user__id=user_id).first()
+    if not profile:
+        return HttpResponse('Profile not found', status=404)
+    # Increment profile click
+    today = timezone.now().date()
+    stats, _ = TherapistProfileStats.objects.get_or_create(therapist=profile.user, date=today)
+    stats.profile_clicks += 1
+    stats.save()
+    # Optionally update last_viewed_at
+    profile.last_viewed_at = timezone.now()
+    profile.save()
+    return render(request, 'users/therapist_profile.html', {'profile': profile})
+
+def contact_therapist(request, user_id):
+    from users.models_profile import TherapistProfile
+    from users.models import TherapistProfileStats
+    from django.utils import timezone
+    profile = TherapistProfile.objects.filter(user__id=user_id).first()
+    if not profile:
+        return HttpResponse('Profile not found', status=404)
+    # Increment contact click
+    today = timezone.now().date()
+    stats, _ = TherapistProfileStats.objects.get_or_create(therapist=profile.user, date=today)
+    stats.contact_clicks += 1
+    stats.save()
+    # Render minimal template with mailto link
+    return render(request, 'users/contact_redirect.html', {'email_address': profile.email_address})
 

@@ -12,6 +12,7 @@
       <div class="flex-1 text-center">
         {% if top_therapist %}
           <div class="font-semibold text-lg mb-1" style="color: #555B6E;">{{ top_therapist.first_name }} {{ top_therapist.last_name }}, {{ top_therapist.credentials }}</div>
+          <div class="text-xs text-gray-500 mb-1">{{ top_therapist.city }}, {{ top_therapist.state }}</div>
           <div class="text-sm mb-2" style="color: #89B0AE;">{{ top_therapist.credential_description|default:top_therapist.license_type.description|default:"" }}</div>
           <div class="text-xs text-gray-500 mb-2">Specialties: {% for tag in top_therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
           <button @click="showModal = true; selected = {

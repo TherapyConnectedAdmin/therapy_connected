@@ -35,7 +35,7 @@
       <span class="bg-[#FF9950] text-white px-3 py-1 rounded-full text-xs font-semibold">Distance: {{ therapist.distance|default:"N/A" }} mi</span>
     </div>
     <div class="mt-4 flex gap-2">
-      <a href="mailto:{{ therapist.email_address }}" class="bg-[#89B0AE] text-white font-semibold rounded px-4 py-2 hover:bg-[#555B6E]">Contact</a>
+      <a href="/users/contact/{{ therapist.user.id }}/" class="bg-[#89B0AE] text-white font-semibold rounded px-4 py-2 hover:bg-[#555B6E]">Contact</a>
       <a href="/users/profile/{{ therapist.user.id }}/" class="get-started-btn font-semibold rounded px-4 py-2 cursor-pointer">View Full Profile</a>
     </div>
   </div>

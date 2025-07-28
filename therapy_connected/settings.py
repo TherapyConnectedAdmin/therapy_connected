@@ -52,6 +52,9 @@ INSTALLED_APPS = [
     'ckeditor',
 ]
 
+# Use custom user model
+AUTH_USER_MODEL = 'users.User'
+
 # Add sslserver only in local development
 if DEBUG:
     INSTALLED_APPS.append('sslserver')
@@ -138,14 +141,14 @@ AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
-AWS_DEFAULT_ACL = None
-AWS_QUERYSTRING_AUTH = False
+AWS_DEFAULT_ACL = None  # Let bucket policy control access
+AWS_QUERYSTRING_AUTH = False  # No querystring auth for public files
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# MEDIA_ROOT is not used with S3 storage, so it can be omitted
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

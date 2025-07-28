@@ -13,7 +13,11 @@
           <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5); height: 100%;">
             <div class="rounded-xl shadow-lg w-[98vw] max-w-7xl relative overflow-y-auto h-full flex flex-col p-0" @click.away="showModal = false" style="background-color: #BEE3DB; height: 100%;">
               <div class="sticky top-0 z-10 flex flex-col items-center justify-center px-8 py-6 border-b border-[#BEE3DB] shadow-[0_4px_12px_-4px_rgba(85,91,110,0.10)]" style="background-color: #FAF9F9;">
-                <div class="relative w-full flex items-center justify-center">
+                <div class="relative w-full flex flex-col items-center justify-center gap-2">
+                  <div class="flex w-full max-w-2xl mx-auto mb-2 pt-4">
+                    <input type="text" x-model="query" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" @keydown.enter.prevent="fetchResults" />
+                    <button type="button" @click="fetchResults" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#FAF9F9';">Search</button>
+                  </div>
                   <h3 class="text-xl font-bold m-0 text-center w-full" style="color: #555B6E;">Search Results</h3>
                   <button @click="showModal = false" class="absolute right-0 top-1/2 -translate-y-1/2 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
                     <span class="sr-only">Close</span>
@@ -22,21 +26,33 @@
                     </svg>
                   </button>
                 </div>
-                <template x-if="query">
-                  <div class="mt-2 text-[#89B0AE] text-base text-center w-full">Showing results for <span class="font-semibold">"<span x-text="query"></span>"</span></div>
-                </template>
               </div>
               <div class="px-8 py-8">
                 <template x-if="results.length === 0">
                   <div class="text-center text-gray-500">No therapists found.</div>
                 </template>
                 <div>
-                  <template x-for="therapist in results" :key="therapist.id">
+                  <template x-for="therapist in pagedResults" :key="therapist.id">
                     <div class="mb-6">
                       <!-- Therapist card partial rendered by Django for initial results, or by JS for dynamic -->
                       <div x-html="therapist.card_html"></div>
                     </div>
                   </template>
+                </div>
+                <div class="flex justify-center items-center gap-4 mt-8" x-show="totalPages > 1">
+                  <button @click="prevPage" :disabled="page === 1"
+                    class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] disabled:opacity-50 disabled:cursor-not-allowed"
+                    :class="{'bg-[#BEE3DB] text-[#555B6E]': page === 1, 'bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white': page !== 1}"
+                  >
+                    Prev
+                  </button>
+                  <span class="text-[#555B6E] font-medium text-base bg-[#FAF9F9] rounded-full px-5 py-2 border border-[#BEE3DB] shadow-sm">Page <span x-text="page"></span> of <span x-text="totalPages"></span></span>
+                  <button @click="nextPage" :disabled="page === totalPages"
+                    class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] disabled:opacity-50 disabled:cursor-not-allowed"
+                    :class="{'bg-[#BEE3DB] text-[#555B6E]': page === totalPages, 'bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white': page !== totalPages}"
+                  >
+                    Next
+                  </button>
                 </div>
               </div>
             </div>
@@ -47,13 +63,29 @@
               showModal: false,
               results: [],
               query: '',
+              page: 1,
+              perPage: 10,
+              get pagedResults() {
+                const start = (this.page - 1) * this.perPage;
+                return this.results.slice(start, start + this.perPage);
+              },
+              get totalPages() {
+                return Math.ceil(this.results.length / this.perPage) || 1;
+              },
               fetchResults() {
                 fetch(`/search_therapists/?q=${encodeURIComponent(this.query)}`)
                   .then(response => response.json())
                   .then(data => {
                     this.results = data.results;
+                    this.page = 1;
                     this.showModal = true;
                   });
+              },
+              nextPage() {
+                if (this.page < this.totalPages) this.page++;
+              },
+              prevPage() {
+                if (this.page > 1) this.page--;
               }
             }));
           });
