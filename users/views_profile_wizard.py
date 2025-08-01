@@ -16,14 +16,16 @@ PROFILE_FIELDS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), '
 with open(PROFILE_FIELDS_PATH) as f:
     profile_fields = json.load(f)
 
+
+# New logic for merged dictionary structure
 sections = []
 section_fields = {}
-for field in profile_fields:
-    section = field['section']
-    if section not in sections:
-        sections.append(section)
-        section_fields[section] = []
-    section_fields[section].append(field)
+for section_name, fields in profile_fields.items():
+    sections.append(section_name)
+    section_fields[section_name] = []
+    for field in fields:
+        section = field.get('section', section_name)
+        section_fields[section_name].append(field)
 
 # Dynamically create a form for each section using FIELD_MAP
 from django import forms

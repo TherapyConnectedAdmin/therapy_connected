@@ -14,4 +14,5 @@ urlpatterns = [
     path('profile/<int:user_id>/', views.therapist_profile, name='therapist_profile'),
     path('contact/<int:user_id>/', views.contact_therapist, name='contact_therapist'),
     path('update_subscription/', views.update_subscription, name='update_subscription'),
+    path('api/profile_click/', views.ajax_profile_click, name='ajax_profile_click'),
 ]

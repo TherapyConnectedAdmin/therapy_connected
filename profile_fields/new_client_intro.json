@@ -1,0 +1,27 @@
+[
+  {
+    "section": "About Me",
+    "subsection": "New Client Intro",
+    "field": "Intro Statement",
+    "db_field_name": "intro_statement",
+    "type": "Textarea",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Therapist describes when, where, and how they offer therapy.",
+    "max_length": 500,
+    "choices": [],
+    "default": "I offer therapy sessions in-person, on the world's softest sofa, or online via video. I'm available most weekdays and in the evenings.",
+    "help_text": "Describe your therapy session options, locations, and availability.",
+    "order": 1,
+    "editable": true,
+    "visible": true,
+    "validation": "",
+    "unique": false,
+    "related_model": "",
+    "form_widget": "textarea",
+    "api_expose": true,
+    "sortable": false,
+    "display_priority": "high"
+  }
+]

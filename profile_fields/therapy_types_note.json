@@ -1,0 +1,27 @@
+[
+  {
+    "section": "Treatment Preferences",
+    "subsection": "Note on Therapy Types",
+    "field": "Therapy Types Note",
+    "db_field_name": "therapy_types_note",
+    "type": "Textarea",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Short note that appears on your profile alongside your therapy types. Use this to provide extra details or context about your treatment approaches.",
+    "max_length": 500,
+    "choices": [],
+    "default": "",
+    "help_text": "Add any extra details or context about your therapy types to help clients understand your approach.",
+    "order": 1,
+    "editable": true,
+    "visible": true,
+    "validation": "^.{0,500}$",
+    "unique": false,
+    "related_model": "",
+    "form_widget": "textarea",
+    "api_expose": true,
+    "sortable": false,
+    "display_priority": "medium"
+  }
+]

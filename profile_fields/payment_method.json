@@ -1,0 +1,27 @@
+[
+  {
+    "section": "Finances",
+    "subsection": "Payment Method",
+    "field": "Accepted Payment Methods",
+    "db_field_name": "accepted_payment_methods",
+    "type": "Multi-select",
+    "required": true,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Select all payment methods you accept.",
+    "max_length": 128,
+    "choices": ["Credit Card", "Debit Card", "Cash", "Check", "Bank Transfer", "HSA/FSA", "Mobile Payment (Venmo, PayPal, etc.)", "Other"],
+    "default": [],
+    "help_text": "Select all payment methods you accept.",
+    "order": 1,
+    "editable": true,
+    "visible": true,
+    "validation": "",
+    "unique": false,
+    "related_model": "PaymentMethod",
+    "form_widget": "multi-select",
+    "api_expose": true,
+    "sortable": false,
+    "display_priority": "high"
+  }
+]

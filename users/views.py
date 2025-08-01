@@ -1,5 +1,31 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
+# AJAX endpoint to increment profile clicks
+@csrf_exempt
+def ajax_profile_click(request):
+    if request.method == "POST":
+        import json
+        from users.models_profile import TherapistProfile
+        from users.models import TherapistProfileStats
+        from django.utils import timezone
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+            user_id = data.get("user_id")
+            profile = TherapistProfile.objects.filter(user__id=user_id).first()
+            if not profile:
+                return JsonResponse({"success": False, "error": "Profile not found"}, status=404)
+            today = timezone.now().date()
+            stats, _ = TherapistProfileStats.objects.get_or_create(therapist=profile.user, date=today)
+            stats.profile_clicks += 1
+            stats.save()
+            profile.last_viewed_at = timezone.now()
+            profile.save()
+            return JsonResponse({"success": True, "profile_clicks": stats.profile_clicks})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=400)
+    return JsonResponse({"success": False, "error": "Invalid request method"}, status=405)
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 # AJAX endpoint to update subscription plan before payment
 @csrf_exempt
 def update_subscription(request):

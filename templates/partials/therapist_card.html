@@ -1,4 +1,6 @@
+{% load location_extras %}
 {# Therapist Card Partial - Use with therapist context variable #}
+{# Removed debug output for user_zip #}
 <div class="rounded-2xl shadow-lg p-10 sm:p-14 flex flex-col md:flex-row items-center mb-8 mx-auto" style="background-color: #FAF9F9; color: #555B6E; width: 75%; min-width: 280px; max-width: 900px;">
   <div class="flex-shrink-0">
     {% if therapist.profile_photo %}
@@ -9,34 +11,72 @@
   </div>
   <div class="flex-1 flex flex-col justify-center">
     <div class="font-bold text-xl mb-1" style="color: #555B6E;">
-      {{ therapist.first_name }} {{ therapist.last_name }}, {{ therapist.credentials }}
+      {{ therapist.first_name }} {{ therapist.last_name }}{% if therapist.license_type %}, <span class="font-bold" style="color: #116466;">{{ therapist.license_type.name }}</span>{% endif %}
     </div>
-    <div class="text-sm mb-1" style="color: #555B6E;">
-      {{ therapist.city }}, {{ therapist.state }}
-    </div>
+    {% with primary=therapist.locations.all|get_primary_location %}
+      {% if primary and primary.practice_name %}
+        <div class="text-sm font-semibold mb-0.5" style="color: #555B6E;">{{ primary.practice_name }}</div>
+      {% endif %}
+      <div class="text-xs text-gray-500 mb-1">
+        {% if primary %}{{ primary.city }}, {{ primary.state }}{% endif %}
+      </div>
+      {# Removed debug output for primary zip #}
+    {% endwith %}
     <div class="text-base mb-2" style="color: #89B0AE;">
-      {{ therapist.credential_description|default:therapist.license_type.description|default:"" }}
+      {{ therapist.credentials_note|default:"" }}
     </div>
-    <div class="text-sm mb-2" style="color: #555B6E;">
-      <span class="font-semibold">Specialties:</span>
-      {% for tag in therapist.practice_areas_tags.all %}
-        {{ tag.name }}{% if not forloop.last %}, {% endif %}
-      {% endfor %}
-    </div>
-    <div class="text-sm italic mb-2" style="color: #555B6E;">
-      {{ therapist.tagline }}
+    {% if therapist.tagline %}
+      <div class="text-base italic mb-2 w-full text-left" style="color: #116466; padding-top: 1.25rem;">{{ therapist.tagline }}</div>
+    {% endif %}
+    <hr class="w-full border-t border-2" style="border-color: #BEE3DB; box-shadow: 0 2px 6px 0 #BEE3DB33;" />
+    <div style="height: 0.75rem;"></div>
+    <div class="w-full flex justify-center mb-2">
+      <div class="px-3 py-2 rounded-lg shadow-sm w-full max-w-[90%]" style="background-color: #BEE3DB;">
+        <div class="text-xs text-gray-600 mb-1 w-full text-left">
+          {% if therapist.participant_types.all %}
+            <span class="font-semibold" style="color: #555B6E;">Types of Therapy:</span>
+            {% for pt in therapist.participant_types.all %}{{ pt.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+          {% endif %}
+        </div>
+        <div class="text-xs text-gray-600 mb-1 w-full text-left">
+          {% if therapist.age_groups.all %}
+            <span class="font-semibold" style="color: #555B6E;">Age Groups:</span>
+            {% for ag in therapist.age_groups.all %}{{ ag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+          {% endif %}
+        </div>
+        <div class="text-xs text-gray-600 mb-0 w-full text-left">
+          <span class="font-semibold" style="color: #555B6E;">Top Specialties:</span>
+          {% for tag in therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        </div>
+      </div>
     </div>
     <div class="text-sm mb-2" style="color: #555B6E;">
       {{ therapist.short_bio }}
     </div>
-    <div class="flex flex-wrap gap-2 mt-2">
-      <span class="bg-[#BEE3DB] text-[#555B6E] px-3 py-1 rounded-full text-xs font-semibold">Tier: {{ therapist.professional_tier|default:"Standard" }}</span>
-      <span class="bg-[#FAF9F9] text-[#555B6E] border border-[#89B0AE] px-3 py-1 rounded-full text-xs font-semibold">Last Login: {{ therapist.user.last_login|date:"M d, Y H:i" }}</span>
-      <span class="bg-[#FF9950] text-white px-3 py-1 rounded-full text-xs font-semibold">Distance: {{ therapist.distance|default:"N/A" }} mi</span>
-    </div>
-    <div class="mt-4 flex gap-2">
-      <a href="/users/contact/{{ therapist.user.id }}/" class="bg-[#89B0AE] text-white font-semibold rounded px-4 py-2 hover:bg-[#555B6E]">Contact</a>
-      <a href="/users/profile/{{ therapist.user.id }}/" class="get-started-btn font-semibold rounded px-4 py-2 cursor-pointer">View Full Profile</a>
+    <div class="mt-6 flex items-center justify-between w-full" x-data="{ showModal: false, therapist: {} }">
+      <button
+        @click="
+          fetch('/users/api/profile_click/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: {{ therapist.user.id }} })
+          });
+          therapist = {
+            profile_photo_url: '{% if therapist.profile_photo %}{{ therapist.profile_photo.url }}{% else %}https://randomuser.me/api/portraits/lego/1.jpg{% endif %}',
+            name: '{{ therapist.first_name }} {{ therapist.last_name }}',
+            license_type: '{{ therapist.license_type.name|default:'' }}',
+            license_type_description: '{{ therapist.license_type.description|default:'' }}',
+            city: '{% with primary=therapist.locations.all|get_primary_location %}{% if primary %}{{ primary.city }}{% endif %}{% endwith %}',
+            state: '{% with primary=therapist.locations.all|get_primary_location %}{% if primary %}{{ primary.state }}{% endif %}{% endwith %}',
+            tagline: '{{ therapist.tagline|escapejs }}',
+            bio: '{{ therapist.short_bio|escapejs }}',
+            specialties: '{% for tag in therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}'
+          };
+          showModal = true;"
+        class="get-started-btn font-semibold rounded px-4 py-2 cursor-pointer bg-[#89B0AE] text-white hover:bg-[#555B6E]"
+      >View Profile</button>
+      <span class="bg-[#FF9950] text-white px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">Distance: {{ therapist.distance|default:"N/A" }} mi</span>
+      {% include "partials/profile_modal.html" %}
     </div>
   </div>
 </div>

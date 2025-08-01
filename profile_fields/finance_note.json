@@ -1,0 +1,27 @@
+[
+  {
+    "section": "Finances",
+    "subsection": "Finance Note",
+    "field": "Finance Note",
+    "db_field_name": "finance_note",
+    "type": "Text",
+    "required": false,
+    "tier": ["Starter", "Professional"],
+    "lookup_model": false,
+    "notes": "Short note for clients about fees, insurance, or payment policies. Displayed in the finances section.",
+    "max_length": 128,
+    "choices": [],
+    "default": "",
+    "help_text": "Briefly describe how you charge or handle insurance.",
+    "order": 1,
+    "editable": true,
+    "visible": true,
+    "validation": "",
+    "unique": false,
+    "related_model": "",
+    "form_widget": "text",
+    "api_expose": true,
+    "sortable": false,
+    "display_priority": "high"
+  }
+]

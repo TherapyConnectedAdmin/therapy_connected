@@ -14,17 +14,26 @@
             <div class="rounded-xl shadow-lg w-[98vw] max-w-7xl relative overflow-y-auto h-full flex flex-col p-0" @click.away="showModal = false" style="background-color: #BEE3DB; height: 100%;">
               <div class="sticky top-0 z-10 flex flex-col items-center justify-center px-8 py-6 border-b border-[#BEE3DB] shadow-[0_4px_12px_-4px_rgba(85,91,110,0.10)]" style="background-color: #FAF9F9;">
                 <div class="relative w-full flex flex-col items-center justify-center gap-2">
-                  <div class="flex w-full max-w-2xl mx-auto mb-2 pt-4">
-                    <input type="text" x-model="query" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" @keydown.enter.prevent="fetchResults" />
-                    <button type="button" @click="fetchResults" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#FAF9F9';">Search</button>
+                  <!-- Responsive header: On xs/sm, site title and close button on one row, search input below. On md+, three columns. -->
+                  <div class="w-full mb-2 pt-4 flex flex-col gap-4">
+                    <!-- First row: site title left, close button right -->
+                    <div class="flex w-full flex-row items-center justify-between">
+                      <span class="text-xl sm:text-2xl font-bold text-[#555B6E] text-left whitespace-nowrap">Therapy Connected</span>
+                      <button @click="showModal = false" class="bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem; min-width:40px; min-height:40px; max-width:60px; max-height:60px;" >
+                        <span class="sr-only">Close</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <!-- Second row: centered search input/button at 75% width -->
+                    <div class="flex w-full justify-center items-center">
+                      <div class="flex w-full sm:w-3/4 flex-nowrap items-center justify-center mx-auto">
+                        <input type="text" x-model="query" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 sm:px-6 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" @keydown.enter.prevent="fetchResults" />
+                        <button type="button" @click="fetchResults" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#FAF9F9';">Search</button>
+                      </div>
+                    </div>
                   </div>
-                  <h3 class="text-xl font-bold m-0 text-center w-full" style="color: #555B6E;">Search Results</h3>
-                  <button @click="showModal = false" class="absolute right-0 top-1/2 -translate-y-1/2 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
-                    <span class="sr-only">Close</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
                 </div>
               </div>
               <div class="px-8 py-8">

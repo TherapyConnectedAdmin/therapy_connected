@@ -1,7 +1,36 @@
 from django.contrib import admin
+from users.models_profile import TherapistProfile
+# Register the through tables for TherapistProfile's many-to-many fields
+admin.site.register(TherapistProfile.age_groups.through)
+admin.site.register(TherapistProfile.participant_types.through)
+from django.contrib import admin
 from .models_featured import FeaturedTherapistHistory, FeaturedBlogPostHistory
 
-@admin.register(FeaturedTherapistHistory)
+from .models_profile import (
+    TherapistProfile, Title, TherapyType, TherapyTypeSelection, AreasOfExpertise,
+    PaymentMethod, PaymentMethodSelection, Gender, RaceEthnicity, Faith, LGBTQIA, OtherIdentity,
+    InsuranceProvider, LicenseType, RaceEthnicitySelection, FaithSelection, LGBTQIASelection,
+    OtherIdentitySelection, Credential, VideoGallery, Location, Education, AdditionalCredential,
+    Specialty, SpecialtyLookup, OtherTreatmentOption, GalleryImage, InsuranceDetail,
+    ProfessionalInsurance, OtherTherapyType
+)
+from .models_profile import ParticipantType, AgeGroup
+
+## Removed duplicate registration of TherapistProfile
+registered_models = set()
+for model in [
+    TherapistProfile, Title, TherapyType, TherapyTypeSelection, AreasOfExpertise,
+    PaymentMethod, PaymentMethodSelection, Gender, RaceEthnicity, Faith, LGBTQIA, OtherIdentity,
+    InsuranceProvider, LicenseType, RaceEthnicitySelection, FaithSelection, LGBTQIASelection,
+    OtherIdentitySelection, Credential, VideoGallery, Location, Education, AdditionalCredential,
+    Specialty, SpecialtyLookup, OtherTreatmentOption, GalleryImage, InsuranceDetail,
+    ProfessionalInsurance, OtherTherapyType
+]:
+    if model not in registered_models:
+        admin.site.register(model)
+        registered_models.add(model)
+admin.site.register(ParticipantType)
+admin.site.register(AgeGroup)
 class FeaturedTherapistHistoryAdmin(admin.ModelAdmin):
     list_display = ("therapist", "date", "cycle")
     list_filter = ("cycle",)
@@ -33,9 +62,9 @@ from django.contrib import admin
 from .models import Subscription, SubscriptionType
 from .models_profile import (
     TherapistProfile,
-    LicenseType, StateBoard, TelehealthPlatform, CityCounty, ZipCode,
-    PracticeAreaTag, TreatmentApproach, ClientPopulation, Language,
-    ProfessionalAssociation, Insurance, MultilingualMaterial
+    LicenseType,
+
+
 )
 from ckeditor.widgets import CKEditorWidget
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -70,11 +99,10 @@ class LicenseTypeInline(admin.TabularInline):
 
 # TherapistProfile admin customization
 class TherapistProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'first_name', 'last_name', 'license_type', 'onboarding_status_display')
-    list_filter = ('license_type',)
+    list_display = ('user', 'first_name', 'last_name', 'onboarding_status_display')
+    list_filter = ()
     search_fields = ('user__email', 'user__first_name', 'user__last_name')
-    # Add only valid ManyToMany fields below. Adjust as needed for your model:
-    filter_horizontal = ('treatment_approaches', 'client_populations', 'professional_associations', 'multilingual_materials')
+    # No filter_horizontal fields since none are valid ManyToMany fields on TherapistProfile
 
     def onboarding_status_display(self, obj):
         return format_html('<span>{}</span>', obj.user.onboarding_status)
@@ -85,64 +113,42 @@ class LicenseTypeAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     list_display = ('name',)
 
-class StateBoardAdmin(admin.ModelAdmin):
-    search_fields = ('name',)
-    list_display = ('name',)
 
-class TelehealthPlatformAdmin(admin.ModelAdmin):
-    search_fields = ('name',)
-    list_display = ('name',)
 
-class CityCountyAdmin(admin.ModelAdmin):
-    search_fields = ('name',)
-    list_display = ('name',)
 
-class ZipCodeAdmin(admin.ModelAdmin):
-    search_fields = ('code',)
-    list_display = ('code',)
 
-class PracticeAreaTagAdmin(admin.ModelAdmin):
-    search_fields = ('name',)
-    list_display = ('name',)
 
-class TreatmentApproachAdmin(admin.ModelAdmin):
-    search_fields = ('name',)
-    list_display = ('name',)
 
-class ClientPopulationAdmin(admin.ModelAdmin):
-    search_fields = ('name',)
-    list_display = ('name',)
 
-class LanguageAdmin(admin.ModelAdmin):
-    search_fields = ('name',)
-    list_display = ('name',)
 
-class ProfessionalAssociationAdmin(admin.ModelAdmin):
-    search_fields = ('name',)
-    list_display = ('name',)
 
-class InsuranceAdmin(admin.ModelAdmin):
-    search_fields = ('name',)
-    list_display = ('name',)
 
-class MultilingualMaterialAdmin(admin.ModelAdmin):
-    search_fields = ('name',)
-    list_display = ('name',)
+
+
+
+
+
+
+
+
+
+
+
 
 # Register models with custom admin only (remove duplicate default registrations)
-admin.site.register(TherapistProfile, TherapistProfileAdmin)
-admin.site.register(LicenseType, LicenseTypeAdmin)
-admin.site.register(StateBoard, StateBoardAdmin)
-admin.site.register(TelehealthPlatform, TelehealthPlatformAdmin)
-admin.site.register(CityCounty, CityCountyAdmin)
-admin.site.register(ZipCode, ZipCodeAdmin)
-admin.site.register(PracticeAreaTag, PracticeAreaTagAdmin)
-admin.site.register(TreatmentApproach, TreatmentApproachAdmin)
-admin.site.register(ClientPopulation, ClientPopulationAdmin)
-admin.site.register(Language, LanguageAdmin)
-admin.site.register(ProfessionalAssociation, ProfessionalAssociationAdmin)
-admin.site.register(Insurance, InsuranceAdmin)
-admin.site.register(MultilingualMaterial, MultilingualMaterialAdmin)
+## Removed duplicate registration of TherapistProfile with TherapistProfileAdmin
+## Removed duplicate registration of LicenseType with LicenseTypeAdmin
+
+
+
+
+
+
+
+
+
+
+
 from .models import TherapistProfileStats
 
 class TherapistProfileStatsAdmin(admin.ModelAdmin):
