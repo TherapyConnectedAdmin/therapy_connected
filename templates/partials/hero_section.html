@@ -1,119 +1,16 @@
 <section class="py-8" style="background-color: #BEE3DB;">
-    <div class="max-w-3xl mx-auto text-center px-2 sm:px-4">
+    <div class="max-w-3xl mx-auto text-center px-2 sm:px-4" x-data="{ showModal: false, showProfileModal: false, therapist: {} }">
         <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4" style="color: #555B6E;">Your Journey to Better Mental Health Starts Here</h1>
         <p class="text-base sm:text-lg mb-8" style="color: #555B6E;">Connect with licensed therapists, explore resources, and read expert advice to support your well-being.</p>
-        <div x-data="searchModal()">
-          <form @submit.prevent="fetchResults" class="flex flex-col md:flex-row gap-4 justify-center items-center mb-4 w-full max-w-2xl mx-auto">
+        <div x-data="searchModal()" @open-modal.window="showProfileModal = true; therapist = $event.detail;">
+          <form @submit.prevent="fetchResults(); $store.searchModal.show = true;" class="flex flex-col md:flex-row gap-4 justify-center items-center mb-4 w-full max-w-2xl mx-auto">
               <div class="flex w-full">
-                  <input type="text" id="homepage-search-input" x-model="query" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" />
-                  <button type="submit" id="homepage-search-btn" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#FAF9F9';">Search</button>
+                  <input type="text" id="homepage-search-input" x-model="$store.searchModal.query" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" />
+                  <button type="submit" id="homepage-search-btn" @click="$store.searchModal.show = true" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#FAF9F9';">Search</button>
               </div>
           </form>
-          <!-- Modal for search results -->
-          <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5); height: 100%;">
-            <div class="rounded-xl shadow-lg w-[98vw] max-w-7xl relative overflow-y-auto h-full flex flex-col p-0" @click.away="showModal = false" style="background-color: #BEE3DB; height: 100%;">
-              <div class="sticky top-0 z-10 flex flex-col items-center justify-center px-8 py-6 border-b border-[#BEE3DB] shadow-[0_4px_12px_-4px_rgba(85,91,110,0.10)]" style="background-color: #FAF9F9;">
-                <div class="relative w-full flex flex-col items-center justify-center gap-2">
-                  <!-- Responsive header: On xs/sm, site title and close button on one row, search input below. On md+, three columns. -->
-                  <div class="w-full mb-2 pt-4 flex flex-col gap-4">
-                    <!-- First row: site title left, close button right -->
-                    <div class="flex w-full flex-row items-center justify-between">
-                      <span class="text-xl sm:text-2xl font-bold text-[#555B6E] text-left whitespace-nowrap">Therapy Connected</span>
-                      <button @click="showModal = false" class="bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem; min-width:40px; min-height:40px; max-width:60px; max-height:60px;" >
-                        <span class="sr-only">Close</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                    <!-- Second row: centered search input/button at 75% width -->
-                    <div class="flex w-full justify-center items-center">
-                      <div class="flex w-full sm:w-3/4 flex-nowrap items-center justify-center mx-auto">
-                        <input type="text" x-model="query" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 sm:px-6 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" @keydown.enter.prevent="fetchResults" />
-                        <button type="button" @click="fetchResults" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#FAF9F9';">Search</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="px-8 py-8">
-                <template x-if="results.length === 0">
-                  <div class="text-center text-gray-500">No therapists found.</div>
-                </template>
-                <div>
-                  <template x-for="therapist in pagedResults" :key="therapist.id">
-                    <div class="mb-6">
-                      <!-- Therapist card partial rendered by Django for initial results, or by JS for dynamic -->
-                      <div x-html="therapist.card_html"></div>
-                    </div>
-                  </template>
-                </div>
-                <div class="flex justify-center items-center gap-4 mt-8" x-show="totalPages > 1">
-                  <button @click="prevPage" :disabled="page === 1"
-                    class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] disabled:opacity-50 disabled:cursor-not-allowed"
-                    :class="{'bg-[#BEE3DB] text-[#555B6E]': page === 1, 'bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white': page !== 1}"
-                  >
-                    Prev
-                  </button>
-                  <span class="text-[#555B6E] font-medium text-base bg-[#FAF9F9] rounded-full px-5 py-2 border border-[#BEE3DB] shadow-sm">Page <span x-text="page"></span> of <span x-text="totalPages"></span></span>
-                  <button @click="nextPage" :disabled="page === totalPages"
-                    class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] disabled:opacity-50 disabled:cursor-not-allowed"
-                    :class="{'bg-[#BEE3DB] text-[#555B6E]': page === totalPages, 'bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white': page !== totalPages}"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <script>
-          document.addEventListener('alpine:init', () => {
-            Alpine.data('searchModal', () => ({
-              showModal: false,
-              results: [],
-              query: '',
-              page: 1,
-              perPage: 10,
-              get pagedResults() {
-                const start = (this.page - 1) * this.perPage;
-                return this.results.slice(start, start + this.perPage);
-              },
-              get totalPages() {
-                return Math.ceil(this.results.length / this.perPage) || 1;
-              },
-              fetchResults() {
-                fetch(`/search_therapists/?q=${encodeURIComponent(this.query)}`)
-                  .then(response => response.json())
-                  .then(data => {
-                    this.results = data.results;
-                    this.page = 1;
-                    this.showModal = true;
-                  });
-              },
-              nextPage() {
-                if (this.page < this.totalPages) this.page++;
-              },
-              prevPage() {
-                if (this.page > 1) this.page--;
-              }
-            }));
-          });
-          </script>
         </div>
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var input = document.getElementById('homepage-search-input');
-            var btn = document.getElementById('homepage-search-btn');
-            if (input && btn) {
-                input.addEventListener('focus', function() {
-                    btn.classList.add('homepage-search-input-focus');
-                });
-                input.addEventListener('blur', function() {
-                    btn.classList.remove('homepage-search-input-focus');
-                });
-            }
-        });
-        </script>
+        </div>
         <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center items-center">
             <a href="/therapists/" class="text-sm font-medium underline" style="color: #555B6E;">Browse All Therapists</a>
             <a href="#" class="text-sm font-medium underline" style="color: #555B6E;">How Therapy Works</a>

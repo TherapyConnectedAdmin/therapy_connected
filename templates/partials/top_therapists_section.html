@@ -4,7 +4,7 @@
 <section x-data="{ showModal: false, therapist: {} }" class="py-10 w-full" style="background-color: #FAF9F9;">
   <div class="max-w-7xl mx-auto px-4">
     <h2 class="text-2xl sm:text-3xl font-bold mb-8 text-center" style="color: #555B6E;">Top Therapists in Your Area</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-8 justify-items-center">
+    <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-8 justify-items-center">
       {% for therapist in therapists %}
       <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center w-full max-w-xs h-full" style="min-height: 370px;">
         {% if therapist.profile_photo %}
@@ -50,28 +50,27 @@
         </div>
         <div class="flex-grow"></div>
         <div style="padding-top:10px;"></div>
-        <button
-          @click="
-            fetch('/users/api/profile_click/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ user_id: {{ therapist.user.id }} })
-            });
-            therapist = {
-              profile_photo_url: '{{ therapist.profile_photo.url|default:'https://randomuser.me/api/portraits/lego/1.jpg' }}',
-              name: '{{ therapist.first_name }} {{ therapist.last_name }}',
-              license_type: '{{ therapist.license_type.name|default:'' }}',
-              license_type_description: '{{ therapist.license_type.description|default:'' }}',
-              city: '{% with primary=therapist.locations.all|get_primary_location %}{% if primary %}{{ primary.city }}{% endif %}{% endwith %}',
-              state: '{% with primary=therapist.locations.all|get_primary_location %}{% if primary %}{{ primary.state }}{% endif %}{% endwith %}',
-              tagline: '{{ therapist.tagline|escapejs }}',
-              bio: '{{ therapist.short_bio|escapejs }}',
-              specialties: '{% for tag in therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}'
-            };
-            showModal = true;"
-          class="get-started-btn mt-2 px-4 py-2 rounded-full font-semibold text-sm cursor-pointer"
-          style="margin-top:auto;"
-        >View Profile</button>
+        <div class="w-full flex justify-center">
+          <button
+            type="button"
+            class="get-started-btn font-semibold rounded px-4 py-2 cursor-pointer bg-[#89B0AE] text-white hover:bg-[#555B6E]"
+            style="margin-top: 1rem;"
+            @click="$dispatch('open-modal', {
+              profile_photo_url: '{{ therapist.profile_photo.url|default:'https://randomuser.me/api/portraits/lego/1.jpg'|escapejs }}',
+              name: '{{ therapist.first_name|escapejs }} {{ therapist.last_name|escapejs }}',
+              license_type: '{{ therapist.license_type.name|default:''|escapejs }}',
+              license_type_description: '{{ therapist.license_type.description|default:''|escapejs }}',
+              credentials: '{{ therapist.credentials_note|default:''|escapejs }}',
+              tagline: '{{ therapist.tagline|default:''|escapejs }}',
+              bio: '{{ therapist.short_bio|default:''|escapejs }}',
+              specialties: '{% for tag in therapist.practice_areas_tags.all %}{{ tag.name|escapejs }}{% if not forloop.last %}, {% endif %}{% endfor %}',
+              personal_statement_q1: '{{ therapist.personal_statement_q1|default:''|escapejs }}',
+              personal_statement_q2: '{{ therapist.personal_statement_q2|default:''|escapejs }}',
+              personal_statement_q3: '{{ therapist.personal_statement_q3|default:''|escapejs }}',
+              gallery_images: [{% for img in therapist.gallery_images.all %}'{{ img.image.url|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+            })"
+          >View Profile</button>
+        </div>
       </div>
       {% endfor %}
     </div>

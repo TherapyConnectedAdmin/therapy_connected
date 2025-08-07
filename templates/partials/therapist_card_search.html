@@ -1,0 +1,31 @@
+{# Therapist Card Partial for Search Modal - Use with normalized therapist JS object #}
+<div x-data="{ therapist: therapist }" class="rounded-2xl shadow-lg p-10 sm:p-14 flex flex-col md:flex-row items-center mb-8 mx-auto" style="background-color: #FAF9F9; color: #555B6E; width: 75%; min-width: 280px; max-width: 900px;">
+  <div class="flex-shrink-0">
+    <img :src="therapist.profile_photo_url" :alt="therapist.name" class="w-32 h-32 rounded-full object-cover shadow mb-4 md:mb-0 md:mr-6" style="box-shadow: 0 0 8px 1px #555B6E44;" />
+  </div>
+  <div class="flex-1 flex flex-col justify-center">
+    <div class="font-bold text-xl mb-1" style="color: #555B6E;" x-text="therapist.name"></div>
+    <div class="text-sm font-semibold mb-0.5" style="color: #555B6E;" x-text="therapist.license_type"></div>
+    <div class="text-xs text-gray-500 mb-1" x-text="therapist.city + (therapist.state ? ', ' + therapist.state : '')"></div>
+    <div class="text-base mb-2" style="color: #89B0AE;" x-text="therapist.tagline"></div>
+    <hr class="w-full border-t border-2" style="border-color: #BEE3DB; box-shadow: 0 2px 6px 0 #BEE3DB33;" />
+    <div style="height: 0.75rem;"></div>
+    <div class="w-full flex justify-center mb-2">
+      <div class="px-3 py-2 rounded-lg shadow-sm w-full max-w-[90%]" style="background-color: #BEE3DB;">
+        <div class="text-xs text-gray-600 mb-1 w-full text-left">
+          <span class="font-semibold" style="color: #555B6E;">Specialties:</span>
+          <span x-text="therapist.specialties"></span>
+        </div>
+      </div>
+    </div>
+    <div class="text-sm mb-2" style="color: #555B6E;" x-text="therapist.bio || therapist.short_bio"></div>
+    <div class="mt-6 flex items-center justify-between w-full">
+      <button
+        type="button"
+        class="get-started-btn font-semibold rounded px-4 py-2 cursor-pointer bg-[#89B0AE] text-white hover:bg-[#555B6E]"
+        style="margin-right:auto; margin-top: 1rem;"
+        @click="$dispatch('open-modal', therapist)"
+      >View Profile</button>
+    </div>
+  </div>
+</div>

@@ -1,20 +1,56 @@
-{# Reusable Therapist Profile Modal - expects 'therapist' context variable and 'showModal' Alpine.js state #}
-<div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5);">
-  <div class="rounded-xl shadow-lg p-8 w-[98vw] max-w-2xl relative overflow-y-auto max-h-[80vh] bg-white" @click.away="showModal = false">
-    <button @click="showModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
+{# Reusable Therapist Profile Modal - expects 'therapist' context variable and 'showProfileModal' Alpine.js state #}
+<div x-show="showProfileModal || showModal" x-transition x-cloak class="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.35);">
+  <div class="rounded-xl shadow-2xl p-8 w-[98vw] max-w-7xl relative overflow-y-auto h-full flex flex-col p-0" style="background-color: #FAF9F9; height: 100%; margin-top: 20px;">
+    <button @click="showProfileModal ? showProfileModal = false : showModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
       <span class="sr-only">Close</span>
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
       </svg>
     </button>
-    <div class="flex flex-col items-center">
-      <img :src="therapist.profile_photo_url" :alt="therapist.name" class="w-24 h-24 rounded-full object-cover shadow mb-4" />
-      <div class="font-semibold text-lg mb-1" style="color: #555B6E;" x-text="therapist.name + (therapist.license_type ? ', ' + therapist.license_type : '')"></div>
-      <div class="text-xs text-gray-500 mb-1" x-text="therapist.city + ', ' + therapist.state"></div>
-      <div class="text-sm mb-2" style="color: #89B0AE;" x-text="therapist.license_type_description"></div>
-      <div class="text-xs text-gray-500 mb-2"><span class="font-semibold">Specialties:</span> <span x-text="therapist.specialties"></span></div>
-      <div class="text-sm italic mb-2" x-text="therapist.tagline"></div>
-      <div class="text-sm text-[#555B6E]" x-text="therapist.bio"></div>
-    </div>
+    </button>
+    </button>
+    <div class="flex flex-row items-start gap-8">
+      <div class="flex flex-row w-full" style="min-height: 500px;">
+        <div class="flex flex-col w-2/3">
+          <div class="flex flex-row items-center">
+            <div class="flex-shrink-0 flex items-center h-full">
+              <img :src="therapist.profile_photo_url" :alt="therapist.name" class="w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 lg:w-64 lg:h-64 rounded-2xl object-cover shadow-2xl" style="object-fit: cover; box-shadow: 0 8px 32px 0 #555B6E55;" />
+            </div>
+            <div class="flex flex-col items-start justify-center h-full pl-8 flex-1">
+              <div class="text-3xl font-extrabold mb-3" style="color: #555B6E;">
+                <span x-text="therapist.name"></span>
+                <template x-if="therapist.license_type">
+                  <span>, <span x-text="therapist.license_type"></span></span>
+                </template>
+              </div>
+              <div class="text-base font-semibold mb-2" style="color: #89B0AE;">
+                <span x-text="therapist.license_type_description"></span>
+                <template x-if="therapist.license_type_description && therapist.credentials">
+                  <span>, </span>
+                </template>
+                <span x-text="therapist.credentials"></span>
+              </div>
+            </div>
+          </div>
+          <div class="w-full text-left mt-6">
+            <div class="text-lg text-[#555B6E] mb-4" x-text="therapist.personal_statement_q1"></div>
+            <template x-if="therapist.gallery_images && therapist.gallery_images.length">
+              <div class="flex flex-row flex-wrap gap-4 mb-4">
+                <template x-for="img in therapist.gallery_images" :key="img">
+                  <img :src="img" class="rounded-xl shadow w-32 h-32 object-cover" style="object-fit:cover;" />
+                </template>
+              </div>
+            </template>
+            <div class="text-lg text-[#555B6E] mb-4" x-text="therapist.personal_statement_q2"></div>
+            <div class="text-lg text-[#555B6E] mb-4" x-text="therapist.personal_statement_q3"></div>
+          </div>
+        </div>
+        <div class="pl-6 flex flex-col items-start justify-start h-full w-1/3">
+          <!-- Right Sidebar Placeholder -->
+          <div class="bg-[#BEE3DB] rounded-xl shadow p-4 w-full flex-1 flex items-center justify-center text-[#555B6E] text-base font-semibold" style="height: 100%;">
+            Sidebar Placeholder
+          </div>
+        </div>
+      </div>
   </div>
 </div>

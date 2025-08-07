@@ -1,27 +1,15 @@
 {% extends "base.html" %}
+{% load static %}
 {% block content %}
+<script src="{% static 'home.js' %}"></script>
+<!-- Modals: search and profile -->
+<div x-data="{ showModal: false, showProfileModal: false, therapist: {} }">
+  {% include "partials/profile_modal.html" %}
+</div>
+{% include "partials/search_modal.html" %}
 <div class="flex-1 flex flex-col" style="background-color: #FAF9F9;">
     {% include "partials/hero_section.html" %}
     {% include "partials/carousel_section.html" %}
-    {% if not request.session.user_zip %}
-    <script>
-      function setZipFromGeolocation() {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(function(position) {
-            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}`)
-              .then(response => response.json())
-              .then(data => {
-                if (data.address && data.address.postcode) {
-                  fetch(`/set_zip/?zip=${data.address.postcode}`)
-                    .then(() => window.location.reload());
-                }
-              });
-          });
-        }
-      }
-      window.addEventListener('DOMContentLoaded', setZipFromGeolocation);
-    </script>
-    {% endif %}
     {% include "partials/top_therapists_section.html" with therapists=therapists %}
 </div>
 {% endblock %}
