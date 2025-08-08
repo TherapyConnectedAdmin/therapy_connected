@@ -134,35 +134,6 @@ def set_zip(request):
         return JsonResponse({'status': 'ok', 'zip': zip_code})
     return JsonResponse({'status': 'error', 'message': 'No zip provided'}, status=400)
 
-def resolve_location(request):
-    """Resolve a zip code or 'City, ST' into a canonical zip + city/state."""
-    q = request.GET.get('q', '').strip()
-    if not q:
-        return JsonResponse({'status': 'error', 'message': 'Empty query'}, status=400)
-    from uszipcode import SearchEngine
-    import re
-    search = SearchEngine(simple_zipcode=True)
-    # ZIP direct
-    if re.fullmatch(r'\d{5}', q):
-        zobj = search.by_zipcode(q)
-        if not zobj:
-            return JsonResponse({'status': 'error', 'message': 'ZIP not found'}, status=404)
-        city = getattr(zobj, 'major_city', None) or getattr(zobj, 'post_office_city', None) or getattr(zobj, 'city', None)
-        state = getattr(zobj, 'state', None)
-        return JsonResponse({'status': 'ok', 'zip': q, 'city': city, 'state': state})
-    # City, ST pattern
-    m = re.fullmatch(r'\s*([A-Za-z .\'-]+),\s*([A-Za-z]{2})\s*', q)
-    if m:
-        city_raw, state = m.group(1), m.group(2).upper()
-        try:
-            results = search.by_city_and_state(city_raw, state)
-            if results:
-                z = results[0]
-                return JsonResponse({'status': 'ok', 'zip': z.zipcode, 'city': city_raw.title(), 'state': state})
-        except Exception:
-            pass
-        return JsonResponse({'status': 'error', 'message': 'City/state not found'}, status=404)
-    return JsonResponse({'status': 'error', 'message': 'Unrecognized format'}, status=400)
 
 def home(request):
     user_zip = request.session.get('user_zip')
