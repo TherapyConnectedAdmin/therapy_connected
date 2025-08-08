@@ -1,13 +1,11 @@
-{# Reusable Therapist Profile Modal - expects 'therapist' context variable and 'showProfileModal' Alpine.js state #}
-<div x-show="showProfileModal || showModal" x-transition x-cloak class="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.35);">
+{# Reusable Therapist Profile Modal - expects 'therapist' context variable and showProfileModal Alpine.js state #}
+<div x-show="showProfileModal" x-transition x-cloak class="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.35);" @click.self="showProfileModal = false">
   <div class="rounded-xl shadow-2xl p-8 w-[98vw] max-w-7xl relative overflow-y-auto h-full flex flex-col p-0" style="background-color: #FAF9F9; height: 100%; margin-top: 20px;">
-    <button @click="showProfileModal ? showProfileModal = false : showModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
+    <button @click="showProfileModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
       <span class="sr-only">Close</span>
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
       </svg>
-    </button>
-    </button>
     </button>
     <div class="flex flex-row items-start gap-8">
       <div class="flex flex-row w-full" style="min-height: 500px;">

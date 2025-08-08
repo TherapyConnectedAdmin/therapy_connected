@@ -1750,9 +1750,6 @@
   .h-24 {
     height: calc(var(--spacing) * 24);
   }
-  .h-28 {
-    height: calc(var(--spacing) * 28);
-  }
   .h-32 {
     height: calc(var(--spacing) * 32);
   }
@@ -1782,9 +1779,6 @@
   }
   .max-h-\[90vh\] {
     max-height: 90vh;
-  }
-  .min-h-\[120px\] {
-    min-height: 120px;
   }
   .min-h-screen {
     min-height: 100vh;
@@ -1825,9 +1819,6 @@
   .w-24 {
     width: calc(var(--spacing) * 24);
   }
-  .w-28 {
-    width: calc(var(--spacing) * 28);
-  }
   .w-32 {
     width: calc(var(--spacing) * 32);
   }
@@ -1860,9 +1851,6 @@
   }
   .max-w-\[90\%\] {
     max-width: 90%;
-  }
-  .max-w-\[95\%\] {
-    max-width: 95%;
   }
   .max-w-\[100\%\] {
     max-width: 100%;
@@ -2419,6 +2407,10 @@
     outline-style: var(--tw-outline-style);
     outline-width: 1px;
   }
+  .blur {
+    --tw-blur: blur(8px);
+    filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
+  }
   .filter {
     filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
   }
@@ -2572,21 +2564,6 @@
     }
   }
   @media (width >= 40rem) {
-    .sm\:block {
-      display: block;
-    }
-  }
-  @media (width >= 40rem) {
-    .sm\:flex {
-      display: flex;
-    }
-  }
-  @media (width >= 40rem) {
-    .sm\:hidden {
-      display: none;
-    }
-  }
-  @media (width >= 40rem) {
     .sm\:h-12 {
       height: calc(var(--spacing) * 12);
     }
@@ -2594,11 +2571,6 @@
   @media (width >= 40rem) {
     .sm\:h-24 {
       height: calc(var(--spacing) * 24);
-    }
-  }
-  @media (width >= 40rem) {
-    .sm\:h-36 {
-      height: calc(var(--spacing) * 36);
     }
   }
   @media (width >= 40rem) {
@@ -2619,11 +2591,6 @@
   @media (width >= 40rem) {
     .sm\:w-24 {
       width: calc(var(--spacing) * 24);
-    }
-  }
-  @media (width >= 40rem) {
-    .sm\:w-36 {
-      width: calc(var(--spacing) * 36);
     }
   }
   @media (width >= 40rem) {

@@ -2,7 +2,7 @@
 
 <section class="w-full flex flex-col md:flex-row items-stretch justify-center gap-0 py-0 md:gap-0 md:space-x-0">
   <!-- Therapist Left -->
-  <div class="flex-1 px-4 sm:px-8 flex flex-col items-center justify-center" x-data="{ showModal: false, therapist: {} }" @open-modal.window="showModal = true; therapist = $event.detail">
+  <div class="flex-1 px-4 sm:px-8 flex flex-col items-center justify-center" x-data="{ showProfileModal: false, therapist: {} }" @open-modal.window="showProfileModal = true; therapist = $event.detail">
     <div class="flex flex-col w-full">
       <h3 class="text-xl font-bold mb-8 self-center" style="color: #89B0AE;">Therapist</h3>
       {% if top_therapist %}

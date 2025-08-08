@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="py-8 w-full min-h-screen" style="background-color: #BEE3DB;"
-  x-data="{ showModal: false, therapist: {} }"
-  @open-modal.window="showModal = true; therapist = $event.detail"
+  x-data="{ showProfileModal: false, therapist: {} }"
+  @open-modal.window="showProfileModal = true; therapist = $event.detail"
 >
   <div class="max-w-3xl mx-auto text-center px-2 sm:px-4" style="padding-bottom:30px;">
     <h2 class="text-3xl font-bold mb-2 text-center" style="color: #555B6E;">Find a Therapist</h2>
