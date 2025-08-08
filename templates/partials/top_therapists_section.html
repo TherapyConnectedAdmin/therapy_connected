@@ -4,78 +4,88 @@
 <section x-data="{ showProfileModal: false, therapist: {} }" class="py-10 w-full" style="background-color: #FAF9F9;">
   <div class="max-w-7xl mx-auto px-4">
     <h2 class="text-2xl sm:text-3xl font-bold mb-8 text-center" style="color: #555B6E;">Top Therapists in Your Area</h2>
-    <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-8 justify-items-center">
+    <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-10 justify-items-center">
       {% for therapist in therapists %}
-      <div class="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center w-full max-w-xs h-full" style="min-height: 370px;">
-        {% if therapist.profile_photo %}
-          <img src="{{ therapist.profile_photo.url }}" alt="{{ therapist.first_name }} {{ therapist.last_name }}" class="w-24 h-24 rounded-full object-cover shadow mb-4" style="box-shadow: 0 0 8px 1px #555B6E44;" />
-        {% else %}
-          <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="{{ therapist.first_name }} {{ therapist.last_name }}" class="w-24 h-24 rounded-full object-cover shadow mb-4" style="box-shadow: 0 0 8px 1px #555B6E44;" />
-        {% endif %}
-        <div class="font-semibold text-lg mb-1" style="color: #555B6E;">
-          {{ therapist.first_name }} {{ therapist.last_name }}{% if therapist.license_type %}, <span class="font-bold" style="color: #116466;">{{ therapist.license_type.name }}</span>{% endif %}
-        </div>
-        {% with primary=therapist.locations.all|get_primary_location %}
-          {% if primary and primary.practice_name %}
-            <div class="text-sm font-semibold mb-0.5" style="color: #555B6E;">{{ primary.practice_name }}</div>
+      <div class="relative w-full max-w-sm rounded-2xl shadow-lg bg-white overflow-hidden flex flex-col" style="box-shadow:0 4px 18px -4px #555B6E33; min-height:430px;">
+        <!-- Image -->
+        <div class="relative w-full h-48 overflow-hidden">
+          {% if therapist.profile_photo %}
+            <img src="{{ therapist.profile_photo.url }}" alt="{{ therapist.first_name }} {{ therapist.last_name }}" class="w-full h-full object-cover object-center" />
+          {% else %}
+            <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="Therapist" class="w-full h-full object-cover object-center" />
           {% endif %}
-          <div class="text-xs text-gray-500 mb-1">
-            {% if primary %}{{ primary.city }}, {{ primary.state }}{% endif %}
-          </div>
           {% if therapist.distance is not None %}
-            <div class="text-xs font-semibold mb-1 text-[#116466] text-left w-full">{{ therapist.distance }} miles away</div>
+            <span class="absolute top-3 left-3 bg-[#F5E2D6] text-[#555B6E] px-3 py-1 rounded-full text-[11px] font-semibold shadow-sm border border-[#FF9950]/30">{{ therapist.distance }} mi</span>
           {% endif %}
-        {% endwith %}
-        <hr class="w-full border-t border-2" style="border-color: #BEE3DB; box-shadow: 0 2px 6px 0 #BEE3DB33;" />
-        <div style="height: 0.75rem;"></div>
-        <div class="w-full flex justify-center mb-2">
-          <div class="px-3 py-2 rounded-lg shadow-sm w-full max-w-[100%]" style="background-color: #BEE3DB;">
-            <div class="text-xs text-gray-600 mb-1 w-full text-left">
-              {% if therapist.participant_types.all %}
-                <span class="font-semibold" style="color: #555B6E;">Types of Therapy:</span>
-                {% for pt in therapist.participant_types.all %}{{ pt.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-              {% endif %}
-            </div>
-            <div class="text-xs text-gray-600 mb-1 w-full text-left">
-              {% if therapist.age_groups.all %}
-                <span class="font-semibold" style="color: #555B6E;">Age Groups:</span>
-                {% for ag in therapist.age_groups.all %}{{ ag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-              {% endif %}
-            </div>
-            <div class="text-xs text-gray-600 mb-0 w-full text-left">
-              <span class="font-semibold" style="color: #555B6E;">Top Specialties:</span>
-              {% for s in therapist.specialties.all %}{% if s.is_top_specialty and s.specialty %}{{ s.specialty.name }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}
-            </div>
-          </div>
         </div>
-        <div class="flex-grow"></div>
-        <div style="padding-top:10px;"></div>
-        <div class="w-full flex justify-center">
-          <button
-            type="button"
-            class="get-started-btn font-semibold rounded px-4 py-2 cursor-pointer bg-[#89B0AE] text-white hover:bg-[#555B6E]"
-            style="margin-top: 1rem;"
-            @click="
-              fetch('/users/api/profile_click/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: {{ therapist.user.id }} })
-              });
-              $dispatch('open-modal', {
-                profile_photo_url: '{{ therapist.profile_photo.url|default:'https://randomuser.me/api/portraits/lego/1.jpg'|escapejs }}',
-                name: '{{ therapist.first_name|escapejs }} {{ therapist.last_name|escapejs }}',
-                license_type: '{{ therapist.license_type.name|default:''|escapejs }}',
-                license_type_description: '{{ therapist.license_type.description|default:''|escapejs }}',
-                credentials: '{{ therapist.credentials_note|default:''|escapejs }}',
-                tagline: '{{ therapist.tagline|default:''|escapejs }}',
-                bio: '{{ therapist.short_bio|default:''|escapejs }}',
-                specialties: '{% for tag in therapist.practice_areas_tags.all %}{{ tag.name|escapejs }}{% if not forloop.last %}, {% endif %}{% endfor %}',
-                personal_statement_q1: '{{ therapist.personal_statement_q1|default:''|escapejs }}',
-                personal_statement_q2: '{{ therapist.personal_statement_q2|default:''|escapejs }}',
-                personal_statement_q3: '{{ therapist.personal_statement_q3|default:''|escapejs }}',
-                gallery_images: [{% for img in therapist.gallery_images.all %}'{{ img.image.url|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
-              })"
-          >View Profile</button>
+        <!-- Body -->
+        <div class="flex-1 flex flex-col p-5 gap-3">
+          <div>
+            <h3 class="text-xl font-extrabold flex flex-wrap items-baseline gap-x-2 leading-snug text-[#555B6E]">
+              <span>{{ therapist.first_name }} {{ therapist.last_name }}</span>
+              {% if therapist.license_type %}<span class="text-sm font-semibold text-[#116466]">{{ therapist.license_type.name }}</span>{% endif %}
+            </h3>
+            {% with primary=therapist.locations.all|get_primary_location %}
+              {% if primary and primary.practice_name %}
+                <div class="text-sm font-semibold mt-0.5 text-[#555B6E]">{{ primary.practice_name }}</div>
+              {% endif %}
+              <div class="text-xs opacity-80 text-[#555B6E]">
+                {% if primary %}{{ primary.city }}, {{ primary.state }}{% endif %}
+              </div>
+            {% endwith %}
+            {% if therapist.credentials_note %}
+              <div class="mt-1 text-xs font-medium text-[#89B0AE]">{{ therapist.credentials_note|truncatechars:120 }}</div>
+            {% endif %}
+          </div>
+          <!-- Chips -->
+          <div class="flex flex-wrap gap-2 text-[10px] leading-tight">
+            {% for pt in therapist.participant_types.all %}
+              <span class="px-2 py-1 rounded-full bg-[#BEE3DB] text-[#444] font-semibold shadow-sm">{{ pt.name }}</span>
+            {% endfor %}
+            {% for ag in therapist.age_groups.all %}
+              <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#444] font-medium shadow-sm">{{ ag.name }}</span>
+            {% endfor %}
+            {% for s in therapist.specialties.all %}{% if s.is_top_specialty and s.specialty %}
+              <span class="px-2 py-1 rounded-full bg-[#FFDDD0] text-[#444] font-medium shadow-sm">{{ s.specialty.name }}</span>
+            {% endif %}{% endfor %}
+          </div>
+          <!-- Intro snippet -->
+          {% if therapist.intro_statement %}
+            <div class="text-xs leading-relaxed max-h-16 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
+              {{ therapist.intro_statement|truncatechars:160 }}
+            </div>
+          {% elif therapist.personal_statement_q1 %}
+            <div class="text-xs leading-relaxed max-h-16 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
+              {{ therapist.personal_statement_q1|truncatechars:160 }}
+            </div>
+          {% endif %}
+          <div class="mt-auto pt-1">
+            <button
+              type="button"
+              class="get-started-btn font-semibold rounded-lg px-4 py-2 cursor-pointer bg-[#116466] text-white hover:bg-[#0d4c4d] text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition"
+              @click="
+                fetch('/users/api/profile_click/', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ user_id: {{ therapist.user.id }} })
+                });
+                $dispatch('open-modal', {
+                  profile_photo_url: '{{ therapist.profile_photo.url|default:'https://randomuser.me/api/portraits/lego/1.jpg'|escapejs }}',
+                  name: '{{ therapist.first_name|escapejs }} {{ therapist.last_name|escapejs }}',
+                  license_type: '{{ therapist.license_type.name|default:''|escapejs }}',
+                  license_type_description: '{{ therapist.license_type.description|default:''|escapejs }}',
+                  credentials: '{{ therapist.credentials_note|default:''|escapejs }}',
+                  tagline: '',
+                  bio: '{{ therapist.intro_statement|default:therapist.personal_statement_q1|default:''|escapejs }}',
+                  specialties: '{% for s in therapist.specialties.all %}{% if s.is_top_specialty and s.specialty %}{{ s.specialty.name|escapejs }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}',
+                  personal_statement_q1: '{{ therapist.personal_statement_q1|default:''|escapejs }}',
+                  personal_statement_q2: '{{ therapist.personal_statement_q2|default:''|escapejs }}',
+                  personal_statement_q3: '{{ therapist.personal_statement_q3|default:''|escapejs }}',
+                  gallery_images: [{% for img in therapist.gallery_images.all %}'{{ img.image.url|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+                });
+              "
+            >View Profile</button>
+          </div>
         </div>
       </div>
       {% endfor %}
