@@ -2,6 +2,7 @@
 def about_page(request):
     return render(request, 'about.html')
 from django.shortcuts import render, redirect
+from django.conf import settings
 from django.utils import timezone
 from django.db.models import Q
 from django.http import JsonResponse
@@ -133,6 +134,50 @@ def set_zip(request):
         request.session['user_zip'] = zip_code
         return JsonResponse({'status': 'ok', 'zip': zip_code})
     return JsonResponse({'status': 'error', 'message': 'No zip provided'}, status=400)
+
+def geo_zip(request):
+    """Return nearest ZIP for provided lat/lon using uszipcode SearchEngine."""
+    try:
+        lat_raw = request.GET.get('lat', '')
+        lng_raw = request.GET.get('lng', '')
+        lat = float(lat_raw)
+        lng = float(lng_raw)
+    except (TypeError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'Invalid coordinates'}, status=400)
+    try:
+        from uszipcode import SearchEngine
+        debug = []
+        # Primary attempt (simple)
+        try:
+            search = SearchEngine(simple_zipcode=True)
+            results = search.by_coordinates(lat, lng, radius=40, returns=10) or []
+            debug.append(f"simple_results={len(results)}")
+        except Exception as e1:
+            results = []
+            debug.append(f"simple_err={e1.__class__.__name__}")
+        # Fallback (full) if needed
+        if not results:
+            try:
+                search_full = SearchEngine(simple_zipcode=False)
+                results = search_full.by_coordinates(lat, lng, radius=60, returns=10) or []
+                debug.append(f"full_results={len(results)}")
+            except Exception as e2:
+                debug.append(f"full_err={e2.__class__.__name__}")
+        # Pick first with zipcode
+        for z in results:
+            for attr in ("zipcode", "zip"):
+                zc = getattr(z, attr, None)
+                if zc:
+                    return JsonResponse({'status': 'ok', 'zip': zc})
+        payload = {'status': 'error', 'message': 'No ZIP found for coordinates'}
+        if getattr(settings, 'DEBUG', False):
+            payload['debug'] = debug
+        return JsonResponse(payload, status=404)
+    except Exception as e:
+        payload = {'status': 'error', 'message': 'Lookup failed'}
+        if getattr(settings, 'DEBUG', False):
+            payload['exception'] = f"{e.__class__.__name__}: {e}"
+        return JsonResponse(payload, status=500)
 
 
 def home(request):
