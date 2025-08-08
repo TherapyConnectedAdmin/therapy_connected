@@ -39,18 +39,35 @@
                     <div x-data="{open:false,newZip:'',error:'',saving:false, submit(){this.error=''; if(!/^\d{5}$/.test(this.newZip)){ this.error='Enter 5 digit ZIP'; return;} this.saving=true; fetch(`/set_zip/?zip=${this.newZip}`).then(r=>r.json()).then(d=>{ if(d.status==='ok'){ window.location.reload(); } else { this.error='Could not update'; } }).catch(()=> this.error='Network error').finally(()=> this.saving=false); }}" class="relative hidden md:block">
                         <button type="button" @click="open=!open; if(open){ $nextTick(()=> $refs.zipInput.focus()) }" class="flex items-center gap-1 text-sm font-medium px-2 py-1 rounded hover:bg-[#BEE3DB] focus:outline-none focus:ring-2 focus:ring-[#89B0AE]" :aria-expanded="open.toString()" aria-haspopup="dialog" style="color:#555B6E;">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
-                            <span class="font-semibold">{{ user_zip|default:'Set ZIP' }}</span>
+                            <span class="font-semibold">
+                                {% if user_zip_city and user_zip_state %}
+                                    {{ user_zip_city }}, {{ user_zip_state }}
+                                {% elif user_zip %}
+                                    {{ user_zip }}
+                                {% else %}
+                                    Set Location
+                                {% endif %}
+                            </span>
                         </button>
                         <div x-cloak x-show="open" x-transition @click.outside="open=false" class="absolute left-0 mt-2 w-60 bg-white border rounded shadow-lg p-4 z-30" style="border-color:#89B0AE;">
                             <h3 class="text-xs font-semibold mb-2 tracking-wide" style="color:#555B6E;">Change ZIP Code</h3>
                             <form @submit.prevent="submit()" class="space-y-2">
                                 <input x-ref="zipInput" x-model="newZip" type="text" inputmode="numeric" maxlength="5" placeholder="ZIP" aria-label="ZIP code" class="w-full border rounded px-3 py-2 text-sm focus:ring-2" style="border-color:#89B0AE; color:#555B6E; background:#FAF9F9;" />
+                                <button type="button" @click="open=false; error=''; if(typeof setZipFromGeolocation==='function'){ setZipFromGeolocation(true); } else { error='Function not available'; }" class="text-xs underline font-medium" style="color:#89B0AE;">Use my location</button>
                                 <div class="flex gap-2 justify-end">
                                     <button type="button" @click="open=false; newZip=''; error=''" class="px-3 py-1 text-xs font-medium rounded" style="background:#BEE3DB; color:#555B6E;">Cancel</button>
                                     <button type="submit" :disabled="saving" class="px-3 py-1 text-xs font-semibold rounded" :class="saving ? 'opacity-60 cursor-not-allowed' : ''" style="background:#89B0AE; color:#FAF9F9;" x-text="saving ? 'Saving...' : 'Save'"></button>
                                 </div>
                                 <p x-show="error" x-text="error" class="text-xs font-semibold" style="color:#FF4D4F;"></p>
-                                <p class="text-[10px] mt-1" style="color:#555B6E;">Current: <strong>{{ user_zip|default:'(none)' }}</strong></p>
+                                <p class="text-[10px] mt-1" style="color:#555B6E;">Current: <strong>
+                                    {% if user_zip_city and user_zip_state %}
+                                        {{ user_zip_city }}, {{ user_zip_state }} ({{ user_zip }})
+                                    {% elif user_zip %}
+                                        {{ user_zip }}
+                                    {% else %}
+                                        (none)
+                                    {% endif %}
+                                </strong></p>
                             </form>
                         </div>
                     </div>
@@ -90,11 +107,20 @@
                     <div x-data="{open:false,newZip:'',error:'',saving:false, submit(){this.error=''; if(!/^\d{5}$/.test(this.newZip)){ this.error='Enter 5 digit ZIP'; return;} this.saving=true; fetch(`/set_zip/?zip=${this.newZip}`).then(r=>r.json()).then(d=>{ if(d.status==='ok'){ window.location.reload(); } else { this.error='Could not update'; } }).catch(()=> this.error='Network error').finally(()=> this.saving=false); }}" class="w-full mb-2">
                         <button type="button" @click="open=!open; if(open){ $nextTick(()=> $refs.mZip.focus()) }" class="w-full flex items-center justify-center gap-1 text-sm font-medium px-2 py-2 rounded border" style="border-color:#89B0AE; color:#555B6E;">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
-                            <span>{{ user_zip|default:'Set ZIP' }}</span>
+                            <span>
+                                {% if user_zip_city and user_zip_state %}
+                                    {{ user_zip_city }}, {{ user_zip_state }}
+                                {% elif user_zip %}
+                                    {{ user_zip }}
+                                {% else %}
+                                    Set Location
+                                {% endif %}
+                            </span>
                         </button>
                         <div x-cloak x-show="open" class="mt-2 text-left">
                             <form @submit.prevent="submit()" class="space-y-2">
                                 <input x-ref="mZip" x-model="newZip" type="text" inputmode="numeric" maxlength="5" placeholder="ZIP" aria-label="ZIP code" class="w-full border rounded px-3 py-2 text-sm" style="border-color:#89B0AE; color:#555B6E; background:#FAF9F9;" />
+                                <button type="button" @click="open=false; error=''; if(typeof setZipFromGeolocation==='function'){ setZipFromGeolocation(true); } else { error='Function not available'; }" class="text-xs underline font-medium" style="color:#89B0AE;">Use my location</button>
                                 <div class="flex gap-2 justify-end">
                                     <button type="button" @click="open=false; newZip=''; error=''" class="px-3 py-1 text-xs font-medium rounded" style="background:#BEE3DB; color:#555B6E;">Cancel</button>
                                     <button type="submit" :disabled="saving" class="px-3 py-1 text-xs font-semibold rounded" :class="saving ? 'opacity-60 cursor-not-allowed' : ''" style="background:#89B0AE; color:#FAF9F9;" x-text="saving ? 'Saving...' : 'Save'"></button>
@@ -154,5 +180,7 @@
     </main>
     {% include "footer.html" %}
     </div>
+    <!-- Global site JS (modal logic + geolocation ZIP helper) -->
+    <script src="{% static 'home.js' %}"></script>
 </body>
 </html>
