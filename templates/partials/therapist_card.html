@@ -25,9 +25,6 @@
     <div class="text-base mb-2" style="color: #89B0AE;">
       {{ therapist.credentials_note|default:"" }}
     </div>
-    {% if therapist.tagline %}
-      <div class="text-base italic mb-2 w-full text-left" style="color: #116466; padding-top: 1.25rem;">{{ therapist.tagline }}</div>
-    {% endif %}
     <hr class="w-full border-t border-2" style="border-color: #BEE3DB; box-shadow: 0 2px 6px 0 #BEE3DB33;" />
     <div style="height: 0.75rem;"></div>
     <div class="w-full flex justify-center mb-2">
@@ -45,43 +42,18 @@
           {% endif %}
         </div>
         <div class="text-xs text-gray-600 mb-0 w-full text-left">
-          <span class="font-semibold" style="color: #555B6E;">Top Specialties:</span>
-          {% for tag in therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+          <span class="font-semibold" style="color: #555B6E;">Specialties:</span>
+          {% for spec in therapist.specialties.all %}{% if spec.is_top_specialty %}{{ spec.specialty.name }}{% if not forloop.last %}, {% endif %}{% endif %}{% empty %}N/A{% endfor %}
         </div>
       </div>
     </div>
-    <div class="text-sm mb-2" style="color: #555B6E;">
-      {{ therapist.short_bio }}
+    {# Removed short_bio (field not present). Could add intro_statement or personal_statement excerpts instead #}
+    {% if therapist.personal_statement_q1 %}
+    <div class="text-sm mb-2" style="color: #555B6E; max-height:4.5rem; overflow:hidden;">
+      {{ therapist.personal_statement_q1|truncatechars:220 }}
     </div>
+    {% endif %}
     <div class="mt-6 flex items-center justify-between w-full">
-      <button
-        x-data
-        :data-profile-photo-url="'{{ therapist.profile_photo.url|default:'https://randomuser.me/api/portraits/lego/1.jpg'|escapejs }}'"
-        :data-name="'{{ therapist.first_name|escapejs }} {{ therapist.last_name|escapejs }}'"
-        :data-license-type="'{{ therapist.license_type.name|default:''|escapejs }}'"
-        :data-license-type-description="'{{ therapist.license_type.description|default:''|escapejs }}'"
-        :data-credentials="'{{ therapist.credentials_note|default:''|escapejs }}'"
-        :data-tagline="'{{ therapist.tagline|default:''|escapejs }}'"
-        :data-bio="'{{ therapist.short_bio|default:''|escapejs }}'"
-        :data-specialties="'{% for tag in therapist.practice_areas_tags.all %}{{ tag.name|escapejs }}{% if not forloop.last %}, {% endif %}{% endfor %}'"
-        :data-personal-statement-q1="'{{ therapist.personal_statement_q1|default:''|escapejs }}'"
-        :data-personal-statement-q2="'{{ therapist.personal_statement_q2|default:''|escapejs }}'"
-        :data-personal-statement-q3="'{{ therapist.personal_statement_q3|default:''|escapejs }}'"
-        :data-gallery-images="'[{% for img in therapist.gallery_images.all %}\'{{ img.image.url|escapejs }}\'{% if not forloop.last %}, {% endif %}{% endfor %}]'"
-        @click="$dispatch('open-modal', {
-          profile_photo_url: $el.dataset.profilePhotoUrl,
-          name: $el.dataset.name,
-          license_type: $el.dataset.licenseType,
-          license_type_description: $el.dataset.licenseTypeDescription,
-          credentials: $el.dataset.credentials,
-          tagline: $el.dataset.tagline,
-          bio: $el.dataset.bio,
-          specialties: $el.dataset.specialties,
-          personal_statement_q1: $el.dataset.personalStatementQ1,
-          personal_statement_q2: $el.dataset.personalStatementQ2,
-          personal_statement_q3: $el.dataset.personalStatementQ3,
-          gallery_images: JSON.parse($el.dataset.galleryImages.replace(/'/g, '"'))
-        })"
       <button
         type="button"
         class="get-started-btn font-semibold rounded px-4 py-2 cursor-pointer bg-[#89B0AE] text-white hover:bg-[#555B6E]"
@@ -92,16 +64,18 @@
           license_type: '{{ therapist.license_type.name|default:''|escapejs }}',
           license_type_description: '{{ therapist.license_type.description|default:''|escapejs }}',
           credentials: '{{ therapist.credentials_note|default:''|escapejs }}',
-          tagline: '{{ therapist.tagline|default:''|escapejs }}',
-          bio: '{{ therapist.short_bio|default:''|escapejs }}',
-          specialties: '{% for tag in therapist.practice_areas_tags.all %}{{ tag.name|escapejs }}{% if not forloop.last %}, {% endif %}{% endfor %}',
+          tagline: '',
+          bio: '{{ therapist.personal_statement_q1|default:''|escapejs }}',
+          specialties: '{% for spec in therapist.specialties.all %}{% if spec.is_top_specialty %}{{ spec.specialty.name|escapejs }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}',
           personal_statement_q1: '{{ therapist.personal_statement_q1|default:''|escapejs }}',
           personal_statement_q2: '{{ therapist.personal_statement_q2|default:''|escapejs }}',
           personal_statement_q3: '{{ therapist.personal_statement_q3|default:''|escapejs }}',
           gallery_images: [{% for img in therapist.gallery_images.all %}'{{ img.image.url|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
         })"
       >View Profile</button>
-      <span class="bg-[#FF9950] text-white px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">Distance: {{ therapist.distance|default:"N/A" }} mi</span>
+  {% if therapist.distance is not None %}
+  <span class="bg-[#FF9950] text-white px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap">Distance: {{ therapist.distance }} mi</span>
+  {% endif %}
       <!-- Modal include removed; now only at page level -->
     </div>
   </div>
