@@ -104,10 +104,27 @@ def therapists_page(request):
         stats.search_rank = idx  # last rank seen for today
         stats.save()
 
+    # Zip meta for display
+    user_zip_city = None
+    user_zip_state = None
+    if user_zip:
+        try:
+            from uszipcode import SearchEngine
+            search_meta = SearchEngine(simple_zipcode=True)
+            meta_obj = search_meta.by_zipcode(user_zip)
+            if meta_obj:
+                user_zip_city = getattr(meta_obj, 'major_city', None) or getattr(meta_obj, 'post_office_city', None) or getattr(meta_obj, 'city', None)
+                user_zip_state = getattr(meta_obj, 'state', None)
+        except Exception:
+            pass
     return render(request, 'therapists.html', {
         'therapists': therapists_page_obj,
         'paginator': paginator,
         'page_obj': therapists_page_obj,
+        'user_zip': user_zip,
+        'user_zip_city': user_zip_city,
+        'user_zip_state': user_zip_state,
+        'user_zip_is_default': False,
     })
 
 def set_zip(request):
@@ -117,6 +134,35 @@ def set_zip(request):
         return JsonResponse({'status': 'ok', 'zip': zip_code})
     return JsonResponse({'status': 'error', 'message': 'No zip provided'}, status=400)
 
+def resolve_location(request):
+    """Resolve a zip code or 'City, ST' into a canonical zip + city/state."""
+    q = request.GET.get('q', '').strip()
+    if not q:
+        return JsonResponse({'status': 'error', 'message': 'Empty query'}, status=400)
+    from uszipcode import SearchEngine
+    import re
+    search = SearchEngine(simple_zipcode=True)
+    # ZIP direct
+    if re.fullmatch(r'\d{5}', q):
+        zobj = search.by_zipcode(q)
+        if not zobj:
+            return JsonResponse({'status': 'error', 'message': 'ZIP not found'}, status=404)
+        city = getattr(zobj, 'major_city', None) or getattr(zobj, 'post_office_city', None) or getattr(zobj, 'city', None)
+        state = getattr(zobj, 'state', None)
+        return JsonResponse({'status': 'ok', 'zip': q, 'city': city, 'state': state})
+    # City, ST pattern
+    m = re.fullmatch(r'\s*([A-Za-z .\'-]+),\s*([A-Za-z]{2})\s*', q)
+    if m:
+        city_raw, state = m.group(1), m.group(2).upper()
+        try:
+            results = search.by_city_and_state(city_raw, state)
+            if results:
+                z = results[0]
+                return JsonResponse({'status': 'ok', 'zip': z.zipcode, 'city': city_raw.title(), 'state': state})
+        except Exception:
+            pass
+        return JsonResponse({'status': 'error', 'message': 'City/state not found'}, status=404)
+    return JsonResponse({'status': 'error', 'message': 'Unrecognized format'}, status=400)
 
 def home(request):
     user_zip = request.session.get('user_zip')
@@ -186,10 +232,23 @@ def home(request):
     featured_blog_entry = FeaturedBlogPostHistory.objects.filter(date=today).first()
     top_therapist = featured_therapist_entry.therapist if featured_therapist_entry else (therapists_final[0] if therapists_final else None)
     top_blog_post = featured_blog_entry.blog_post if featured_blog_entry else BlogPost.objects.filter(published=True).order_by('-created_at').first()
+    # Add city/state meta for current zip
+    user_zip_city = None
+    user_zip_state = None
+    try:
+        if user_zip_obj:
+            user_zip_city = getattr(user_zip_obj, 'major_city', None) or getattr(user_zip_obj, 'post_office_city', None) or getattr(user_zip_obj, 'city', None)
+            user_zip_state = getattr(user_zip_obj, 'state', None)
+    except Exception:
+        pass
     return render(request, 'home.html', {
         'therapists': therapists_final,
         'top_blog_post': top_blog_post,
         'top_therapist': top_therapist,
+        'user_zip': user_zip,
+        'user_zip_city': user_zip_city,
+        'user_zip_state': user_zip_state,
+        'user_zip_is_default': user_zip_is_default,
     })
 
 def subscribe(request):

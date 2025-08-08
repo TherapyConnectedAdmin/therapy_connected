@@ -1,0 +1,32 @@
+{# Location / ZIP display + change component #}
+<div class="w-full max-w-7xl mx-auto mb-2 px-4">
+<div x-data="{ editing:false, newZip:'', error:'' }" class="w-full max-w-3xl mx-auto mb-6 flex flex-col items-center text-center">
+  <div class="text-sm font-medium" style="color:#555B6E;">
+    <template x-if="!editing">
+      <span>
+        Showing results near 
+        <strong>
+          {% if user_zip_city or user_zip_state %}
+            {% if user_zip_city %}{{ user_zip_city }}{% endif %}{% if user_zip_city and user_zip_state %}, {% endif %}{% if user_zip_state %}{{ user_zip_state }}{% endif %}
+          {% else %}
+            ZIP {{ user_zip|default:'(none)' }}
+          {% endif %}
+        </strong>
+        ({{ user_zip }})
+        {% if user_zip_is_default %}<span class="ml-1 px-2 py-0.5 rounded-full text-xs font-semibold" style="background:#FFD6BA; color:#555B6E;">Default</span>{% endif %}
+        · <button type="button" @click="editing=true; $nextTick(()=>{$refs.zipInput.focus()})" class="underline font-semibold" style="color:#89B0AE;">Change</button>
+      </span>
+    </template>
+  </div>
+  <div x-show="editing" x-transition class="mt-3 w-full max-w-md">
+    <form @submit.prevent="error=''; if(!/^\d{5}$/.test(newZip)){ error='Enter 5 digit ZIP'; return;} fetch(`/set_zip/?zip=${newZip}`).then(r=>r.json()).then(data=>{ if(data.status==='ok'){ window.location.reload(); } else { error='Could not update ZIP'; } }).catch(()=> error='Network error');" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+      <input x-ref="zipInput" x-model="newZip" type="text" inputmode="numeric" pattern="\d{5}" maxlength="5" placeholder="Enter ZIP" class="border rounded-full px-4 py-2 flex-1 focus:ring-2 text-sm" style="border-color:#89B0AE; color:#555B6E; background:#FAF9F9;" />
+      <div class="flex gap-2">
+        <button type="submit" class="px-5 py-2 rounded-full font-semibold text-sm" style="background:#89B0AE; color:#FAF9F9;">Save</button>
+        <button type="button" @click="editing=false; newZip=''; error=''" class="px-5 py-2 rounded-full font-semibold text-sm" style="background:#BEE3DB; color:#555B6E;">Cancel</button>
+      </div>
+    </form>
+    <div x-show="error" x-text="error" class="mt-2 text-xs font-semibold" style="color:#FF4D4F;"></div>
+  </div>
+  </div>
+</div>
