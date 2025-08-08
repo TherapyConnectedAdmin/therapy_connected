@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="py-8 w-full min-h-screen" style="background-color: #BEE3DB;"
+<section class="pt-8 w-full" style="background-color: #BEE3DB;"
   x-data="{ showProfileModal: false, therapist: {} }"
   @open-modal.window="showProfileModal = true; therapist = $event.detail"
 >
@@ -41,44 +41,42 @@
       </div>
     </div>
   </div>
-  <!-- Therapist Cards & Pagination -->
-  <div class="flex flex-col gap-2 py-8 px-2 sm:px-4" style="background-color: #FFF6ED;">
+  <!-- Therapist Cards & Pagination (pagination moved inside same background container) -->
+  <div class="flex flex-col gap-2 py-8 pb-16 px-2 sm:px-4" style="background-color: #FFF6ED;">
     {% for therapist in therapists %}
       {% include "partials/therapist_card.html" with therapist=therapist %}
     {% empty %}
       <div class="col-span-full text-center text-[#555B6E] text-lg">No therapists found matching your criteria.</div>
     {% endfor %}
+    {% if paginator.num_pages > 1 %}
+    <nav class="flex justify-center items-center mt-6" aria-label="Pagination">
+      <ul class="flex gap-4 items-center">
+        <li>
+          {% if page_obj.has_previous %}
+            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.tier %}tier={{ request.GET.tier }}&{% endif %}{% if request.GET.specialty %}specialty={{ request.GET.specialty }}&{% endif %}page={{ page_obj.previous_page_number }}"
+              class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white"
+            >Previous</a>
+          {% else %}
+            <span class="get-started-btn rounded-full px-6 py-2 text-base font-semibold bg-[#BEE3DB] text-[#555B6E] opacity-50 cursor-not-allowed">Previous</span>
+          {% endif %}
+        </li>
+        <li>
+          <span class="text-[#555B6E] font-medium text-base bg-[#FAF9F9] rounded-full px-5 py-2 border border-[#BEE3DB] shadow-sm">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+        </li>
+        <li>
+          {% if page_obj.has_next %}
+            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.tier %}tier={{ request.GET.tier }}&{% endif %}{% if request.GET.specialty %}specialty={{ request.GET.specialty }}&{% endif %}page={{ page_obj.next_page_number }}"
+              class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white"
+            >Next</a>
+          {% else %}
+            <span class="get-started-btn rounded-full px-6 py-2 text-base font-semibold bg-[#BEE3DB] text-[#555B6E] opacity-50 cursor-not-allowed">Next</span>
+          {% endif %}
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
   </div>
   {# Only include the profile modal once, at the end of the section #}
-
-  {# Pagination Controls - moved up, modern pastel/rounded style #}
-  {% if paginator.num_pages > 1 %}
-  <nav class="flex justify-center items-center mt-8" aria-label="Pagination">
-    <ul class="flex gap-4 items-center">
-      <li>
-        {% if page_obj.has_previous %}
-          <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.tier %}tier={{ request.GET.tier }}&{% endif %}{% if request.GET.specialty %}specialty={{ request.GET.specialty }}&{% endif %}page={{ page_obj.previous_page_number }}"
-            class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white"
-          >Previous</a>
-        {% else %}
-          <span class="get-started-btn rounded-full px-6 py-2 text-base font-semibold bg-[#BEE3DB] text-[#555B6E] opacity-50 cursor-not-allowed">Previous</span>
-        {% endif %}
-      </li>
-      <li>
-        <span class="text-[#555B6E] font-medium text-base bg-[#FAF9F9] rounded-full px-5 py-2 border border-[#BEE3DB] shadow-sm">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
-      </li>
-      <li>
-        {% if page_obj.has_next %}
-          <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.tier %}tier={{ request.GET.tier }}&{% endif %}{% if request.GET.specialty %}specialty={{ request.GET.specialty }}&{% endif %}page={{ page_obj.next_page_number }}"
-            class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white"
-          >Next</a>
-        {% else %}
-          <span class="get-started-btn rounded-full px-6 py-2 text-base font-semibold bg-[#BEE3DB] text-[#555B6E] opacity-50 cursor-not-allowed">Next</span>
-        {% endif %}
-      </li>
-    </ul>
-  </nav>
-  {% endif %}
 
   
   {% include "partials/profile_modal.html" %}
