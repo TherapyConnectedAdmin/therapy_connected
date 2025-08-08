@@ -22,7 +22,7 @@ def therapists_page(request):
     query = request.GET.get('q', '').strip()
     tier = request.GET.get('tier', '').strip()
     specialty = request.GET.get('specialty', '').strip()
-    therapists = TherapistProfile.objects.filter(user__is_active=True, user__onboarding_status='active')
+    therapists = TherapistProfile.objects.filter(user__is_active=True, user__onboarding_status='active').prefetch_related('locations')
     if query:
         from users.utils.state_normalize import normalize_state
         normalized_query = normalize_state(query)
@@ -44,12 +44,47 @@ def therapists_page(request):
     # Removed specialty filtering due to missing PracticeAreaTag model
 
     user_zip = request.session.get('user_zip')
+    # Distance-based default ordering and filtering
     if user_zip:
         try:
+            # Updated for current uszipcode API (no simple_zipcode kwarg)
             from uszipcode import SearchEngine
-            search = SearchEngine(simple_zipcode=True)
-            user_zip_obj = search.by_zipcode(user_zip)
-            import math
+            import math, re
+            # Simple dataset (default) first
+            search_simple = SearchEngine()
+            # Comprehensive dataset for fallback when a given zip has no coords in simple DB
+            search_full = SearchEngine(simple_or_comprehensive=SearchEngine.SimpleOrComprehensiveArgEnum.comprehensive)
+
+            user_zip_norm = re.match(r"\d{5}", user_zip or "")
+            user_zip_clean = user_zip_norm.group(0) if user_zip_norm else user_zip
+            user_zip_obj = search_simple.by_zipcode(user_zip_clean)
+            if not (getattr(user_zip_obj, 'lat', None) and getattr(user_zip_obj, 'lng', None)):
+                user_zip_obj_full = search_full.by_zipcode(user_zip_clean)
+                if user_zip_obj_full and user_zip_obj_full.lat and user_zip_obj_full.lng:
+                    user_zip_obj = user_zip_obj_full
+
+            zip_cache = {}
+
+            def get_latlng(z):
+                if not z:
+                    return None
+                m = re.match(r"\d{5}", str(z))
+                if not m:
+                    return None
+                z5 = m.group(0)
+                if z5 in zip_cache:
+                    return zip_cache[z5]
+                zobj = search_simple.by_zipcode(z5)
+                if (not zobj or not zobj.lat or not zobj.lng):
+                    zobj_full = search_full.by_zipcode(z5)
+                    if zobj_full and zobj_full.lat and zobj_full.lng:
+                        zobj = zobj_full
+                if zobj and zobj.lat and zobj.lng:
+                    zip_cache[z5] = (zobj.lat, zobj.lng)
+                else:
+                    zip_cache[z5] = None
+                return zip_cache[z5]
+
             def haversine(lat1, lon1, lat2, lon2):
                 R = 3958.8
                 phi1 = math.radians(lat1)
@@ -60,27 +95,48 @@ def therapists_page(request):
                 c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
                 return R * c
 
-            def get_distance(zip_code):
-                if not zip_code or not user_zip_obj:
+            def compute_min_distance(therapist):
+                if not user_zip_obj or not getattr(user_zip_obj, 'lat', None) or not getattr(user_zip_obj, 'lng', None):
                     return None
-                zip_obj = search.by_zipcode(zip_code)
-                if zip_obj and zip_obj.lat and zip_obj.lng and user_zip_obj.lat and user_zip_obj.lng:
-                    dist = haversine(user_zip_obj.lat, user_zip_obj.lng, zip_obj.lat, zip_obj.lng)
-                    return round(dist, 1)
-                return None
-            therapists = therapists.distinct()
-            therapists = list(therapists)
-            from users.location_utils import get_primary_location
+                min_d = None
+                for loc in therapist.locations.all():
+                    ll = get_latlng(getattr(loc, 'zip', None))
+                    if ll and ll[0] and ll[1]:
+                        d = haversine(user_zip_obj.lat, user_zip_obj.lng, ll[0], ll[1])
+                        if min_d is None or d < min_d:
+                            min_d = d
+                return round(min_d, 1) if min_d is not None else None
+
+            therapists = list(therapists.distinct())
             for t in therapists:
-                primary_location = get_primary_location(t.locations.all())
-                zip_code = getattr(primary_location, 'zip', None) if primary_location else None
-                t.distance = get_distance(zip_code)
-            therapists = sorted(therapists, key=lambda t: t.distance if t.distance is not None else float('inf'))
-        except Exception:
-            if not isinstance(therapists, list):
-                therapists = therapists.distinct().order_by('-user__last_login')
+                t.distance = compute_min_distance(t)
+
+            therapists.sort(key=lambda t: t.distance if t.distance is not None else float('inf'))
+
+            RADIUS = 150  # miles
+            within_radius = [t for t in therapists if t.distance is not None and t.distance <= RADIUS]
+            if len(within_radius) >= 150:
+                therapists = within_radius
+            else:
+                therapists = (within_radius + [t for t in therapists if t not in within_radius])[:150]
+        except Exception as e:
+            # Capture the exception reason in DEBUG via attaching attribute (optional)
+            therapists = list(therapists.distinct().order_by('-user__last_login')[:150])
+            for t in therapists:
+                t.distance = None
     else:
-        therapists = therapists.distinct().order_by('-user__last_login')
+        # No user zip: just take most recently active up to 150
+        therapists = list(therapists.distinct().order_by('-user__last_login')[:150])
+        for t in therapists:
+            t.distance = None
+
+    # Absolute fallback: if still empty, relax filters (include non-active onboarding) then still ensure distance attr
+    if not therapists:
+        fallback_qs = TherapistProfile.objects.filter(user__is_active=True).prefetch_related('locations').order_by('-user__last_login')[:150]
+        therapists = list(fallback_qs)
+        for t in therapists:
+            if not hasattr(t, 'distance'):
+                t.distance = None
 
     from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
     page = request.GET.get('page', 1)
@@ -111,7 +167,7 @@ def therapists_page(request):
     if user_zip:
         try:
             from uszipcode import SearchEngine
-            search_meta = SearchEngine(simple_zipcode=True)
+            search_meta = SearchEngine()
             meta_obj = search_meta.by_zipcode(user_zip)
             if meta_obj:
                 user_zip_city = getattr(meta_obj, 'major_city', None) or getattr(meta_obj, 'post_office_city', None) or getattr(meta_obj, 'city', None)
@@ -147,18 +203,16 @@ def geo_zip(request):
     try:
         from uszipcode import SearchEngine
         debug = []
-        # Primary attempt (simple)
         try:
-            search = SearchEngine(simple_zipcode=True)
-            results = search.by_coordinates(lat, lng, radius=40, returns=10) or []
+            search_simple = SearchEngine()
+            results = search_simple.by_coordinates(lat, lng, radius=40, returns=10) or []
             debug.append(f"simple_results={len(results)}")
         except Exception as e1:
             results = []
             debug.append(f"simple_err={e1.__class__.__name__}")
-        # Fallback (full) if needed
         if not results:
             try:
-                search_full = SearchEngine(simple_zipcode=False)
+                search_full = SearchEngine(simple_or_comprehensive=SearchEngine.SimpleOrComprehensiveArgEnum.comprehensive)
                 results = search_full.by_coordinates(lat, lng, radius=60, returns=10) or []
                 debug.append(f"full_results={len(results)}")
             except Exception as e2:
@@ -197,20 +251,23 @@ def home(request):
         q_obj = (
             Q(first_name__icontains=query) |
             Q(last_name__icontains=query) |
-            Q(credentials__icontains=query) |
-            Q(city__icontains=query) |
-            Q(state__icontains=query) |
-            Q(state__iexact=normalized_query) |
-            Q(short_bio__icontains=query) |
-            Q(tagline__icontains=query)
+            Q(personal_statement_q1__icontains=query) |
+            Q(personal_statement_q2__icontains=query) |
+            Q(personal_statement_q3__icontains=query) |
+            Q(intro_statement__icontains=query) |
+            Q(locations__city__icontains=query) |
+            Q(locations__state__icontains=query) |
+            Q(locations__state__iexact=normalized_query) |
+            Q(credentials_note__icontains=query)
         )
         therapists = therapists.filter(q_obj)
 
     from uszipcode import SearchEngine
     import math
     from users.location_utils import get_primary_location
-    search = SearchEngine()
-    user_zip_obj = search.by_zipcode(user_zip)
+    search_simple = SearchEngine()
+    search_full = SearchEngine(simple_or_comprehensive=SearchEngine.SimpleOrComprehensiveArgEnum.comprehensive)
+    user_zip_obj = search_simple.by_zipcode(user_zip) or search_full.by_zipcode(user_zip)
 
     def haversine(lat1, lon1, lat2, lon2):
         R = 3958.8
@@ -228,7 +285,7 @@ def home(request):
         min_dist = None
         for loc in locations:
             zip_code = getattr(loc, 'zip', None)
-            zip_obj = search.by_zipcode(zip_code) if zip_code else None
+            zip_obj = (search_simple.by_zipcode(zip_code) or search_full.by_zipcode(zip_code)) if zip_code else None
             if zip_obj and zip_obj.lat and zip_obj.lng and user_zip_obj.lat and user_zip_obj.lng:
                 dist = haversine(user_zip_obj.lat, user_zip_obj.lng, zip_obj.lat, zip_obj.lng)
                 if min_dist is None or dist < min_dist:
