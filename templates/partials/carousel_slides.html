@@ -6,101 +6,87 @@
     <div class="flex flex-col w-full">
       <h3 class="text-xl font-bold mb-8 self-center" style="color: #89B0AE;">Therapist</h3>
       {% if top_therapist %}
-      <div class="flex flex-row items-start w-full gap-6">
-        <!-- Portrait Photo -->
-        <div class="flex-shrink-0">
+      <div class="relative w-full flex flex-col md:flex-row gap-6 rounded-2xl shadow-lg p-6 md:p-8 bg-[#FAF9F9]" style="box-shadow:0 4px 18px -4px #555B6E33;">
+        <!-- Image Column (smaller portrait) -->
+        <div class="relative flex-shrink-0 w-32 h-48 md:w-40 md:h-56 overflow-hidden rounded-xl">
           {% if top_therapist.profile_photo %}
-            <img src="{{ top_therapist.profile_photo.url }}" alt="{{ top_therapist.first_name }} {{ top_therapist.last_name }}" class="w-32 h-44 object-cover rounded-xl shadow-lg" style="box-shadow: 0 4px 24px 0 #555B6E44;" />
+            <img src="{{ top_therapist.profile_photo.url }}" alt="{{ top_therapist.first_name }} {{ top_therapist.last_name }}" class="w-full h-full object-cover object-center rounded-xl" />
           {% else %}
-            <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="Therapist" class="w-32 h-44 object-cover rounded-xl shadow-lg" style="box-shadow: 0 4px 24px 0 #555B6E44;" />
+            <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="Therapist" class="w-full h-full object-cover object-center rounded-xl" />
+          {% endif %}
+          {% if top_therapist.distance is not None %}
+            <span class="absolute top-2 left-2 bg-[#F5E2D6] text-[#555B6E] px-2.5 py-1 rounded-full text-[10px] font-semibold shadow-sm border border-[#FF9950]/30">{{ top_therapist.distance }} mi</span>
           {% endif %}
         </div>
-        <!-- Name, Credentials, City, State, Practice Name, and Types/Age/Specialties -->
-        <div class="flex flex-col justify-start items-start flex-1 pt-1">
-          <div class="font-semibold text-xl mb-1 text-[#555B6E]">
-            {{ top_therapist.first_name }} {{ top_therapist.last_name }}
-            {% if top_therapist.license_type %}, <span class="font-bold" style="color: #116466;">{{ top_therapist.license_type.name }}</span>{% endif %}
-          </div>
-          {% with primary=top_therapist.locations.all|get_primary_location %}
-            <div class="text-base font-semibold mb-0.5 text-[#555B6E]">
+        <!-- Content Column -->
+        <div class="flex-1 flex flex-col gap-4">
+          <div>
+            <h4 class="text-2xl font-extrabold flex flex-wrap items-baseline gap-x-2 leading-snug text-[#555B6E]">
+              <span>{{ top_therapist.first_name }} {{ top_therapist.last_name }}</span>
+              {% if top_therapist.license_type %}<span class="text-base font-semibold text-[#116466]">{{ top_therapist.license_type.name }}</span>{% endif %}
+            </h4>
+            {% with primary=top_therapist.locations.all|get_primary_location %}
               {% if primary and primary.practice_name %}
-                {{ primary.practice_name }}
-              {% else %}
-                {{ top_therapist.practice_name|default:"" }}
+                <div class="text-sm font-semibold mt-0.5 text-[#555B6E]">{{ primary.practice_name }}</div>
               {% endif %}
-            </div>
-            <div class="text-sm text-gray-500 mb-1">
-              {% if primary and primary.city and primary.state %}
-                {{ primary.city }}, {{ primary.state }}
-              {% elif top_therapist.city and top_therapist.state %}
-                {{ top_therapist.city }}, {{ top_therapist.state }}
-              {% elif top_therapist.city %}
-                {{ top_therapist.city }}
-              {% elif top_therapist.state %}
-                {{ top_therapist.state }}
-              {% else %}
-                &nbsp;
-              {% endif %}
-            </div>
-            {% if top_therapist.distance is not None %}
-              <div class="text-xs font-semibold mb-1 text-[#116466]">{{ top_therapist.distance }} miles away</div>
+              <div class="text-xs opacity-80 text-[#555B6E]">
+                {% if primary %}{{ primary.city }}, {{ primary.state }}{% endif %}
+              </div>
+            {% endwith %}
+            {% if top_therapist.credentials_note %}
+              <div class="mt-2 text-sm font-medium text-[#89B0AE]">{{ top_therapist.credentials_note }}</div>
             {% endif %}
-          {% endwith %}
-          <!-- Types of Therapy, Age Groups, Top Specialties directly under distance -->
-          <div class="w-[90%] mb-2" style="padding-top:20px;">
-            <div class="px-3 py-2 rounded-lg shadow-sm w-full" style="background-color: #BEE3DB;">
-              <div class="text-xs text-gray-600 mb-1 w-full text-left">
-                {% if top_therapist.participant_types.all %}
-                  <span class="font-semibold" style="color: #555B6E;">Types of Therapy:</span>
-                  {% for pt in top_therapist.participant_types.all %}{{ pt.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-                {% endif %}
-              </div>
-              <div class="text-xs text-gray-600 mb-1 w-full text-left">
-                {% if top_therapist.age_groups.all %}
-                  <span class="font-semibold" style="color: #555B6E;">Age Groups:</span>
-                  {% for ag in top_therapist.age_groups.all %}{{ ag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-                {% endif %}
-              </div>
-              <div class="text-xs text-gray-600 mb-0 w-full text-left">
-                <span class="font-semibold" style="color: #555B6E;">Top Specialties:</span>
-                {% for s in top_therapist.specialties.all %}{% if s.is_top_specialty and s.specialty %}{{ s.specialty.name }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}
-              </div>
-            </div>
           </div>
-        </div>
-      </div>
-      <!-- Remaining therapist fields underneath the row -->
-      <div class="flex flex-col w-full mt-4">
-        {% if top_therapist.intro_statement %}
-          <div class="text-base italic mb-2 w-full text-left" style="color: #116466;">{{ top_therapist.intro_statement|truncatechars:255 }}</div>
-        {% endif %}
-        <div style="height: 0.75rem;"></div>
-        <div class="w-full flex justify-center">
-          <button
-            type="button"
-            @click="
-              fetch('/users/api/profile_click/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: {{ top_therapist.user.id }} })
-              });
-              $dispatch('open-modal', {
-                profile_photo_url: '{% if top_therapist.profile_photo %}{{ top_therapist.profile_photo.url }}{% else %}https://randomuser.me/api/portraits/lego/1.jpg{% endif %}',
-                name: '{{ top_therapist.first_name }} {{ top_therapist.last_name }}',
-                license_type: '{{ top_therapist.license_type.name|default:'' }}',
-                license_type_description: '{{ top_therapist.license_type.description|default:'' }}',
-                city: '{% with primary=top_therapist.locations.all|get_primary_location %}{% if primary %}{{ primary.city }}{% endif %}{% endwith %}',
-                state: '{% with primary=top_therapist.locations.all|get_primary_location %}{% if primary %}{{ primary.state }}{% endif %}{% endwith %}',
-                tagline: '{{ top_therapist.tagline|escapejs }}',
-                bio: '{{ top_therapist.short_bio|escapejs }}',
-                specialties: '{% for tag in top_therapist.practice_areas_tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}',
-                personal_statement_q1: '{{ top_therapist.personal_statement_q1|escapejs }}',
-                personal_statement_q2: '{{ top_therapist.personal_statement_q2|escapejs }}',
-                personal_statement_q3: '{{ top_therapist.personal_statement_q3|escapejs }}'
-              });
-            "
-            class="get-started-btn font-semibold rounded px-4 py-2 cursor-pointer bg-[#89B0AE] text-white hover:bg-[#555B6E] mt-2"
-          >View Profile</button>
+          <!-- Chips -->
+          <div class="flex flex-wrap gap-2 text-[11px] leading-tight">
+            {% for pt in top_therapist.participant_types.all %}
+              <span class="px-2 py-1 rounded-full bg-[#BEE3DB] text-[#444] font-semibold shadow-sm">{{ pt.name }}</span>
+            {% endfor %}
+            {% for ag in top_therapist.age_groups.all %}
+              <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#444] font-medium shadow-sm">{{ ag.name }}</span>
+            {% endfor %}
+            {% for s in top_therapist.specialties.all %}{% if s.is_top_specialty and s.specialty %}
+              <span class="px-2 py-1 rounded-full bg-[#FFDDD0] text-[#444] font-medium shadow-sm">{{ s.specialty.name }}</span>
+            {% endif %}{% endfor %}
+          </div>
+          <!-- Intro Statement Snippet -->
+          {% if top_therapist.intro_statement %}
+            <div class="text-sm leading-relaxed max-h-24 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
+              {{ top_therapist.intro_statement|truncatechars:260 }}
+            </div>
+          {% elif top_therapist.personal_statement_q1 %}
+            <div class="text-sm leading-relaxed max-h-24 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
+              {{ top_therapist.personal_statement_q1|truncatechars:260 }}
+            </div>
+          {% endif %}
+          <div class="mt-auto flex flex-wrap items-center gap-4 pt-2">
+            <button
+              type="button"
+              @click="
+                fetch('/users/api/profile_click/', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ user_id: {{ top_therapist.user.id }} })
+                });
+                $dispatch('open-modal', {
+                  profile_photo_url: '{% if top_therapist.profile_photo %}{{ top_therapist.profile_photo.url }}{% else %}https://randomuser.me/api/portraits/lego/1.jpg{% endif %}',
+                  name: '{{ top_therapist.first_name }} {{ top_therapist.last_name }}',
+                  license_type: '{{ top_therapist.license_type.name|default:'' }}',
+                  license_type_description: '{{ top_therapist.license_type.description|default:'' }}',
+                  credentials: '{{ top_therapist.credentials_note|default:''|escapejs }}',
+                  city: '{% with primary=top_therapist.locations.all|get_primary_location %}{% if primary %}{{ primary.city }}{% endif %}{% endwith %}',
+                  state: '{% with primary=top_therapist.locations.all|get_primary_location %}{% if primary %}{{ primary.state }}{% endif %}{% endwith %}',
+                  tagline: '',
+                  bio: '{{ top_therapist.intro_statement|default:top_therapist.personal_statement_q1|default:''|escapejs }}',
+                  specialties: '{% for s in top_therapist.specialties.all %}{% if s.is_top_specialty and s.specialty %}{{ s.specialty.name|escapejs }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}',
+                  personal_statement_q1: '{{ top_therapist.personal_statement_q1|default:''|escapejs }}',
+                  personal_statement_q2: '{{ top_therapist.personal_statement_q2|default:''|escapejs }}',
+                  personal_statement_q3: '{{ top_therapist.personal_statement_q3|default:''|escapejs }}'
+                });
+              "
+              class="get-started-btn font-semibold rounded-lg px-5 py-2.5 cursor-pointer bg-[#116466] text-white hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition"
+            >View Profile</button>
+          </div>
         </div>
       </div>
       {% else %}
