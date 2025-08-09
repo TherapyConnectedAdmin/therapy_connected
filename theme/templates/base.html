@@ -10,8 +10,36 @@
     {% tailwind_css %}
     <!-- Alpine.js for Combobox functionality -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>[x-cloak]{display:none !important;}</style>
+        <script>
+            // Ensure mediaLightbox store exists as early as possible after Alpine loads
+            document.addEventListener('alpine:init', () => {
+                if(!Alpine.store('mediaLightbox')){
+                    Alpine.store('mediaLightbox', {
+                        open:false, type:null, src:null, caption:null,
+                                openImage(src){ console.log('[mediaLightbox] openImage', src); this.type='image'; this.src=src; this.caption=''; this.open=true; this._lock(); },
+                                openVideo(src, caption){ console.log('[mediaLightbox] openVideo', src); this.type='video'; this.src=src; this.caption=caption||''; this.open=true; this._lock(); },
+                                close(){ console.log('[mediaLightbox] close'); this.open=false; this.src=null; this.caption=null; this.type=null; this._unlock(); },
+                        _lock(){ document.documentElement.classList.add('overflow-hidden'); document.body.classList.add('overflow-hidden'); },
+                        _unlock(){ document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden'); }
+                    });
+                            // Expose for quick console inspection
+                            window.__mediaLightbox = Alpine.store('mediaLightbox');
+                }
+            });
+        </script>
 </head>
 <body class="bg-gray-50 text-black font-serif leading-normal tracking-normal">
+        <style>
+            /* Reusable thin scrollbar for modal content */
+            .custom-scrollbar { scrollbar-gutter: stable both-edge; }
+            .custom-scrollbar::-webkit-scrollbar { width: 10px; }
+            .custom-scrollbar::-webkit-scrollbar-track { background: #F1F5F4; border-radius: 8px; }
+            .custom-scrollbar::-webkit-scrollbar-thumb { background: #BEE3DB; border-radius: 8px; border:2px solid #F1F5F4; }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #89B0AE; }
+            /* Ensure body lock prevents layout shift */
+            html.overflow-hidden, body.overflow-hidden { height: 100%; overscroll-behavior: contain; }
+        </style>
     <!-- Modals now included only in home.html; all showModal logic removed -->
     <!-- Header -->
     <div class="min-h-screen flex flex-col">
@@ -180,7 +208,72 @@
     </main>
     {% include "footer.html" %}
     </div>
-    <!-- Global site JS (modal logic + geolocation ZIP helper) -->
-    <script src="{% static 'home.js' %}"></script>
+        <!-- Global site JS (modal logic + geolocation ZIP helper) -->
+        <script src="{% static 'home.js' %}"></script>
+                <script>
+                    // Fallback delegation: if direct Alpine binding failed, allow data-lightbox-image/video attributes to trigger.
+                    document.addEventListener('click', function(e){
+                        const fig = e.target.closest('[data-lightbox-image], [data-lightbox-video]');
+                        if(!fig) return;
+                        const store = (window.Alpine && Alpine.store && Alpine.store('mediaLightbox')) ? Alpine.store('mediaLightbox') : window.__mediaLightbox;
+                        if(!store) return;
+                        if(fig.dataset.lightboxImage){ store.openImage(fig.dataset.lightboxImage); }
+                        else if(fig.dataset.lightboxVideo){ store.openVideo(fig.dataset.lightboxVideo, fig.dataset.lightboxCaption||''); }
+                    });
+                </script>
+        <!-- Leaflet (maps for profile modal locations) -->
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
+            <div x-cloak x-show="$store.mediaLightbox.open" x-transition class="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm" @keydown.window.escape="$store.mediaLightbox.close()" @click.self="$store.mediaLightbox.close()">
+                <div class="relative max-w-5xl w-[92vw] mx-auto" x-trap.noscroll="$store.mediaLightbox.open">
+                    <button @click="$store.mediaLightbox.close()" class="absolute -top-12 right-0 bg-[#FF9950] hover:bg-[#555B6E] text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg" aria-label="Close media">
+                        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' class='w-7 h-7'><path stroke-linecap='round' stroke-linejoin='round' d='M6 18L18 6M6 6l12 12'/></svg>
+                    </button>
+                    <template x-if="$store.mediaLightbox.type==='image'">
+                        <img :src="$store.mediaLightbox.src" class="w-full max-h-[78vh] object-contain rounded-xl shadow-2xl" />
+                    </template>
+                    <template x-if="$store.mediaLightbox.type==='video'">
+                        <div class="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
+                            <video :src="$store.mediaLightbox.src" controls autoplay class="w-full h-full object-contain"></video>
+                        </div>
+                    </template>
+                    <div class="mt-4 text-center text-sm text-white/80" x-show="$store.mediaLightbox.caption" x-text="$store.mediaLightbox.caption"></div>
+                </div>
+            </div>
+        <script>
+            async function geocodeAddress(addr){
+                if(!addr) return null;
+                const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(addr);
+                try { const res = await fetch(url, { headers:{'Accept-Language':'en'} }); if(!res.ok) return null; const data = await res.json(); if(data && data.length){ return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }; } } catch(e){ console.warn('Geocode failed', e); }
+                return null;
+            }
+            window.initTherapistLocationMaps = async function(){
+                const retry = ()=> setTimeout(window.initTherapistLocationMaps,120);
+                if(!window.Alpine || !Alpine.store){ return retry(); }
+                if(!window.L){ return retry(); }
+                const store = Alpine.store('profileModal');
+                if(!store || !store.therapist || !Array.isArray(store.therapist.locations)) return;
+                const locs = store.therapist.locations;
+                for(let i=0;i<locs.length;i++){
+                    const loc = locs[i];
+                    const el = document.getElementById('profile-map-' + i);
+                    if(!el || el.dataset.mapInit) continue;
+                    let { lat, lng } = loc;
+                    if((lat==null || lng==null) && !loc.hide_address_from_public){
+                        const addr = [loc.street_address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ');
+                        const geo = await geocodeAddress(addr);
+                        if(geo){ lat = geo.lat; lng = geo.lng; loc.lat = lat; loc.lng = lng; }
+                    }
+                    if(lat!=null && lng!=null){
+                        const map = L.map(el, { attributionControl:false, zoomControl:false }).setView([lat,lng], 13);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+                        L.marker([lat,lng]).addTo(map);
+                    } else {
+                        el.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-[10px] text-[#555B6E] px-2 text-center">Map unavailable for this address.</div>';
+                    }
+                    el.dataset.mapInit='1';
+                }
+            };
+        </script>
 </body>
 </html>

@@ -1,9 +1,31 @@
 {% extends "base.html" %}
+{% load static %}
 {% block content %}
-<section class="pt-8 w-full" style="background-color: #BEE3DB;"
-  x-data="{ showProfileModal: false, therapist: {} }"
-  @open-modal.window="showProfileModal = true; therapist = $event.detail"
->
+<script>
+  document.addEventListener('alpine:init', () => {
+    if(!Alpine.store('profileModal')) {
+      Alpine.store('profileModal', {
+        show:false, therapist:{}, loading:false, error:null,
+        open(id){
+          console.log('[profileModal] open called (therapists page) with id', id, 'at', Date.now());
+          this.show=true; this.error=null; this.loading=true; this.therapist={};
+          document.documentElement.classList.add('overflow-hidden');
+          document.body.classList.add('overflow-hidden');
+          fetch(`/users/api/therapists/${id}/profile_full/`).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).then(d=>{ this.therapist=d; }).catch(e=>{ console.error(e); this.error=e.message; }).finally(()=>this.loading=false);
+        },
+        close(){
+          console.log('[profileModal] close called (therapists page) at', Date.now());
+          this.show=false;
+          requestAnimationFrame(()=>{
+            document.documentElement.classList.remove('overflow-hidden');
+            document.body.classList.remove('overflow-hidden');
+          });
+        }
+      });
+    }
+  });
+</script>
+<section class="pt-8 w-full" style="background-color: #BEE3DB;">
   <div class="max-w-3xl mx-auto text-center px-2 sm:px-4" style="padding-bottom:30px;">
     <h2 class="text-3xl font-bold mb-2 text-center" style="color: #555B6E;">Find a Therapist</h2>
     <p class="text-base sm:text-lg mb-8" style="color: #555B6E;">Search and filter to find the right therapist for you.</p>
@@ -76,9 +98,6 @@
     </nav>
     {% endif %}
   </div>
-  {# Only include the profile modal once, at the end of the section #}
-
-  
   {% include "partials/profile_modal.html" %}
 </section>
 {% endblock %}

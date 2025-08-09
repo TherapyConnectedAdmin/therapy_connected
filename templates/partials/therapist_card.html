@@ -64,20 +64,7 @@
       <button
         type="button"
         class="get-started-btn font-semibold rounded-lg px-5 py-2.5 cursor-pointer bg-[#116466] text-white hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition"
-        @click="$dispatch('open-modal', {
-          profile_photo_url: '{{ therapist.profile_photo.url|default:'https://randomuser.me/api/portraits/lego/1.jpg'|escapejs }}',
-          name: '{{ therapist.first_name|escapejs }} {{ therapist.last_name|escapejs }}',
-          license_type: '{{ therapist.license_type.name|default:''|escapejs }}',
-          license_type_description: '{{ therapist.license_type.description|default:''|escapejs }}',
-          credentials: '{{ therapist.credentials_note|default:''|escapejs }}',
-          tagline: '',
-          bio: '{{ therapist.intro_statement|default:therapist.personal_statement_q1|default:''|escapejs }}',
-          specialties: '{% for spec in therapist.specialties.all %}{% if spec.is_top_specialty %}{{ spec.specialty.name|escapejs }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}',
-          personal_statement_q1: '{{ therapist.personal_statement_q1|default:''|escapejs }}',
-          personal_statement_q2: '{{ therapist.personal_statement_q2|default:''|escapejs }}',
-          personal_statement_q3: '{{ therapist.personal_statement_q3|default:''|escapejs }}',
-          gallery_images: [{% for img in therapist.gallery_images.all %}'{{ img.image.url|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
-        })"
+        @click="$store.profileModal.open({{ therapist.user.id }})"
       >View Profile</button>
   {# Distance pill duplicated previously; now only shown over image #}
     </div>

@@ -1,7 +1,7 @@
 {% load location_extras %}
 {% load therapist_extras %}
 
-<section x-data="{ showProfileModal: false, therapist: {} }" class="py-10 w-full" style="background-color: #FAF9F9;">
+<section class="py-10 w-full" style="background-color: #FAF9F9;" x-data="{}">
   <div class="max-w-7xl mx-auto px-4">
     <h2 class="text-2xl sm:text-3xl font-bold mb-8 text-center" style="color: #555B6E;">Top Therapists in Your Area</h2>
     <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-10 justify-items-center">
@@ -69,20 +69,7 @@
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ user_id: {{ therapist.user.id }} })
                 });
-                $dispatch('open-modal', {
-                  profile_photo_url: '{{ therapist.profile_photo.url|default:'https://randomuser.me/api/portraits/lego/1.jpg'|escapejs }}',
-                  name: '{{ therapist.first_name|escapejs }} {{ therapist.last_name|escapejs }}',
-                  license_type: '{{ therapist.license_type.name|default:''|escapejs }}',
-                  license_type_description: '{{ therapist.license_type.description|default:''|escapejs }}',
-                  credentials: '{{ therapist.credentials_note|default:''|escapejs }}',
-                  tagline: '',
-                  bio: '{{ therapist.intro_statement|default:therapist.personal_statement_q1|default:''|escapejs }}',
-                  specialties: '{% for s in therapist.specialties.all %}{% if s.is_top_specialty and s.specialty %}{{ s.specialty.name|escapejs }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}',
-                  personal_statement_q1: '{{ therapist.personal_statement_q1|default:''|escapejs }}',
-                  personal_statement_q2: '{{ therapist.personal_statement_q2|default:''|escapejs }}',
-                  personal_statement_q3: '{{ therapist.personal_statement_q3|default:''|escapejs }}',
-                  gallery_images: [{% for img in therapist.gallery_images.all %}'{{ img.image.url|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
-                });
+                $store.profileModal.open({{ therapist.user.id }});
               "
             >View Profile</button>
           </div>
@@ -90,6 +77,6 @@
       </div>
       {% endfor %}
     </div>
-    {% include "partials/profile_modal.html" %}
+  {# Modal included globally on parent page; removed here to avoid duplicates #}
   </div>
 </section>

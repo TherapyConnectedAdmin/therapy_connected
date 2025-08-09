@@ -1,18 +1,7 @@
 
 
-// Alpine.js modal logic for profile modal
-document.addEventListener('alpine:init', () => {
-  Alpine.store('modal', {
-    showProfileModal: false,
-    therapist: { profile_photo_url: '', name: '', license_type: '', license_type_description: '', credentials: '', personal_statement_q1: '', personal_statement_q2: '', personal_statement_q3: '', gallery_images: [] }
-  });
-
-  // Listen for custom 'open-modal' events and update Alpine store
-  document.addEventListener('open-modal', function(e) {
-    Alpine.store('modal').therapist = e.detail;
-    Alpine.store('modal').showProfileModal = true;
-  });
-});
+// Legacy modal logic removed (replaced by global $store.profileModal in templates)
+// Removed legacy modal event bridge; new profileModal store handles direct open() calls.
 
 // Geolocation ZIP setter (auto on load, can be forced by user click)
 function setZipFromGeolocation(force = false) {

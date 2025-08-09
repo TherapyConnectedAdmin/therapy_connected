@@ -308,3 +308,155 @@ def contact_therapist(request, user_id):
     # Render minimal template with mailto link
     return render(request, 'users/contact_redirect.html', {'email_address': profile.email_address})
 
+# JSON API: full therapist profile by user id
+def api_full_profile(request, user_id):
+    from django.shortcuts import get_object_or_404
+    from users.models_profile import (
+        TherapistProfile,
+        Specialty,
+        TherapyTypeSelection,
+        OtherTherapyType,
+        AreasOfExpertise,
+        PaymentMethodSelection,
+        InsuranceDetail,
+        GalleryImage,
+        VideoGallery,
+        Education,
+        AdditionalCredential,
+        Location,
+    )
+    from django.utils import timezone
+    profile = get_object_or_404(TherapistProfile.objects.select_related('license_type', 'gender', 'title', 'user'), user__id=user_id)
+    # Primary location
+    primary_location = profile.locations.filter(is_primary_address=True).first() or profile.locations.first()
+    def img_url(image_field):
+        try:
+            return image_field.url if image_field else None
+        except Exception:
+            return None
+    # Years in practice (derive from earliest education.year_began_practice or year_graduated)
+    current_year = timezone.now().year
+    candidate_years = []
+    for e in profile.educations.all():
+        if e.year_began_practice and e.year_began_practice.isdigit() and len(e.year_began_practice) == 4:
+            candidate_years.append(int(e.year_began_practice))
+        elif e.year_graduated and e.year_graduated.isdigit() and len(e.year_graduated) == 4:
+            candidate_years.append(int(e.year_graduated))
+    years_in_practice = None
+    if candidate_years:
+        start_year = min(candidate_years)
+        if 1900 < start_year <= current_year:
+            years_in_practice = current_year - start_year
+
+    data = {
+        'id': profile.user.id,
+        'first_name': profile.first_name,
+        'last_name': profile.last_name,
+        'name': f"{profile.first_name} {profile.last_name}".strip(),
+        'title': profile.title.name if profile.title else None,
+        'display_title': profile.display_title,
+        'intro_statement': profile.intro_statement,
+        'personal_statement_q1': profile.personal_statement_q1,
+        'personal_statement_q2': profile.personal_statement_q2,
+        'personal_statement_q3': profile.personal_statement_q3,
+        'practice_name': profile.practice_name,
+        'practice_email': profile.practice_email,
+        'phone_number': profile.phone_number,
+        'phone_extension': profile.phone_extension,
+        'mobile_number': profile.mobile_number,
+        'office_email': profile.office_email,
+        'accepting_new_clients': profile.accepting_new_clients,
+        'offers_intro_call': profile.offers_intro_call,
+        'individual_session_cost': profile.individual_session_cost,
+        'couples_session_cost': profile.couples_session_cost,
+        'sliding_scale_pricing_available': profile.sliding_scale_pricing_available,
+        'finance_note': profile.finance_note,
+        'credentials_note': profile.credentials_note,
+        'profile_photo_url': img_url(profile.profile_photo),
+        'practice_website_url': profile.practice_website_url,
+        'facebook_url': profile.facebook_url,
+        'instagram_url': profile.instagram_url,
+        'linkedin_url': profile.linkedin_url,
+        'twitter_url': profile.twitter_url,
+        'tiktok_url': profile.tiktok_url,
+        'youtube_url': profile.youtube_url,
+        'therapy_types_note': profile.therapy_types_note,
+        'specialties_note': profile.specialties_note,
+        'license_type': profile.license_type.name if profile.license_type else None,
+        'license_type_description': profile.license_type.description if profile.license_type else None,
+        'license_number': profile.license_number,
+        'license_expiration': profile.license_expiration,
+        'license_state': profile.license_state,
+        'gender': profile.gender.name if profile.gender else None,
+        'years_in_practice': years_in_practice,
+        'city': primary_location.city if primary_location else None,
+        'state': primary_location.state if primary_location else None,
+        'primary_location': {
+            'practice_name': primary_location.practice_name if primary_location else None,
+            'city': primary_location.city if primary_location else None,
+            'state': primary_location.state if primary_location else None,
+            'street_address': primary_location.street_address if primary_location else None,
+            'zip': primary_location.zip if primary_location else None,
+        } if primary_location else None,
+        'locations': [
+            {
+                'practice_name': loc.practice_name,
+                'street_address': loc.street_address,
+                'address_line_2': loc.address_line_2,
+                'city': loc.city,
+                'state': loc.state,
+                'zip': loc.zip,
+                'hide_address_from_public': loc.hide_address_from_public,
+                'is_primary_address': loc.is_primary_address,
+            }
+            for loc in profile.locations.all()
+        ],
+        'participant_types': [pt.name for pt in profile.participant_types.all()],
+        'age_groups': [ag.name for ag in profile.age_groups.all()],
+        'race_ethnicities': [r.race_ethnicity.name for r in profile.race_ethnicities.select_related('race_ethnicity').all()],
+        'faiths': [f.faith.name for f in profile.faiths.select_related('faith').all()],
+        'lgbtqia_identities': [l.lgbtqia.name for l in profile.lgbtqia_identities.select_related('lgbtqia').all()],
+        'other_identities': [o.other_identity.name for o in profile.other_identities.select_related('other_identity').all()],
+        'specialties': [
+            {
+                'name': s.specialty.name if s.specialty else None,
+                'is_top': s.is_top_specialty,
+            } for s in profile.specialties.select_related('specialty').all()
+        ],
+        'top_specialties': [s.specialty.name for s in profile.specialties.select_related('specialty').filter(is_top_specialty=True) if s.specialty],
+        'therapy_types': [sel.therapy_type.name for sel in profile.types_of_therapy.select_related('therapy_type').all()],
+        'other_therapy_types': [o.therapy_type for o in profile.other_therapy_types.all()],
+        'areas_of_expertise': [a.expertise for a in profile.areas_of_expertise.all()],
+        'accepted_payment_methods': [sel.payment_method.name for sel in profile.accepted_payment_methods.select_related('payment_method').all()],
+        'insurance_details': [
+            {
+                'provider': det.provider.name,
+                'out_of_network': det.out_of_network,
+            } for det in profile.insurance_details.select_related('provider').all()
+        ],
+        'gallery_images': [img_url(img.image) for img in profile.gallery_images.all() if img_url(img.image)],
+        'video_gallery': [
+            {
+                'video_url': img_url(v.video),
+                'caption': v.caption,
+            } for v in profile.video_gallery.all()
+        ],
+        'educations': [
+            {
+                'school': e.school,
+                'degree_diploma': e.degree_diploma,
+                'year_graduated': e.year_graduated,
+                'year_began_practice': e.year_began_practice,
+            } for e in profile.educations.all()
+        ],
+        'additional_credentials': [
+            {
+                'type': ac.additional_credential_type,
+                'organization_name': ac.organization_name,
+                'id_number': ac.id_number,
+                'year_issued': ac.year_issued,
+            } for ac in profile.additional_credentials.all()
+        ],
+    }
+    return JsonResponse(data, safe=False)
+

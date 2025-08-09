@@ -199,6 +199,13 @@ class Education(models.Model):
 
 class AdditionalCredential(models.Model):
     therapist = models.ForeignKey('TherapistProfile', on_delete=models.CASCADE, related_name='additional_credentials')
+    CREDENTIAL_TYPE_CHOICES = [
+        ("Membership", "Membership"),
+        ("License", "License"),
+        ("Certificate", "Certificate"),
+        ("Degree/Diploma", "Degree/Diploma"),
+    ]
+    additional_credential_type = models.CharField(max_length=16, blank=True, choices=CREDENTIAL_TYPE_CHOICES, default="")
     organization_name = models.CharField(max_length=64)
     id_number = models.CharField(max_length=32, blank=True)
     year_issued = models.CharField(max_length=4)
