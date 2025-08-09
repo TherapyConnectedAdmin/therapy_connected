@@ -29,6 +29,31 @@ for name in AGE_GROUP_VALUES:
     AgeGroup.objects.get_or_create(name=name)
 print(f"Seeded {len(AGE_GROUP_VALUES)} age group values.")
 
+# Optional cleanup of legacy AgeGroup labels (one-off normalization)
+from users.models_profile import AgeGroup as _AG
+_age_cleanup_map = {
+    'Toddler': 'Children (0-5)',
+    'Children (6 to 10)': 'Children (6-10)',
+    'Preteen': 'Preteens (11-12)',
+    'Teen': 'Teens (13-17)',
+    'Adults': 'Adults (26-64)',
+    'Elders (65+)': 'Older Adults (65+)',
+}
+_moved = 0
+for old, new in _age_cleanup_map.items():
+    try:
+        if _AG.objects.filter(name=old).exists():
+            if not _AG.objects.filter(name=new).exists():
+                _AG.objects.filter(name=old).update(name=new)
+            else:
+                # Duplicate after normalization: just delete old
+                _AG.objects.filter(name=old).delete()
+            _moved += 1
+    except Exception:
+        pass
+if _moved:
+    print(f"Normalized {_moved} legacy age group labels.")
+
 # --- Faith / Religious / Philosophical Affiliation ---
 # Expanded set balances inclusivity with manageable filter size.
 # If you prefer leaner data, you can remove sub-categories (e.g., keep only "Christian (General)" instead of Catholic / Protestant / Orthodox).
