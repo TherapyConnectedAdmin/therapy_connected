@@ -1,9 +1,6 @@
 from django.contrib import admin
+from django.utils.html import format_html
 from users.models_profile import TherapistProfile
-# Register the through tables for TherapistProfile's many-to-many fields
-admin.site.register(TherapistProfile.age_groups.through)
-admin.site.register(TherapistProfile.participant_types.through)
-from django.contrib import admin
 from .models_featured import FeaturedTherapistHistory, FeaturedBlogPostHistory
 
 from .models_profile import (
@@ -41,7 +38,6 @@ class FeaturedBlogPostHistoryAdmin(admin.ModelAdmin):
     list_display = ("blog_post", "date", "cycle")
     list_filter = ("cycle",)
     search_fields = ("blog_post__title",)
-from django.contrib import admin
 from .models_blog import BlogPost, BlogTag
 # Blog admin
 class BlogPostAdmin(admin.ModelAdmin):
@@ -58,14 +54,7 @@ class BlogTagAdmin(admin.ModelAdmin):
 admin.site.register(BlogPost, BlogPostAdmin)
 admin.site.register(BlogTag, BlogTagAdmin)
 
-from django.contrib import admin
 from .models import Subscription, SubscriptionType
-from .models_profile import (
-    TherapistProfile,
-    LicenseType,
-
-
-)
 from ckeditor.widgets import CKEditorWidget
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User
@@ -90,7 +79,7 @@ class SubscriptionTypeAdmin(admin.ModelAdmin):
 admin.site.register(Subscription, )
 admin.site.register(SubscriptionType, SubscriptionTypeAdmin)
 
-from django.utils.html import format_html
+"""Admin customizations and bulk lookup maintenance actions."""
 
 # Inline for lookup models (example: LicenseType)
 class LicenseTypeInline(admin.TabularInline):
@@ -108,46 +97,36 @@ class TherapistProfileAdmin(admin.ModelAdmin):
         return format_html('<span>{}</span>', obj.user.onboarding_status)
     onboarding_status_display.short_description = 'Onboarding Status'
 
-# Lookup model admin customization (example for LicenseType)
+#############################################
+# Lookup purge actions (operate across lookups)
+#############################################
+from .models_profile import (
+    Faith, Gender, InsuranceProvider, LGBTQIA, LicenseType, PaymentMethod,
+    RaceEthnicity, TherapyType, Title, SpecialtyLookup, OtherIdentity
+)
+import subprocess, sys, os
+
+@admin.action(description="Run lookup purge DRY-RUN (simulated)")
+def purge_lookup_dry_run(modeladmin, request, queryset):
+    env = os.environ.copy()
+    env['LOOKUP_PURGE'] = '1'
+    env['LOOKUP_PURGE_DRY_RUN'] = '1'
+    subprocess.run([sys.executable, 'manage.py', 'shell'], input=open('seed_lookups.py', 'rb').read(), env=env)
+    modeladmin.message_user(request, "Dry-run purge completed. Check server logs for details.")
+
+@admin.action(description="Execute lookup purge (DESTRUCTIVE)")
+def purge_lookup_execute(modeladmin, request, queryset):
+    env = os.environ.copy()
+    env['LOOKUP_PURGE'] = '1'
+    env['LOOKUP_PURGE_DRY_RUN'] = '0'
+    subprocess.run([sys.executable, 'manage.py', 'shell'], input=open('seed_lookups.py', 'rb').read(), env=env)
+    modeladmin.message_user(request, "Lookup purge executed. Review logs.")
+
 class LicenseTypeAdmin(admin.ModelAdmin):
-    search_fields = ('name',)
-    list_display = ('name',)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Register models with custom admin only (remove duplicate default registrations)
-## Removed duplicate registration of TherapistProfile with TherapistProfileAdmin
-## Removed duplicate registration of LicenseType with LicenseTypeAdmin
-
-
-
-
-
-
-
-
-
-
+    search_fields = ('name', 'short_description')
+    list_display = ('name', 'short_description', 'category', 'sort_order')
+    list_filter = ('category',)
+    actions = [purge_lookup_dry_run, purge_lookup_execute]
 
 from .models import TherapistProfileStats
 
