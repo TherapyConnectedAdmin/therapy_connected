@@ -911,10 +911,12 @@ print(f"Seeded {len(OTHER_IDENTITY_VALUES)} other identity values (canonical lis
 
 import os as _os
 
-PURGE_UNUSED = bool(int(_os.environ.get("LOOKUP_PURGE", "0")))  # or flip manually
+PURGE_UNUSED = bool(int(_os.environ.get("LOOKUP_PURGE", "0")))  # enable purge behavior
+PURGE_DRY_RUN = bool(int(_os.environ.get("LOOKUP_PURGE_DRY_RUN", "0")))  # simulate only
 
 if PURGE_UNUSED:
-    print("[PURGE] Starting purge of non-canonical, unreferenced lookup rows...")
+    mode = "DRY-RUN" if PURGE_DRY_RUN else "EXECUTE"
+    print(f"[PURGE] Starting purge of non-canonical, unreferenced lookup rows... Mode={mode}")
     from django.db.models import Count
     from users.models_profile import (
         Faith, Gender, InsuranceProvider, LGBTQIA, LicenseType, PaymentMethod,
@@ -935,15 +937,32 @@ if PURGE_UNUSED:
     keep_specialty = set(SPECIALTY_LOOKUP_VALUES)
     keep_other_identity = set(OTHER_IDENTITY_VALUES)
 
+    # Collect report
+    report = []
+
+    def _log(label, action, names, count):
+        sample = names[:10]
+        more = '...' if count > 10 else ''
+        report.append({
+            'label': label,
+            'action': action,
+            'count': count,
+            'sample': sample,
+        })
+        verb = 'Would delete' if PURGE_DRY_RUN else 'Deleting'
+        if count:
+            print(f"[PURGE] {verb} {count} {label} rows: {sample}{more}")
+        else:
+            print(f"[PURGE] No extra {label} rows to {('purge' if PURGE_DRY_RUN else 'delete')}.")
+
     # Direct purge (no selection dependency tables tracked here)
     def _purge_direct(model, keep_set, label):
         qs = model.objects.exclude(name__in=keep_set)
         count = qs.count()
-        if count:
-            print(f"[PURGE] Deleting {count} {label} rows: {[o.name for o in qs][:10]}{'...' if count>10 else ''}")
+        names = [o.name for o in qs]
+        if count and not PURGE_DRY_RUN:
             qs.delete()
-        else:
-            print(f"[PURGE] No extra {label} rows to delete.")
+        _log(label, 'purge' if count else 'skip', names, count)
 
     _purge_direct(Faith, keep_faith, "Faith")
     _purge_direct(Gender, keep_gender, "Gender")
@@ -959,17 +978,15 @@ if PURGE_UNUSED:
         annotated = model.objects.annotate(refs=Count(rel_name))
         targets = annotated.filter(refs=0).exclude(name__in=keep_set)
         count = targets.count()
-        if count:
-            print(f"[PURGE] Deleting {count} unreferenced {label} rows: {[o.name for o in targets][:10]}{'...' if count>10 else ''}")
+        names = [o.name for o in targets]
+        if count and not PURGE_DRY_RUN:
             targets.delete()
-        else:
-            print(f"[PURGE] No unreferenced extra {label} rows to delete.")
+        _log(label + " (unreferenced)", 'purge' if count else 'skip', names, count)
 
-    # Relationship field names inferred from related_name / model usage
     _purge_unreferenced(RaceEthnicity, keep_race, 'raceethnicityselection', 'RaceEthnicity')
     _purge_unreferenced(TherapyType, keep_therapy, 'therapytypeselection', 'TherapyType')
     _purge_unreferenced(SpecialtyLookup, keep_specialty, 'specialty', 'SpecialtyLookup')
 
-    print("[PURGE] Completed purge step.\n")
+    print(f"[PURGE] Completed purge step. Mode={mode}\n")
 else:
-    print("(Purge disabled – set LOOKUP_PURGE=1 to enable cleanup of non-canonical rows.)")
+    print("(Purge disabled – set LOOKUP_PURGE=1 to enable cleanup of non-canonical rows; add LOOKUP_PURGE_DRY_RUN=1 for simulation.)")
