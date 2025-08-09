@@ -10,6 +10,8 @@ from django.core.validators import RegexValidator
 # Specialty lookup model
 class SpecialtyLookup(models.Model):
     name = models.CharField(max_length=64, unique=True)
+    category = models.CharField(max_length=48, blank=True, db_index=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
     def __str__(self): return self.name
 
 from django.db import models
@@ -18,7 +20,9 @@ from django.core.validators import RegexValidator
 
 # TherapyType lookup model for types_of_therapy
 class TherapyType(models.Model):
-    name = models.CharField(max_length=32, unique=True)
+    name = models.CharField(max_length=64, unique=True)
+    category = models.CharField(max_length=48, blank=True, db_index=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
     def __str__(self): return self.name
 
 # Selection model for therapist therapy types
@@ -44,6 +48,8 @@ class Title(models.Model):
 # PaymentMethod model for accepted payment methods
 class PaymentMethod(models.Model):
     name = models.CharField(max_length=128, unique=True)
+    category = models.CharField(max_length=48, blank=True, db_index=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
     def __str__(self): return self.name
 
 # Selection model for therapist payment methods
@@ -76,6 +82,8 @@ class OtherIdentity(models.Model):
 # InsuranceProvider model for in-network insurance choices
 class InsuranceProvider(models.Model):
     name = models.CharField(max_length=256, unique=True)
+    category = models.CharField(max_length=48, blank=True, db_index=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
     def __str__(self):
         return self.name
 
@@ -83,10 +91,19 @@ class InsuranceProvider(models.Model):
 # Lookup models
 class LicenseType(models.Model):
     name = models.CharField(max_length=64, unique=True)
-    description = models.CharField(max_length=256, blank=True, default="")
+    description = models.CharField(max_length=512, blank=True, default="")
     # Concise label for UI badges or condensed displays (e.g. "PsyD Clinical Psychologist")
     short_description = models.CharField(max_length=80, blank=True, default="")
+    category = models.CharField(max_length=48, blank=True, db_index=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
     def __str__(self): return self.name
+
+# Proxy model purely to expose lookup maintenance actions in Django admin
+class LookupMaintenance(LicenseType):
+    class Meta:
+        proxy = True
+        verbose_name = "Lookup Maintenance"
+        verbose_name_plural = "Lookup Maintenance"
 
 
 # TherapistProfile model

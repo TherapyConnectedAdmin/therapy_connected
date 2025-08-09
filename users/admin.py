@@ -102,7 +102,7 @@ class TherapistProfileAdmin(admin.ModelAdmin):
 #############################################
 from .models_profile import (
     Faith, Gender, InsuranceProvider, LGBTQIA, LicenseType, PaymentMethod,
-    RaceEthnicity, TherapyType, Title, SpecialtyLookup, OtherIdentity
+    RaceEthnicity, TherapyType, Title, SpecialtyLookup, OtherIdentity, LookupMaintenance
 )
 import subprocess, sys, os
 
@@ -126,7 +126,19 @@ class LicenseTypeAdmin(admin.ModelAdmin):
     search_fields = ('name', 'short_description')
     list_display = ('name', 'short_description', 'category', 'sort_order')
     list_filter = ('category',)
+
+class LookupMaintenanceAdmin(admin.ModelAdmin):
+    change_list_template = 'admin/lookup_maintenance_changelist.html'
     actions = [purge_lookup_dry_run, purge_lookup_execute]
+    list_display = ('name', 'short_description', 'category', 'sort_order')
+    search_fields = ('name', 'short_description')
+    list_filter = ('category',)
+
+    def get_queryset(self, request):
+        # Show a small representative queryset (all LicenseType rows as base proxy)
+        return super().get_queryset(request)
+
+admin.site.register(LookupMaintenance, LookupMaintenanceAdmin)
 
 from .models import TherapistProfileStats
 
