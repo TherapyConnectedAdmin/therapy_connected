@@ -37,14 +37,23 @@ from users.models_profile import (
 fake = Faker()
 User = get_user_model()
 
-def generate_profile_image_url(first: str, last: str) -> str:
-    # Use dicebear initials (SVG) or randomuser fallback randomly
-    if random.random() < 0.5:
-        seed = f"{first}-{last}-{random.randint(1,9999)}"
-        style = random.choice(["initials", "shapes", "thumbs"])
-        return f"https://api.dicebear.com/7.x/{style}/png?seed={seed}&backgroundType=gradientLinear"
-    gender = random.choice(["men", "women"])
-    return f"https://randomuser.me/api/portraits/{gender}/{random.randint(1, 90)}.jpg"
+#############################################
+# Human profile photo sourcing (randomuser.me)
+#############################################
+_RANDOMUSER_POOL = {('men', i) for i in range(0, 100)} | {('women', i) for i in range(0, 100)}
+_RANDOMUSER_USED = set()
+
+def generate_profile_image_url() -> str:
+    """Return a random unused (gender, index) combo from randomuser.me to maximize variety.
+    Falls back to random choice if pool exhausted."""
+    remaining = list(_RANDOMUSER_POOL - _RANDOMUSER_USED)
+    if not remaining:
+        # Reset if all used
+        _RANDOMUSER_USED.clear()
+        remaining = list(_RANDOMUSER_POOL)
+    gender, idx = random.choice(remaining)
+    _RANDOMUSER_USED.add((gender, idx))
+    return f"https://randomuser.me/api/portraits/{gender}/{idx}.jpg"
 def generate_gallery_image_url() -> str:
     # picsum with unique seed for variety
     return f"https://picsum.photos/seed/{uuid.uuid4().hex[:12]}/400/300"
@@ -218,17 +227,19 @@ def create_fake_profile(index: int):
     profile.save()
     # Download a random profile image and upload to S3 (optional)
     if FAKE_FETCH_MEDIA:
-        try:
-            img_url = generate_profile_image_url(first, last)
-            response = requests.get(img_url, timeout=10)
-            if response.status_code == 200:
-                tmp = tempfile.NamedTemporaryFile(delete=True, suffix='.jpg')
-                tmp.write(response.content)
-                tmp.flush()
-                profile_photo_file = File(tmp, name=f"profile_{first.lower()}_{last.lower()}.jpg")
-                profile.profile_photo.save(profile_photo_file.name, profile_photo_file, save=True)
-        except Exception:
-            pass
+        for attempt in range(3):  # retry a few times for robustness
+            try:
+                img_url = generate_profile_image_url()
+                response = requests.get(img_url, timeout=10)
+                if response.status_code == 200 and response.headers.get('Content-Type','').startswith('image'):
+                    tmp = tempfile.NamedTemporaryFile(delete=True, suffix='.jpg')
+                    tmp.write(response.content)
+                    tmp.flush()
+                    profile_photo_file = File(tmp, name=f"profile_{profile.pk}.jpg")
+                    profile.profile_photo.save(profile_photo_file.name, profile_photo_file, save=True)
+                    break
+            except Exception:
+                continue
 
     # Assign random participant types and age groups (new normalized fields)
     all_participant_types = list(ParticipantType.objects.all())
