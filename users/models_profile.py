@@ -84,6 +84,8 @@ class InsuranceProvider(models.Model):
 class LicenseType(models.Model):
     name = models.CharField(max_length=64, unique=True)
     description = models.CharField(max_length=256, blank=True, default="")
+    # Concise label for UI badges or condensed displays (e.g. "PsyD Clinical Psychologist")
+    short_description = models.CharField(max_length=80, blank=True, default="")
     def __str__(self): return self.name
 
 

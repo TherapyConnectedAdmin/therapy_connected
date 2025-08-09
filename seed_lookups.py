@@ -5,10 +5,10 @@ Works locally and on Heroku (as long as Django is set up and models are migrated
 Add more lookup values as needed in the appropriate sections.
 """
 from users.models_profile import Faith, Gender, InsuranceProvider, LGBTQIA, LicenseType, PaymentMethod, RaceEthnicity, TherapyType, Title, AgeGroup, ParticipantType
-# --- Participant Types ---
+# --- Participant Types (core set, singular forms) ---
 PARTICIPANT_TYPE_VALUES = [
-    "Individuals",
-    "Couples",
+    "Individual",
+    "Couple",
     "Family",
     "Group",
 ]
@@ -17,27 +17,43 @@ for name in PARTICIPANT_TYPE_VALUES:
 print(f"Seeded {len(PARTICIPANT_TYPE_VALUES)} participant type values.")
 # --- Age Groups ---
 AGE_GROUP_VALUES = [
-    "Toddler",
-    "Children (6 to 10)",
-    "Preteen",
-    "Teen",
-    "Adults",
-    "Elders (65+)",
+    "Children (0-5)",
+    "Children (6-10)",
+    "Preteens (11-12)",
+    "Teens (13-17)",
+    "Young Adults (18-25)",
+    "Adults (26-64)",
+    "Older Adults (65+)",
 ]
 for name in AGE_GROUP_VALUES:
     AgeGroup.objects.get_or_create(name=name)
 print(f"Seeded {len(AGE_GROUP_VALUES)} age group values.")
 
-# --- Faith ---
+# --- Faith / Religious / Philosophical Affiliation ---
+# Expanded set balances inclusivity with manageable filter size.
+# If you prefer leaner data, you can remove sub-categories (e.g., keep only "Christian (General)" instead of Catholic / Protestant / Orthodox).
+# Notes:
+#  - "Spiritual but Not Religious" distinct from formal traditions.
+#  - "Secular / Non-Religious", "Agnostic", and "Atheist" separated for user self-identification nuance.
+#  - "Interfaith" covers multi-faith practice context.
+#  - Keep "Other" as a catch-all; avoid long-tail micro-denominations here.
 FAITH_VALUES = [
     "Buddhist",
-    "Christian",
+    "Christian (General)",
+    "Catholic",
+    "Protestant / Evangelical",
+    "Orthodox Christian",
     "Hindu",
     "Jewish",
     "Muslim",
-    "Secular and Nonreligious",
     "Sikh",
     "The Church of Jesus Christ of Latter-day Saints",
+    "Spiritual but Not Religious",
+    "Secular / Non-Religious",
+    "Agnostic",
+    "Atheist",
+    "Interfaith",
+    "Indigenous / Traditional",
     "Other",
 ]
 for name in FAITH_VALUES:
@@ -55,61 +71,56 @@ for name in GENDER_VALUES:
 print(f"Seeded {len(GENDER_VALUES)} gender values.")
 
 
-# --- Insurance Providers ---
+# --- Insurance Providers (consolidated canonical list) ---
+# Includes national, major behavioral, regionals, government programs, and a self-pay option.
+# Duplicates / legacy names consolidated (e.g., BlueCross variants, Cigna/Evernorth, New Directions/Lucet, MultiPlan PHCS).
 INSURANCE_PROVIDER_VALUES = [
-    "1199SEIU",
+    # National Commercial
     "Aetna",
-    "Ambetter",
-    "Anthem",
-    "APS Healthcare",
-    "BHS | Behavioral Health Systems",
-    "Blue Cross",
-    "Blue Shield",
-    "BlueCross and BlueShield",
-    "Carebridge EAP",
+    "Anthem Blue Cross Blue Shield",
+    "Blue Cross Blue Shield (BCBS)",
+    "Cigna (Evernorth)",
+    "UnitedHealthcare / Optum",
+    "Humana",
+    "Kaiser Permanente",
+    "Molina Healthcare",
+    "Oscar Health",
+    "Oxford (UHC)",
+    # Regionals / Blues
+    "Highmark BCBS",
+    "Horizon BCBS",
+    "Regence BCBS",
+    "Premera Blue Cross",
+    # Behavioral / Networks / EAP
     "Carelon Behavioral Health",
-    "CareSource",
-    "Children's Health Insurance Program (CHIP)",
-    "Cigna and Evernorth",
+    "Magellan",
+    "Lucet (New Directions)",
+    "Behavioral Health Systems (BHS)",
+    "MultiPlan (PHCS)",
     "ComPsych",
     "Concern",
-    "Coventry",
     "Dayforce",
-    "First Health",
-    "Government Employees Health Association (GEHA)",
-    "Health Net",
-    "HealthLink",
-    "Humana",
-    "Magellan",
-    "MagnaCare",
-    "Managed Health Network (MHN)",
-    "Medicaid",
-    "Medical Mutual",
-    "Medicare",
-    "Meridian",
-    "Meritain Health",
-    "MHNet Behavioral Health",
-    "Military OneSource",
-    "Molina Healthcare",
-    "MultiPlan",
-    "MultiPlan Private Healthcare Systems (PHCS)",
-    "New Directions | Lucet",
-    "Optum",
-    "Oscar Health",
-    "Oxford",
-    "Paramount",
-    "Passport Health Plan",
-    "Reliant",
-    "Sagamore",
     "TELUS Health",
+    # Government / Public
+    "Medicare",
+    "Medicaid",
+    "Children's Health Insurance Program (CHIP)",
     "TRICARE",
     "TriWest",
-    "United Medical Resources (UMR)",
-    "UnitedHealthcare UHC | UBH",
+    "Military OneSource",
+    # Other TPAs / Regionals / Specialty
+    "GEHA",
+    "Health Net",
+    "HealthLink",
+    "Medical Mutual",
+    "Meritain Health",
+    "Paramount",
+    "Sagamore",
     "WellCare",
     "Wellfleet",
-    "Wellpoint | Amerigroup",
-    "Zelis Healthcare",
+    "Amerigroup (Wellpoint)",
+    # Payment alternative
+    "Self-Pay / Private Pay",
 ]
 for name in INSURANCE_PROVIDER_VALUES:
     InsuranceProvider.objects.get_or_create(name=name)
@@ -117,12 +128,25 @@ print(f"Seeded {len(INSURANCE_PROVIDER_VALUES)} insurance provider values.")
 
 
 
-# --- LGBTQIA ---
+# --- LGBTQIA+ (inclusive identities) ---
+# Keep list concise yet representative; combine closely related terms to avoid over-fragmentation.
+# Notes:
+#  - Non-binary / Genderqueer combined to reduce duplication.
+#  - Two-Spirit included (Indigenous-specific; users should self-select only if culturally appropriate).
+#  - "Queer" included as reclaimed umbrella term for those who prefer it.
+#  - Retain "Other" as catch-all; optionally add a free-text field in UI when "Other" selected.
 LGBTQIA_VALUES = [
-    "Bisexual",
-    "Gay",
     "Lesbian",
+    "Gay",
+    "Bisexual",
     "Transgender",
+    "Queer",
+    "Questioning",
+    "Intersex",
+    "Asexual",
+    "Pansexual",
+    "Non-binary / Genderqueer",
+    "Two-Spirit",
     "Other",
 ]
 for name in LGBTQIA_VALUES:
@@ -131,273 +155,465 @@ print(f"Seeded {len(LGBTQIA_VALUES)} LGBTQIA values.")
 
 
 # --- License Types ---
+# Actual independently licensed clinician credentials only (no technicians, no pre-license associates).
+# Each tuple: (code/name stored, long description, human short_description WITHOUT leading acronym redundancy).
 LICENSE_TYPE_VALUES = [
-    ("MD", "Medical Doctor trained in psychiatry. Can diagnose, treat, and prescribe medications for mental health conditions."),
-    ("DO", "Doctor of Osteopathic Medicine. Similar scope to MDs with added emphasis on holistic care. Often practices psychiatry."),
-    ("PhD", "Doctor of Philosophy in Psychology. Focuses on research, therapy, and psychological testing."),
-    ("PsyD", "Doctor of Psychology. Clinical doctorate focused on therapeutic practice rather than research."),
-    ("LCSW", "Licensed Clinical Social Worker. Provides therapy and case management, often in community or clinical settings."),
-    ("LICSW", "Licensed Independent Clinical Social Worker. Similar to LCSW; title used in certain states. May indicate supervisory privileges."),
-    ("LMFT", "Licensed Marriage and Family Therapist. Specializes in couples and family counseling."),
-    ("MFT", "Marriage and Family Therapist. May be used interchangeably with LMFT depending on the state."),
-    ("LPC", "Licensed Professional Counselor. Provides mental health counseling and support. Title used in many states."),
-    ("LPCC", "Licensed Professional Clinical Counselor. Similar to LPC, often includes more advanced clinical training."),
-    ("LCPC", "Licensed Clinical Professional Counselor. Title used in states like Illinois; equivalent to LPC/LPCC."),
-    ("PMHNP-BC", "Psychiatric Mental Health Nurse Practitioner – Board Certified. Prescribes medications and provides psychiatric care."),
-    ("BCBA", "Board Certified Behavior Analyst. Focuses on behavior therapy, especially for autism and developmental disorders."),
-    ("CADC", "Certified Alcohol and Drug Counselor. Specializes in substance use and recovery support."),
-    ("LADC", "Licensed Alcohol and Drug Counselor. Credential used in some states for substance use professionals."),
-    ("CASAC", "Credentialed Alcoholism and Substance Abuse Counselor. Common title in New York and similar jurisdictions."),
-    ("Psychiatric Technician", "Provides hands-on support and monitoring in inpatient or residential settings under supervision."),
-    ("Mental Health Technician", "Assists in daily care and crisis intervention. Works closely with clinical teams but not independently licensed."),
+    # Psychiatry (medical)
+    ("MD", "Medical Doctor specializing in psychiatry. Evaluates, diagnoses, and treats mental health conditions; may provide psychotherapy and can prescribe medications. Often collaborates with therapists for integrated care.", "Psychiatrist"),
+    ("DO", "Doctor of Osteopathic Medicine specializing in psychiatry. Similar scope to MD psychiatrists with additional training in whole‑person / osteopathic principles; evaluates, diagnoses, and prescribes.", "Psychiatrist"),
+    # Psychology (doctoral)
+    ("PhD", "Doctoral-level Licensed Psychologist (PhD). Extensive training in psychological assessment, evidence-based psychotherapy, research methodology, and complex diagnostic formulation.", "Clinical Psychologist"),
+    ("PsyD", "Doctoral-level Licensed Psychologist (PsyD). Emphasis on clinical practice and therapeutic interventions; trained in assessment, diagnosis, and evidence-based treatment planning.", "Clinical Psychologist"),
+    # Clinical Social Work
+    ("LCSW", "Licensed Clinical Social Worker. Provides psychotherapy with a biopsychosocial lens; integrates systemic, environmental, and resource coordination perspectives; may deliver individual, family, or group therapy.", "Clinical Social Worker"),
+    ("LICSW", "Licensed Independent Clinical Social Worker (regional title). Scope parallels LCSW with possible supervisory credentials depending on state regulations.", "Clinical Social Worker"),
+    # Marriage & Family Therapy
+    ("LMFT", "Licensed Marriage & Family Therapist. Specializes in systemic / relational therapy addressing couples, families, and interpersonal dynamics; trained in evidence-based modalities for relational functioning.", "Marriage & Family Therapist"),
+    ("MFT", "Marriage & Family Therapist (title variant). Provides systemic therapy for couples/families; equivalent clinical scope to LMFT subject to state licensure.", "Marriage & Family Therapist"),
+    # Professional / Mental Health Counseling (state variants share unified client-facing role)
+    ("LPC", "Licensed Professional Counselor. Delivers psychotherapy, diagnostic assessment, treatment planning, and skills-based interventions across a range of mental health concerns.", "Professional Counselor"),
+    ("LPCC", "Licensed Professional Clinical Counselor (expanded clinical designation). Includes advanced training in assessment, differential diagnosis, and treatment of complex presentations.", "Professional Counselor"),
+    ("LCPC", "Licensed Clinical Professional Counselor (state variant). Provides psychotherapy, diagnosis, and coordinated mental health treatment.", "Professional Counselor"),
+    ("LMHC", "Licensed Mental Health Counselor (state variant). Offers psychotherapy, psychoeducation, and evidence-based interventions for diverse mental health conditions.", "Professional Counselor"),
+    ("LCMHC", "Licensed Clinical Mental Health Counselor (state variant). Emphasis on clinical assessment, individualized treatment planning, and outcome-focused therapy.", "Professional Counselor"),
+    # Advanced Practice Nursing in Psychiatry
+    ("PMHNP-BC", "Psychiatric Mental Health Nurse Practitioner – Board Certified. Conducts psychiatric evaluations, diagnoses, prescribes and manages psychotropic medications, and may provide psychotherapy depending on practice model.", "Psychiatric Nurse Practitioner"),
+    # Behavior Analysis
+    ("BCBA", "Board Certified Behavior Analyst. Designs and implements behavior analytic interventions (often in autism spectrum or developmental contexts); conducts functional behavior assessments and data-driven treatment.", "Behavior Analyst"),
+    # Substance Use Counseling (regional/credential variants unified for users)
+    ("LADC", "Licensed Alcohol and Drug Counselor. Provides substance use assessment, individual/group counseling, relapse prevention planning, and coordination of recovery supports.", "Substance Use Counselor"),
+    ("CADC", "Certified Alcohol and Drug Counselor (state-recognized). Delivers counseling, psychoeducation, and recovery planning for substance use and co-occurring disorders.", "Substance Use Counselor"),
+    ("CASAC", "Credentialed Alcoholism and Substance Abuse Counselor (New York). Specializes in assessment, treatment planning, counseling, and recovery management for substance-related disorders.", "Substance Use Counselor"),
 ]
-for name, description in LICENSE_TYPE_VALUES:
-    LicenseType.objects.get_or_create(name=name, defaults={"description": description})
-print(f"Seeded {len(LICENSE_TYPE_VALUES)} license type values.")
+for name, description, short_desc in LICENSE_TYPE_VALUES:
+    obj, created = LicenseType.objects.get_or_create(name=name, defaults={"description": description, "short_description": short_desc})
+    update_needed = False
+    if obj.description != description and description:
+        obj.description = description
+        update_needed = True
+    if obj.short_description != short_desc:
+        obj.short_description = short_desc
+        update_needed = True
+    if update_needed:
+        obj.save()
+print(f"Seeded {len(LICENSE_TYPE_VALUES)} license type values (actual licenses, unified short descriptions).")
 
 
 # --- Payment Methods ---
+# Canonical, client-facing list (actual methods clients recognize). Includes card brands for logo display.
+# Rename map handles legacy entries created under older naming conventions.
+PAYMENT_METHOD_RENAMES = {
+    "ACH Bank transfer": "ACH Transfer",
+    "Wire": "Wire Transfer",
+    "Apple Cash": "Apple Pay",  # treat Apple Cash under Apple Pay wallet acceptance
+    "Paypal": "PayPal",
+    "Health Savings Account": "HSA Card",
+}
+for old, new in PAYMENT_METHOD_RENAMES.items():
+    try:
+        if PaymentMethod.objects.filter(name=old).exists() and not PaymentMethod.objects.filter(name=new).exists():
+            pm = PaymentMethod.objects.get(name=old)
+            pm.name = new
+            pm.save()
+    except Exception:
+        pass  # non-fatal; continue
+
 PAYMENT_METHOD_VALUES = [
-    "ACH Bank transfer",
-    "American Express",
-    "Apple Cash",
     "Cash",
     "Check",
-    "Discover",
-    "Health Savings Account",
-    "Mastercard",
-    "Paypal",
-    "Venmo",
+    # Card brands
     "Visa",
-    "Wire",
+    "Mastercard",
+    "American Express",
+    "Discover",
+    "Debit Card",
+    # Health account funding
+    "HSA Card",
+    "FSA Card",
+    # Bank transfers
+    "ACH Transfer",
+    "Wire Transfer",
+    # Digital wallets / P2P
+    "Apple Pay",
+    "Google Pay",
+    "PayPal",
+    "Venmo",
     "Zelle",
 ]
 for name in PAYMENT_METHOD_VALUES:
     PaymentMethod.objects.get_or_create(name=name)
-print(f"Seeded {len(PAYMENT_METHOD_VALUES)} payment method values.")
+print(f"Seeded {len(PAYMENT_METHOD_VALUES)} payment method values (canonical list).")
 
 
 # --- Race/Ethnicity ---
+# Canonical, user-facing categories (concise, inclusive, not overly granular).
+# Rename legacy entries to new standardized labels.
+RACE_ETHNICITY_RENAMES = {
+    "Black": "Black / African American",
+    "Hispanic and Latino": "Hispanic / Latino/a/e",
+    "Asian": "Asian (East Asian)",
+    "Native American": "Native American / Alaska Native",
+    "Mixed Race Family": "Multiracial",
+    "Pacific Islander": "Pacific Islander / Native Hawaiian",
+    "Middle Eastern": "Middle Eastern / North African (MENA)",
+}
+for old, new in RACE_ETHNICITY_RENAMES.items():
+    try:
+        if RaceEthnicity.objects.filter(name=old).exists():
+            if not RaceEthnicity.objects.filter(name=new).exists():
+                RaceEthnicity.objects.filter(name=old).update(name=new)
+            else:
+                # If target exists, move any relations then delete duplicate
+                from users.models_profile import RaceEthnicitySelection
+                try:
+                    old_obj = RaceEthnicity.objects.get(name=old)
+                    new_obj = RaceEthnicity.objects.get(name=new)
+                    RaceEthnicitySelection.objects.filter(race_ethnicity=old_obj).update(race_ethnicity=new_obj)
+                    old_obj.delete()
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
 RACE_ETHNICITY_VALUES = [
-    "Black",
-    "Hispanic and Latino",
-    "Asian",
+    "Black / African American",
+    "Hispanic / Latino/a/e",
+    "White",
+    "Asian (East Asian)",
     "South Asian",
-    "Native American",
-    "Mixed Race Family",
+    "Middle Eastern / North African (MENA)",
+    "Native American / Alaska Native",
+    "Pacific Islander / Native Hawaiian",
     "Caribbean",
-    "Middle Eastern",
-    "Pacific Islander",
+    "Multiracial",
+    "Other",
 ]
 for name in RACE_ETHNICITY_VALUES:
     RaceEthnicity.objects.get_or_create(name=name)
-print(f"Seeded {len(RACE_ETHNICITY_VALUES)} race/ethnicity values.")
+print(f"Seeded {len(RACE_ETHNICITY_VALUES)} race/ethnicity values (canonical list).")
 
 
 # --- Therapy Types ---
+# Curated canonical list. Removed supervision/coaching (not modalities), generic duplicates, and normalized naming.
+THERAPY_TYPE_RENAMES = {
+    "Acceptance and Commitment (ACT)": "Acceptance & Commitment Therapy (ACT)",
+    "Cognitive Behavioral (CBT)": "Cognitive Behavioral Therapy (CBT)",
+    "Dialectical Behavior (DBT)": "Dialectical Behavior Therapy (DBT)",
+    "Exposure Response Prevention (ERP)": "Exposure & Response Prevention (ERP)",
+    "Mindfulness-Based (MBCT)": "Mindfulness-Based Cognitive Therapy (MBCT)",
+    "Psychobiological Approach Couple Therapy": "PACT (Psychobiological Approach to Couple Therapy)",
+    "Internal Family Systems (IFS)": "Internal Family Systems (IFS)",  # keep as-is for clarity
+    "Solution Focused Brief (SFBT)": "Solution Focused Brief Therapy (SFBT)",
+    "Parent-Child Interaction (PCIT)": "Parent-Child Interaction Therapy (PCIT)",
+}
+for old, new in THERAPY_TYPE_RENAMES.items():
+    try:
+        if TherapyType.objects.filter(name=old).exists():
+            if not TherapyType.objects.filter(name=new).exists():
+                TherapyType.objects.filter(name=old).update(name=new)
+            else:
+                from users.models_profile import TherapyTypeSelection
+                try:
+                    old_obj = TherapyType.objects.get(name=old)
+                    new_obj = TherapyType.objects.get(name=new)
+                    TherapyTypeSelection.objects.filter(therapy_type=old_obj).update(therapy_type=new_obj)
+                    old_obj.delete()
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
 THERAPY_TYPE_VALUES = [
-    "Acceptance and Commitment (ACT)",
-    "Adlerian",
-    "AEDP",
-    "Applied Behavioral Analysis (ABA)",
-    "Art Therapy",
-    "Attachment-based",
-    "Biofeedback",
-    "Brainspotting",
-    "Christian Counseling",
-    "Clinical Supervision and Licensed Supervisors",
-    "Coaching",
-    "Cognitive Behavioral (CBT)",
-    "Cognitive Processing (CPT)",
-    "Compassion Focused",
-    "Culturally Sensitive",
-    "Dance Movement Therapy",
-    "Dialectical Behavior (DBT)",
-    "Eclectic",
-    "EMDR",
-    "Emotionally Focused",
-    "Energy Psychology",
-    "Existential",
-    "Experiential Therapy",
-    "Exposure Response Prevention (ERP)",
-    "Expressive Arts",
-    "Family / Marital",
-    "Family Systems",
-    "Feminist",
-    "Forensic Psychology",
-    "Gestalt",
-    "Gottman Method",
-    "Humanistic",
-    "Hypnotherapy",
-    "Imago",
-    "Integrative",
-    "Internal Family Systems (IFS)",
-    "Interpersonal",
-    "Intervention",
-    "Jungian",
-    "Ketamine-Assisted",
-    "Mindfulness-Based (MBCT)",
-    "Motivational Interviewing",
-    "Multicultural",
-    "Music Therapy",
-    "Narrative",
-    "Neuro-Linguistic (NLP)",
-    "Neurofeedback",
-    "Parent-Child Interaction (PCIT)",
-    "Person-Centered",
-    "Play Therapy",
-    "Positive Psychology",
+    # Evidence-based / structured
+    "Acceptance & Commitment Therapy (ACT)",
+    "Cognitive Behavioral Therapy (CBT)",
+    "Dialectical Behavior Therapy (DBT)",
+    "Exposure & Response Prevention (ERP)",
+    "Mindfulness-Based Cognitive Therapy (MBCT)",
     "Prolonged Exposure Therapy",
-    "Psychoanalytic",
-    "Psychobiological Approach Couple Therapy",
+    "Solution Focused Brief Therapy (SFBT)",
+    "Internal Family Systems (IFS)",
+    "Eye Movement Desensitization & Reprocessing (EMDR)",
+    "Schema Therapy",
+    "Acceptance-Based Relational (ABR)",
+    # Trauma / somatic / attachment
+    "Somatic Therapy",
+    "Attachment-Based",
+    "Brainspotting",
+    "Trauma Focused",
+    # Psychodynamic / analytic
     "Psychodynamic",
-    "Psychological Testing and Evaluation",
-    "Rational Emotive Behavior (REBT)",
+    "Psychoanalytic",
+    "Jungian",
+    # Relational / systemic / family / couples
+    "Marriage & Family Therapy",
+    "Family Systems",
+    "Structural Family Therapy",
+    "PACT (Psychobiological Approach to Couple Therapy)",
+    "Gottman Method",
+    "Emotionally Focused Therapy (EFT)",
+    "Imago Relationship Therapy",
+    # Humanistic / experiential
+    "Humanistic",
+    "Person-Centered",
+    "Gestalt",
+    "Experiential Therapy",
+    "Existential",
+    "Transpersonal",
+    # Cultural / strengths / integrative
+    "Multicultural",
+    "Culturally Sensitive",
+    "Strength-Based",
+    "Integrative",
+    "Eclectic",
+    # Behavioral / analytic / coaching-adjacent (kept only if therapy-focused)
+    "Applied Behavior Analysis (ABA)",
+    "Behavioral Activation",
+    # Specialty / modality specific
+    "Mindfulness-Based Stress Reduction (MBSR)",
+    "Compassion Focused",
+    "Positive Psychology",
+    "Narrative Therapy",
+    "Motivational Interviewing",
+    "Rational Emotive Behavior Therapy (REBT)",
     "Reality Therapy",
     "Relational",
+    # Creative / expressive
+    "Art Therapy",
+    "Expressive Arts",
+    "Music Therapy",
+    "Dance / Movement Therapy",
     "Sandplay",
-    "Schema Therapy",
-    "Solution Focused Brief (SFBT)",
-    "Somatic",
-    "Strength-Based",
-    "Structural Family Therapy",
-    "Transpersonal",
-    "Trauma Focused",
+    "Play Therapy",
+    # Specialized / emerging / adjunct
+    "Neurofeedback",
+    "Biofeedback",
+    "Energy Psychology",
+    "Hypnotherapy",
+    "Ketamine-Assisted Psychotherapy",
+    "Neuro-Linguistic Programming (NLP)",
+    # Assessment
+    "Psychological Testing & Evaluation",
 ]
+
+# Ensure creation
 for name in THERAPY_TYPE_VALUES:
     TherapyType.objects.get_or_create(name=name)
-print(f"Seeded {len(THERAPY_TYPE_VALUES)} therapy type values.")
+print(f"Seeded {len(THERAPY_TYPE_VALUES)} therapy type values (canonical list).")
 
 
 # --- Titles ---
+# Streamlined, inclusive honorifics commonly relevant in mental health / allied professional contexts.
+# We unify gendered variants (Mrs., Miss.) under Ms. to reduce filter clutter; keep Mx. for gender-neutral.
+TITLE_RENAMES = {
+    "Mrs.": "Ms.",
+    "Miss.": "Ms.",
+}
+for old, new in TITLE_RENAMES.items():
+    try:
+        if Title.objects.filter(name=old).exists():
+            if not Title.objects.filter(name=new).exists():
+                Title.objects.filter(name=old).update(name=new)
+            else:
+                # If target exists just remove duplicate
+                Title.objects.filter(name=old).delete()
+    except Exception:
+        pass
+
 TITLE_VALUES = [
-    "Dr.",
+    "Dr.",          # Doctor (doctoral degree)
     "Mr.",
-    "Mrs.",
-    "Miss.",
-    "Ms.",
-    "Mx.",
-    "Prof.",
-    "Rev.",
-    "Rev. Dr.",
-    "Rabbi",
-    "Sister",
+    "Ms.",          # Unified feminine honorific
+    "Mx.",          # Gender-neutral
+    "Prof.",        # Academic title
+    "Rev.",         # Ordained (generic)
+    "Rev. Dr.",     # Dual religious + doctoral
+    "Rabbi",        # Jewish clergy
+    "Pastor",       # Christian clergy (generic)
+    "Father",       # Catholic / Orthodox clergy
+    "Sister",       # Catholic religious
 ]
 for name in TITLE_VALUES:
     Title.objects.get_or_create(name=name)
-print(f"Seeded {len(TITLE_VALUES)} title values.")
+print(f"Seeded {len(TITLE_VALUES)} title values (canonical list).")
 
 
 from users.models_profile import SpecialtyLookup, OtherIdentity
 
 # --- Specialty Lookup ---
+SPECIALTY_LOOKUP_RENAMES = {
+    "Alcohol Use": "Alcohol Use Disorder",
+    "Drug Abuse": "Substance Use Disorder",
+    "Substance Use": "Substance Use Disorder",
+    "Addiction": "Addiction / Compulsive Behaviors",
+    "Internet Addiction": "Internet / Screen Overuse",
+    "Video Game Addiction": "Gaming Addiction",
+    "Sexual Addiction": "Compulsive Sexual Behavior",
+    "Domestic Abuse ": "Domestic Violence / Abuse",
+    "Domestic Violence": "Domestic Violence / Abuse",
+    "Borderline Personality (BPD)": "Borderline Personality Disorder (BPD)",
+    "Narcissistic Personality (NPD)": "Narcissistic Personality Disorder (NPD)",
+    "Developmental Disorders": "Neurodevelopmental Disorders",
+    "Education and Learning Disabilities": "Learning Disabilities",
+    "Testing and Evaluation": "Psychological Testing & Evaluation",
+    "Psychosis": "Psychotic Disorders",
+    "Thinking Disorders": "Psychotic Disorders",
+    "Geriatric and Seniors": "Older Adults / Geriatric",
+    "Transgender": "Gender Identity / Transition Support",
+    "Impulse Control Disorders": "Impulse-Control Disorders",
+    "Open Relationships Non-Monogamy": "Open / Consensual Non-Monogamy",
+}
+
+from users.models_profile import Specialty as _SpecModel
+try:
+    from django.db import transaction
+    for old, new in SPECIALTY_LOOKUP_RENAMES.items():
+        try:
+            if SpecialtyLookup.objects.filter(name=old).exists():
+                if not SpecialtyLookup.objects.filter(name=new).exists():
+                    SpecialtyLookup.objects.filter(name=old).update(name=new)
+                else:
+                    old_obj = SpecialtyLookup.objects.get(name=old)
+                    new_obj = SpecialtyLookup.objects.get(name=new)
+                    _SpecModel.objects.filter(specialty=old_obj).update(specialty=new_obj)
+                    old_obj.delete()
+        except Exception:
+            pass
+except Exception:
+    pass
+
+# Curated canonical specialty list
 SPECIALTY_LOOKUP_VALUES = [
-    "Addiction",
-    "ADHD",
-    "Adoption",
-    "Alcohol Use",
-    "Anger Management",
-    "Antisocial Personality",
-    "Anxiety",
-    "Asperger's Syndrome",
-    "Autism",
-    "Behavioral Issues",
-    "Bipolar Disorder",
-    "Body Positivity",
-    "Borderline Personality (BPD)",
-    "Cancer",
-    "Career Counseling",
-    "Caregivers",
-    "Child",
-    "Chronic Illness",
-    "Chronic Impulsivity",
-    "Chronic Pain",
-    "Chronic Relapse",
-    "Codependency",
-    "Coping Skills",
-    "Dementia",
-    "Depression",
-    "Developmental Disorders",
-    "Dissociative Disorders (DID)",
-    "Divorce",
-    "Domestic Abuse ",
-    "Domestic Violence",
-    "Drug Abuse",
-    "Dual Diagnosis",
-    "Eating Disorders",
-    "Education and Learning Disabilities",
-    "Emotional Disturbance",
-    "Family Conflict",
-    "First Responders",
+    # Substance / Behavioral Compulsions
+    "Substance Use Disorder",
+    "Alcohol Use Disorder",
+    "Addiction / Compulsive Behaviors",
+    "Gaming Addiction",
+    "Internet / Screen Overuse",
+    "Compulsive Sexual Behavior",
     "Gambling",
-    "Geriatric and Seniors",
-    "Grief",
-    "Hoarding",
-    "Infertility",
-    "Infidelity",
-    "Intellectual Disability",
-    "Internet Addiction",
-    "Life Coaching",
-    "Life Transitions",
-    "Marital and Premarital",
-    "Medical Detox",
-    "Medication Management",
-    "Men's Issues",
-    "Narcissistic Personality (NPD)",
-    "Obesity",
+    # Mood / Anxiety / Trauma
+    "Depression",
+    "Anxiety",
     "Obsessive-Compulsive (OCD)",
-    "Open Relationships Non-Monogamy",
-    "Oppositional Defiance (ODD)",
-    "Parenting",
-    "Peer Relationships",
-    "Personality Disorders",
-    "Pregnancy, Prenatal, Postpartum",
-    "Psychosis",
-    "Racial Identity",
-    "Relationship Issues",
-    "School Issues",
-    "Self Esteem",
-    "Self-Harming",
-    "Sex Therapy",
-    "Sex-Positive, Kink Allied",
-    "Sexual Abuse",
-    "Sexual Addiction",
-    "Sleep or Insomnia",
-    "Spirituality",
-    "Sports Performance",
-    "Stress",
-    "Substance Use",
-    "Suicidal Ideation",
-    "Teen Violence",
-    "Testing and Evaluation",
-    "Transgender",
     "Trauma and PTSD",
-    "Traumatic Brain Injury (TBI)",
-    "Veterans",
-    "Video Game Addiction",
-    "Weight Loss",
-    "Women's Issues",
-    "Impulse Control Disorders",
+    "Stress",
+    "Suicidal Ideation",
+    "Panic / Agoraphobia",
     "Mood Disorders",
-    "Thinking Disorders",
-    "Bisexual",
-    "Lesbian",
+    # Personality / Psychotic / Dissociative
+    "Borderline Personality Disorder (BPD)",
+    "Narcissistic Personality Disorder (NPD)",
+    "Personality Disorders",
+    "Psychotic Disorders",
+    "Dissociative Disorders (DID)",
+    # Neurodevelopmental / Cognitive
+    "ADHD",
+    "Autism",
+    "Neurodevelopmental Disorders",
+    "Learning Disabilities",
+    "Intellectual Disability",
+    "Hoarding",
+    # Physical / Chronic / Health
+    "Chronic Illness",
+    "Chronic Pain",
+    "Cancer",
+    "Sleep or Insomnia",
+    "Obesity",
+    "Weight Loss",
+    "Medical Detox",
+    # Life Stage / Identity / Population
+    "Child",
+    "Parenting",
+    "Teen Violence",
+    "Older Adults / Geriatric",
+    "Caregivers",
+    "First Responders",
+    "Veterans",
+    "Women's Issues",
+    "Men's Issues",
+    "Gender Identity / Transition Support",
+    "Open / Consensual Non-Monogamy",
+    "Sex-Positive, Kink Allied",
+    "Racial Identity",
     "LGBTQ+",
+    # Relationships / Family
+    "Relationship Issues",
+    "Marital and Premarital",
+    "Infidelity",
+    "Divorce",
+    "Family Conflict",
+    "Domestic Violence / Abuse",
+    "Infertility",
+    "Pregnancy, Prenatal, Postpartum",
+    # Skills / Functioning / Performance
+    "Coping Skills",
+    "Social / Peer Relationships",
+    "Life Transitions",
+    "Career Counseling",
+    "Sports Performance",
+    "Self Esteem",
+    "Anger Management",
+    "Impulse-Control Disorders",
+    "Chronic Impulsivity",
+    # Sexual Health
+    "Sex Therapy",
+    "Sexual Abuse / Assault",
+    # Trauma & Brain Injury
+    "Traumatic Brain Injury (TBI)",
+    # Specialty Clinical Areas
+    "Eating Disorders",
+    "Dual Diagnosis",
+    "Codependency",
+    "Oppositional Defiance (ODD)",
+    "Emotional Disturbance",
+    "Behavioral Issues",
+    "Self-Harming",
+    "Grief",
+    "Body Positivity",
+    # Spiritual / Meaning
+    "Spirituality",
+    # Testing / Assessment
+    "Psychological Testing & Evaluation",
+    # Other / Catch-all
     "Other",
 ]
 for name in SPECIALTY_LOOKUP_VALUES:
     SpecialtyLookup.objects.get_or_create(name=name)
-print(f"Seeded {len(SPECIALTY_LOOKUP_VALUES)} specialty lookup values.")
+print(f"Seeded {len(SPECIALTY_LOOKUP_VALUES)} specialty lookup values (canonical list).")
 
 # --- Other Identity ---
+# Concise, user-facing self-identification options (non-duplicative of race/ethnicity, gender, sexuality).
+# Focused on lived experience / accessibility contexts. Avoid long medical condition tail.
+OTHER_IDENTITY_RENAMES = {
+    "Blind": "Blind / Low Vision",
+    "Deaf": "Deaf / Hard of Hearing",
+    "Immuno-disorders": "Immunocompromised",
+}
+try:
+    for old, new in OTHER_IDENTITY_RENAMES.items():
+        if OtherIdentity.objects.filter(name=old).exists():
+            if not OtherIdentity.objects.filter(name=new).exists():
+                OtherIdentity.objects.filter(name=old).update(name=new)
+            else:
+                # remove duplicate old if new already exists
+                OtherIdentity.objects.filter(name=old).delete()
+except Exception:
+    pass
+
 OTHER_IDENTITY_VALUES = [
-    "Blind",
-    "Deaf",
+    "Blind / Low Vision",
+    "Deaf / Hard of Hearing",
     "Disabled",
-    "Immuno-disorders",
+    "Neurodivergent",
+    "Immunocompromised",
+    "Chronic Illness",
     "Single Parent",
+    "Caregiver",
     "Veteran",
+    "Survivor of Trauma",
+    "Other",
 ]
 for name in OTHER_IDENTITY_VALUES:
     OtherIdentity.objects.get_or_create(name=name)
-print(f"Seeded {len(OTHER_IDENTITY_VALUES)} other identity values.")
+print(f"Seeded {len(OTHER_IDENTITY_VALUES)} other identity values (canonical list).")
