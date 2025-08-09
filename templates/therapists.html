@@ -5,13 +5,52 @@
   document.addEventListener('alpine:init', () => {
     if(!Alpine.store('profileModal')) {
       Alpine.store('profileModal', {
-        show:false, therapist:{}, loading:false, error:null,
-        open(id){
-          console.log('[profileModal] open called (therapists page) with id', id, 'at', Date.now());
-          this.show=true; this.error=null; this.loading=true; this.therapist={};
-          document.documentElement.classList.add('overflow-hidden');
-          document.body.classList.add('overflow-hidden');
-          fetch(`/users/api/therapists/${id}/profile_full/`).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).then(d=>{ this.therapist=d; }).catch(e=>{ console.error(e); this.error=e.message; }).finally(()=>this.loading=false);
+        show:false,
+        therapist:{},
+        loading:false,
+        error:null,
+        ids:[{% for therapist in therapists %}{{ therapist.user.id }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+        currentIndex:-1,
+        _controller:null,
+        open(id, preserve=false){
+          console.log('[profileModal] open called (therapists page) with id', id, 'preserve=', preserve, 'at', Date.now());
+          // If already showing keep it; first open locks scroll
+          if(!this.show){
+            this.show=true;
+            document.documentElement.classList.add('overflow-hidden');
+            document.body.classList.add('overflow-hidden');
+          }
+          this.error=null;
+          this.loading=true;
+          if(!preserve){
+            this.therapist={};
+          }
+          if(this.ids && this.ids.length){
+            const idx = this.ids.indexOf(id);
+            if(idx !== -1) this.currentIndex = idx;
+          }
+          // Abort any in-flight fetch
+          try { if(this._controller){ this._controller.abort(); } } catch(e){}
+          this._controller = new AbortController();
+          fetch(`/users/api/therapists/${id}/profile_full/`, { signal:this._controller.signal })
+            .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+            .then(d=>{ this.therapist=d; })
+            .catch(e=>{ if(e.name!== 'AbortError'){ console.error(e); this.error=e.message; } })
+            .finally(()=>{ if(this._controller && this._controller.signal.aborted){ return; } this.loading=false; });
+        },
+        next(){
+          if(!this.ids || this.currentIndex===-1) return;
+            if(this.currentIndex < this.ids.length - 1){
+              const nextId = this.ids[this.currentIndex + 1];
+              this.open(nextId, true);
+            }
+        },
+        prev(){
+          if(!this.ids || this.currentIndex===-1) return;
+            if(this.currentIndex > 0){
+              const prevId = this.ids[this.currentIndex - 1];
+              this.open(prevId, true);
+            }
         },
         close(){
           console.log('[profileModal] close called (therapists page) at', Date.now());
