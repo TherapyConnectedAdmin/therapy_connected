@@ -7,14 +7,19 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'therapy_connected.settings')
 django.setup()
 import random
+from typing import List, Dict, Tuple
+import uuid
 
-# List of known valid US zip codes (sampled from major cities)
-VALID_US_ZIPS = [
-    "10001", "90001", "60601", "77001", "85001", "19104", "33101", "98101", "30301", "80201",
-    "15201", "55401", "46201", "64101", "37201", "48201", "70112", "20001", "96801", "99501", "32550"
-]
-def get_valid_zip():
-    return random.choice(VALID_US_ZIPS)
+#############################################
+# Dynamic US location generation (faker)
+#############################################
+def generate_us_location() -> Dict[str, str]:
+    # Use faker for city + state abbr + zip; ensures wide distribution
+    return {
+        "city": fake.city(),
+        "state": fake.state_abbr(),
+        "zip": fake.zipcode()[:5],  # ensure 5-digit
+    }
 import tempfile
 import requests
 from faker import Faker
@@ -32,40 +37,105 @@ from users.models_profile import (
 fake = Faker()
 User = get_user_model()
 
-PROFILE_IMAGE_URLS = [
-    "https://randomuser.me/api/portraits/men/1.jpg",
-    "https://randomuser.me/api/portraits/women/2.jpg",
-    "https://randomuser.me/api/portraits/men/3.jpg",
-    "https://randomuser.me/api/portraits/women/4.jpg",
-    "https://randomuser.me/api/portraits/men/5.jpg",
-    "https://randomuser.me/api/portraits/women/6.jpg",
-    "https://randomuser.me/api/portraits/men/7.jpg",
-    "https://randomuser.me/api/portraits/women/8.jpg",
-]
-GALLERY_IMAGE_URLS = [
-    "https://placekitten.com/400/300",
-    "https://placebear.com/400/300",
-    "https://picsum.photos/400/300",
-    "https://loremflickr.com/400/300/therapy",
-    "https://loremflickr.com/400/300/office",
-]
+def generate_profile_image_url(first: str, last: str) -> str:
+    # Use dicebear initials (SVG) or randomuser fallback randomly
+    if random.random() < 0.5:
+        seed = f"{first}-{last}-{random.randint(1,9999)}"
+        style = random.choice(["initials", "shapes", "thumbs"])
+        return f"https://api.dicebear.com/7.x/{style}/png?seed={seed}&backgroundType=gradientLinear"
+    gender = random.choice(["men", "women"])
+    return f"https://randomuser.me/api/portraits/{gender}/{random.randint(1, 90)}.jpg"
+def generate_gallery_image_url() -> str:
+    # picsum with unique seed for variety
+    return f"https://picsum.photos/seed/{uuid.uuid4().hex[:12]}/400/300"
 VIDEO_URLS = [
     "https://samplelib.com/mp4/sample-5s.mp4",
     "https://samplelib.com/mp4/sample-10s.mp4",
     # Add more as needed
 ]
 
-STATES = [
-    "CA", "NY", "TX", "FL", "IL", "PA", "OH", "GA", "NC", "MI", "AZ", "WA", "MA", "TN", "IN", "MO", "MD", "WI", "CO", "MN"
-]
+STATES = [fake.state_abbr() for _ in range(30)]  # ephemeral pool; license_state uses this
 
-NUM_PROFILES = 20
+NUM_PROFILES = int(os.environ.get('FAKE_NUM_PROFILES', '25'))
+FAKE_FETCH_MEDIA = bool(int(os.environ.get('FAKE_FETCH_MEDIA', '1')))  # allow disabling network
+FAKE_RANDOM_SEED = os.environ.get('FAKE_RANDOM_SEED')
+if FAKE_RANDOM_SEED:
+    random.seed(FAKE_RANDOM_SEED)
+    Faker.seed(int(FAKE_RANDOM_SEED))
+
+# Pre-fetch license types for round-robin assignment to maximize coverage
+_LICENSE_TYPES = list(LicenseType.objects.order_by('name'))
+random.shuffle(_LICENSE_TYPES)
+if not _LICENSE_TYPES:
+    # Ensure at least one placeholder
+    _placeholder, _ = LicenseType.objects.get_or_create(name='Other', defaults={'short_description': 'Other'})
+    _LICENSE_TYPES = [_placeholder]
+
+# Narrative template helpers
+def build_intro() -> str:
+    adjectives = ["collaborative", "grounded", "holistic", "evidence-based", "trauma-informed", "strengths-focused"]
+    focuses = ["anxiety", "life transitions", "identity development", "relationships", "burnout", "trauma recovery"]
+    parts = [
+        f"I offer a {random.choice(adjectives)} space for meaningful change.",
+        f"My work often centers around {random.choice(focuses)} and related patterns.",
+        f"Together we'll clarify goals, build skills, and expand resilience."
+    ]
+    return ' '.join(parts)
+
+def build_therapy_note(modalities: str) -> str:
+    verbs = ["integrate", "blend", "draw from", "tailor"]
+    return f"I {random.choice(verbs)} {modalities} with culturally responsive, client-led pacing."
+
+def build_specialties_note(specialties: str) -> str:
+    return f"Focus areas include {specialties.lower()} among others."
+
+def build_finance_note() -> str:
+    clauses = [
+        "Limited sliding scale openings available.",
+        "Superbills offered for out-of-network reimbursement.",
+        "Ask about reduced rates for students or early career professionals.",
+    ]
+    return random.choice(clauses)
+
+#############################################
+# Personal Statement Generators (distinct prompts)
+#############################################
+def build_ps_q1(modalities: List[str], license_type_obj) -> str:
+    """Therapeutic Approach: emphasize style + core modalities."""
+    style_terms = ["collaborative", "integrative", "trauma-informed", "attachment-aware", "strengths-based", "client-centered"]
+    core = ', '.join(modalities[:3]) if modalities else 'evidence-based methods'
+    role = getattr(license_type_obj, 'short_description', '') or getattr(license_type_obj, 'name', 'Clinician')
+    return f"As a {role}, I use a {random.choice(style_terms)} approach, drawing from {core} while tailoring pace and depth to each client."[:500]
+
+def build_ps_q2(specialties: List[str], age_groups: List[str], participant_types: List[str]) -> str:
+    """Populations & Focus Areas."""
+    pops = ', '.join(age_groups[:2]) if age_groups else 'diverse age groups'
+    parts = ', '.join(participant_types[:2]) if participant_types else 'individuals'
+    focus = ', '.join(specialties[:4]) if specialties else 'anxiety, life transitions, and identity development'
+    return f"I work with {pops} and {parts}, with focus areas including {focus}. Cultural humility and inclusivity guide our work."[:500]
+
+def build_ps_q3(modalities: List[str]) -> str:
+    """What to Expect / Process."""
+    process_terms = ["goal setting", "skill practice", "mind-body awareness", "routine reflection", "collaborative feedback"]
+    mod = modalities[0] if modalities else 'integrative techniques'
+    return f"Early sessions emphasize rapport, clarity of goals, and {random.choice(process_terms)}; over time we incorporate {mod} for sustained change."[:500]
+
+MENTAL_HEALTH_ROLE_BY_CATEGORY = {
+    'Psychiatry': 'Psychiatrist',
+    'Psychology': 'Psychologist',
+    'Social Work': 'Therapist',
+    'Marriage & Family': 'Therapist',
+    'Counseling': 'Therapist',
+    'Behavior Analysis': 'Behavior Analyst',
+    'Nursing': 'Psychiatric NP',
+    'Substance Use': 'Substance Use Counselor',
+}
 
 # Helper to get random instance from a model
 get_random = lambda model: model.objects.order_by('?').first()
 get_random_many = lambda model, n: random.sample(list(model.objects.all()), min(n, model.objects.count()))
 
-def create_fake_profile():
+def create_fake_profile(index: int):
 
     # Create User
     first = fake.first_name()
@@ -76,9 +146,28 @@ def create_fake_profile():
     user.is_active = True
     user.save()
 
-    # Pick a random license type or fallback to 'Other'
-    license_type = get_random(LicenseType) or LicenseType.objects.get_or_create(name='Other')[0]
+    # Round-robin license types for coverage
+    license_type = _LICENSE_TYPES[index % len(_LICENSE_TYPES)]
     print('DEBUG: About to create TherapistProfile')
+    chosen_modalities = get_random_many(TherapyType, random.randint(2, 5))
+    chosen_specialties = get_random_many(SpecialtyLookup, random.randint(2, 5))
+    # Preselect participant types & age groups for narrative consistency
+    chosen_participant_types = get_random_many(ParticipantType, random.randint(1, min(2, ParticipantType.objects.count()))) if ParticipantType.objects.exists() else []
+    chosen_age_groups = get_random_many(AgeGroup, random.randint(1, min(3, AgeGroup.objects.count()))) if AgeGroup.objects.exists() else []
+    modalities_names = ', '.join(t.name for t in chosen_modalities[:4])
+    specialties_names = ', '.join(s.name for s in chosen_specialties[:4])
+    therapy_note_tpl = build_therapy_note(modalities_names)
+    specialties_note_tpl = build_specialties_note(specialties_names)
+    intro_statement = build_intro()
+    finance_note_text = build_finance_note()
+    # Personal statement question themed content
+    ps_q1 = build_ps_q1([t.name for t in chosen_modalities], license_type)
+    ps_q2 = build_ps_q2([s.name for s in chosen_specialties], [a.name for a in chosen_age_groups], [p.name for p in chosen_participant_types])
+    ps_q3 = build_ps_q3([t.name for t in chosen_modalities])
+
+    # Derive mental health role from license category when available
+    role = MENTAL_HEALTH_ROLE_BY_CATEGORY.get(getattr(license_type, 'category', ''), random.choice(["Therapist", "Clinician"]))
+
     profile = TherapistProfile(
         user=user,
         first_name=first,
@@ -86,9 +175,9 @@ def create_fake_profile():
         last_name=last,
         title=get_random(Title),
         display_title=random.choice([True, False]),
-        personal_statement_q1=fake.paragraph(),
-        personal_statement_q2=fake.paragraph(),
-        personal_statement_q3=fake.paragraph(),
+    personal_statement_q1=ps_q1,
+    personal_statement_q2=ps_q2,
+    personal_statement_q3=ps_q3,
         practice_name=fake.company(),
         phone_number=fake.phone_number(),
         phone_extension=str(random.randint(100,999)) if random.random() < 0.5 else "",
@@ -98,14 +187,14 @@ def create_fake_profile():
         office_email=email,
         receive_emails_from_clients=random.choice([True, False]),
         receive_emails_when_client_calls=random.choice([True, False]),
-        intro_statement=fake.text(max_nb_chars=200),
+        intro_statement=intro_statement,
         therapy_delivery_method=random.choice(["In-person", "Online", "Hybrid"]),
         accepting_new_clients=random.choice(["Yes", "No", "Waitlist"]),
         offers_intro_call=random.choice([True, False]),
         individual_session_cost=str(random.randint(80, 250)),
         couples_session_cost=str(random.randint(100, 350)),
         sliding_scale_pricing_available=random.choice([True, False]),
-        finance_note=fake.sentence(),
+        finance_note=finance_note_text,
         credentials_note=fake.text(max_nb_chars=200),
         practice_website_url=fake.url(),
         facebook_url=fake.url(),
@@ -114,9 +203,9 @@ def create_fake_profile():
         twitter_url=fake.url(),
         tiktok_url=fake.url(),
         youtube_url=fake.url(),
-        therapy_types_note=fake.sentence(),
-        specialties_note=fake.sentence(),
-        mental_health_role=random.choice(["Therapist", "Psychiatrist", "Coach"]),
+        therapy_types_note=therapy_note_tpl,
+        specialties_note=specialties_note_tpl,
+        mental_health_role=role,
         license_number=fake.bothify(text='??#####'),
         license_expiration=f"{random.randint(2025,2030)}-12",
         # credential_type removed
@@ -128,25 +217,26 @@ def create_fake_profile():
     print('DEBUG: TherapistProfile created')
     profile.save()
     # Download a random profile image and upload to S3 (optional)
-    try:
-        img_url = random.choice(PROFILE_IMAGE_URLS)
-        response = requests.get(img_url, timeout=10)
-        if response.status_code == 200:
-            tmp = tempfile.NamedTemporaryFile(delete=True, suffix='.jpg')
-            tmp.write(response.content)
-            tmp.flush()
-            profile_photo_file = File(tmp, name=f"profile_{first.lower()}_{last.lower()}.jpg")
-            profile.profile_photo.save(profile_photo_file.name, profile_photo_file, save=True)
-    except Exception as e:
-        pass
+    if FAKE_FETCH_MEDIA:
+        try:
+            img_url = generate_profile_image_url(first, last)
+            response = requests.get(img_url, timeout=10)
+            if response.status_code == 200:
+                tmp = tempfile.NamedTemporaryFile(delete=True, suffix='.jpg')
+                tmp.write(response.content)
+                tmp.flush()
+                profile_photo_file = File(tmp, name=f"profile_{first.lower()}_{last.lower()}.jpg")
+                profile.profile_photo.save(profile_photo_file.name, profile_photo_file, save=True)
+        except Exception:
+            pass
 
     # Assign random participant types and age groups (new normalized fields)
     all_participant_types = list(ParticipantType.objects.all())
     all_age_groups = list(AgeGroup.objects.all())
-    if all_participant_types:
-        profile.participant_types.set(random.sample(all_participant_types, random.randint(1, min(2, len(all_participant_types)))))
-    if all_age_groups:
-        profile.age_groups.set(random.sample(all_age_groups, random.randint(1, min(3, len(all_age_groups)))))
+    if chosen_participant_types:
+        profile.participant_types.set(chosen_participant_types)
+    if chosen_age_groups:
+        profile.age_groups.set(chosen_age_groups)
 
     # Related fields
     for _ in range(random.randint(1, 3)):
@@ -168,9 +258,9 @@ def create_fake_profile():
             id_number=fake.bothify(text='ID####'),
             year_issued=str(random.randint(1980, 2022))
         )
-    # Specialties
-    for s in get_random_many(SpecialtyLookup, random.randint(1, 5)):
-        Specialty.objects.create(therapist=profile, specialty=s, is_top_specialty=random.choice([True, False]))
+    # Specialties (use chosen list for consistency with narrative)
+    for s in chosen_specialties:
+        Specialty.objects.create(therapist=profile, specialty=s, is_top_specialty=random.random() < 0.4)
     # Areas of Expertise
     for _ in range(random.randint(1, 3)):
         AreasOfExpertise.objects.create(therapist=profile, expertise=fake.word())
@@ -182,35 +272,36 @@ def create_fake_profile():
         from users.models_profile import OtherTreatmentOption
         OtherTreatmentOption.objects.create(therapist=profile, option_text=fake.word())
     # Gallery Images
-    for _ in range(random.randint(1, 3)):
-        # Download and upload gallery image
-        gallery_img_url = random.choice(GALLERY_IMAGE_URLS)
-        gallery_file = None
-        try:
-            response = requests.get(gallery_img_url, timeout=10)
-            if response.status_code == 200:
-                tmp = tempfile.NamedTemporaryFile(delete=True, suffix='.jpg')
-                tmp.write(response.content)
-                tmp.flush()
-                gallery_file = File(tmp, name=f"gallery_{profile.pk}_{random.randint(1000,9999)}.jpg")
-        except Exception as e:
+    if FAKE_FETCH_MEDIA:
+        for _ in range(random.randint(1, 3)):
             gallery_file = None
-        if gallery_file:
-            GalleryImage.objects.create(therapist=profile, image=gallery_file, caption=fake.sentence())
+            try:
+                gallery_img_url = generate_gallery_image_url()
+                response = requests.get(gallery_img_url, timeout=10)
+                if response.status_code == 200:
+                    tmp = tempfile.NamedTemporaryFile(delete=True, suffix='.jpg')
+                    tmp.write(response.content)
+                    tmp.flush()
+                    gallery_file = File(tmp, name=f"gallery_{profile.pk}_{random.randint(1000,9999)}.jpg")
+            except Exception:
+                gallery_file = None
+            if gallery_file:
+                GalleryImage.objects.create(therapist=profile, image=gallery_file, caption=fake.sentence())
     # Video Gallery
     for _ in range(random.randint(0, 2)):
         VideoGallery.objects.create(therapist=profile, video=random.choice(VIDEO_URLS), caption=fake.sentence())
     # Locations (1-3 per profile)
     num_locations = random.randint(1, 3)
     for i in range(num_locations):
+        loc = generate_us_location()
         Location.objects.create(
             therapist=profile,
             practice_name=profile.practice_name if i == 0 else fake.company(),
             street_address=fake.street_address(),
             address_line_2=fake.secondary_address(),
-            city=fake.city(),
-            state=random.choice(STATES),
-            zip=get_valid_zip(),
+            city=loc['city'],
+            state=loc['state'],
+            zip=loc['zip'],
             hide_address_from_public=random.choice([True, False]),
             is_primary_address=(i == 0)
         )
@@ -237,11 +328,11 @@ def create_fake_profile():
     # Payment Methods
     for pm in get_random_many(PaymentMethod, random.randint(1, 3)):
         PaymentMethodSelection.objects.create(therapist=profile, payment_method=pm)
-    # Therapy Types
-    for tt in get_random_many(TherapyType, random.randint(1, 4)):
+    # Therapy Types (use narrative set)
+    for tt in chosen_modalities:
         TherapyTypeSelection.objects.create(therapist=profile, therapy_type=tt)
 
-for _ in range(NUM_PROFILES):
-    create_fake_profile()
+for i in range(NUM_PROFILES):
+    create_fake_profile(i)
 
 print(f"Created {NUM_PROFILES} fake therapist profiles.")
