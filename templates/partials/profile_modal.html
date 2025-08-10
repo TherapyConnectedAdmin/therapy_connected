@@ -48,8 +48,8 @@
   .profile-modal-scroll figure img::before, .profile-modal-scroll figure img::after { content:none !important; }
 </style>
 {# Added defensive optional chaining so an undefined store doesn't throw and leave the modal visible #}
-<div x-data="{ lightboxImage:null }" x-show="$store.profileModal?.show" x-transition x-cloak class="fixed inset-0 z-[70] backdrop-blur-sm p-4" style="background: rgba(30,30,30,0.45);" @keydown.window.escape="$store.profileModal && $store.profileModal.close()" @click.self="$store.profileModal && $store.profileModal.close()" @keydown.window.arrow-right.prevent="$store.profileModal?.next && $store.profileModal.next()" @keydown.window.arrow-left.prevent="$store.profileModal?.prev && $store.profileModal.prev()">
-  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[98vw] max-w-7xl max-h-[90vh] rounded-3xl shadow-2xl bg-[#FAF9F9] ring-1 ring-[#BEE3DB] flex flex-col overflow-visible relative" role="dialog" aria-modal="true" aria-labelledby="therapistProfileHeading" x-ref="dialog">
+<div x-data="{ lightboxImage:null }" x-cloak x-show="$store.profileModal?.show" class="fixed inset-0 z-[70] backdrop-blur-sm p-4" style="background: rgba(30,30,30,0.45);" @keydown.window.escape="$store.profileModal && $store.profileModal.close()" @click.self="$store.profileModal && $store.profileModal.close()" @keydown.window.arrow-right.prevent="$store.profileModal?.next && $store.profileModal.next()" @keydown.window.arrow-left.prevent="$store.profileModal?.prev && $store.profileModal.prev()">
+  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[98vw] max-w-7xl max-h-[90vh] rounded-3xl shadow-2xl bg-[#FAF9F9] ring-1 ring-[#BEE3DB] flex flex-col overflow-visible relative opacity-0 scale-95 transition-opacity transition-transform duration-150 ease-out" :class="$store.profileModal.contentVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'" role="dialog" aria-modal="true" aria-labelledby="therapistProfileHeading" x-ref="dialog">
     <!-- overflow-visible so external-positioned nav arrows (translated outside) are not clipped -->
     <!-- Internal edge-anchored navigation arrows -->
   <button x-show="$store.profileModal?.ids && $store.profileModal.ids.length && $store.profileModal.currentIndex>0" @click.stop="$store.profileModal.prev()" class="hidden md:flex absolute left-0 top-1/2 z-[85] w-11 h-11 -translate-y-1/2 rounded-full items-center justify-center bg-[#116466]/95 text-white shadow-lg hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-[#89B0AE] transition" style="transform:translate(-120%, -50%);" aria-label="Previous profile">
@@ -70,12 +70,18 @@
       <div class="profile-modal-scroll-mask" aria-hidden="true"></div>
       <!-- Sticky Compact Header (always visible while scrolling) -->
   <div class="sticky top-0 z-[2100] bg-[#FAF9F9] backdrop-blur-sm border-b border-[#BEE3DB] px-6 md:px-10 py-4 flex flex-col gap-3 md:flex-row md:items-center md:gap-4 shadow-sm">
-        <h1 id="therapistProfileHeading" class="text-lg md:text-2xl font-extrabold leading-tight text-[#555B6E] flex items-center flex-wrap gap-2 md:min-w-[40%]">
-          <span x-text="$store.profileModal.therapist.name || ($store.profileModal.therapist.first_name + ' ' + $store.profileModal.therapist.last_name)"></span>
-          <template x-if="$store.profileModal.therapist.license_type">
-            <span class="text-sm md:text-base font-semibold text-[#116466]" x-text="$store.profileModal.therapist.license_type"></span>
-          </template>
-        </h1>
+        <!-- Heading / Name -->
+        <template x-if="!$store.profileModal.loading">
+          <h1 id="therapistProfileHeading" class="text-lg md:text-2xl font-extrabold leading-tight text-[#555B6E] flex items-center flex-wrap gap-2 md:min-w-[40%]">
+            <span x-text="$store.profileModal.therapist.name || [$store.profileModal.therapist.first_name, $store.profileModal.therapist.last_name].filter(Boolean).join(' ')"></span>
+            <template x-if="$store.profileModal.therapist.license_type">
+              <span class="text-sm md:text-base font-semibold text-[#116466]" x-text="$store.profileModal.therapist.license_type"></span>
+            </template>
+          </h1>
+        </template>
+        <template x-if="$store.profileModal.loading">
+          <div class="h-6 md:h-8 w-56 md:w-72 rounded bg-[#E5F4F2] animate-pulse"></div>
+        </template>
         <div class="flex flex-wrap items-center gap-2 text-[11px] md:flex-1 order-3 md:order-none">
           <template x-if="$store.profileModal.therapist.years_in_practice">
             <span class="px-2 py-1 rounded-full bg-[#BEE3DB] text-[#555B6E] font-medium">Years: <span x-text="$store.profileModal.therapist.years_in_practice"></span></span>
@@ -95,24 +101,30 @@
         <!-- Hero Panel: Photo + Key Facts / Chips -->
   <div class="flex flex-col md:flex-row gap-8 md:items-start relative isolate">
           <div class="relative w-40 h-56 sm:w-48 sm:h-64 md:w-56 md:h-72 flex-shrink-0 overflow-hidden rounded-2xl shadow-lg self-start z-0" style="box-shadow:0 8px 32px -6px #555B6E55;">
-            <template x-if="$store.profileModal.therapist.profile_photo_url">
-              <img :src="$store.profileModal.therapist.profile_photo_url" :alt="$store.profileModal.therapist.name" class="w-full h-full object-cover object-center" />
+            <!-- Skeleton while loading -->
+            <template x-if="$store.profileModal.loading">
+              <div class="absolute inset-0 bg-[#E5F4F2] animate-pulse"></div>
             </template>
-            <template x-if="!$store.profileModal.therapist.profile_photo_url">
-              <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="Therapist" class="w-full h-full object-cover object-center" />
+            <!-- Real photo -->
+            <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.profile_photo_url">
+              <img :src="$store.profileModal.therapist.profile_photo_url" :alt="$store.profileModal.therapist.name" class="w-full h-full object-cover object-center opacity-0 transition-opacity duration-200" x-init="$el.addEventListener('load',()=> $el.classList.remove('opacity-0'))" />
+            </template>
+            <!-- Placeholder only after load completes and no photo provided -->
+            <template x-if="!$store.profileModal.loading && !$store.profileModal.therapist.profile_photo_url">
+              <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="Therapist" class="w-full h-full object-cover object-center opacity-0 transition-opacity duration-200" x-init="$el.addEventListener('load',()=> $el.classList.remove('opacity-0'))" />
             </template>
           </div>
           <div class="flex-1 flex flex-col gap-4 min-w-0 relative z-10">
-            <div class="text-sm font-medium text-[#89B0AE]" x-show="$store.profileModal.therapist.license_type_description || $store.profileModal.therapist.credentials_note">
+            <div class="text-sm font-medium text-[#89B0AE]" x-show="!$store.profileModal.loading && ($store.profileModal.therapist.license_type_description || $store.profileModal.therapist.credentials_note)">
               <template x-if="$store.profileModal.therapist.license_type_description"><span x-text="$store.profileModal.therapist.license_type_description"></span></template>
               <template x-if="$store.profileModal.therapist.license_type_description && $store.profileModal.therapist.credentials_note"><span> • </span></template>
               <template x-if="$store.profileModal.therapist.credentials_note"><span x-text="$store.profileModal.therapist.credentials_note"></span></template>
             </div>
-            <div class="text-xs text-[#555B6E] opacity-80" x-show="$store.profileModal.therapist.city || $store.profileModal.therapist.state">
+            <div class="text-xs text-[#555B6E] opacity-80" x-show="!$store.profileModal.loading && ($store.profileModal.therapist.city || $store.profileModal.therapist.state)">
               <span x-text="[$store.profileModal.therapist.city, $store.profileModal.therapist.state].filter(Boolean).join(', ')"></span>
             </div>
             <!-- Top Specialties -->
-            <template x-if="$store.profileModal.therapist.top_specialties && $store.profileModal.therapist.top_specialties.length">
+            <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.top_specialties && $store.profileModal.therapist.top_specialties.length">
               <div>
                 <h3 class="text-xs font-semibold mb-2 tracking-wide text-[#555B6E] uppercase">Top Specialties</h3>
                 <div class="flex flex-wrap gap-2">
@@ -123,7 +135,7 @@
               </div>
             </template>
             <!-- Payment Methods -->
-            <template x-if="$store.profileModal.therapist.accepted_payment_methods && $store.profileModal.therapist.accepted_payment_methods.length">
+            <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.accepted_payment_methods && $store.profileModal.therapist.accepted_payment_methods.length">
               <div>
                 <h3 class="text-xs font-semibold mb-2 tracking-wide text-[#555B6E] uppercase">Payment Methods</h3>
                 <div class="flex flex-wrap gap-2">
@@ -134,7 +146,7 @@
               </div>
             </template>
             <!-- Quick Identifiers -->
-            <div class="flex flex-wrap gap-2 text-[11px]" x-show="$store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length">
+            <div class="flex flex-wrap gap-2 text-[11px]" x-show="!$store.profileModal.loading && $store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length">
               <template x-for="pt in $store.profileModal.therapist.participant_types" :key="pt"><span class="px-2 py-1 rounded-full bg-[#BEE3DB] text-[#444] font-semibold shadow-sm" x-text="pt"></span></template>
             </div>
           </div>

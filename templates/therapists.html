@@ -9,12 +9,14 @@
         therapist:{},
         loading:false,
         error:null,
+        contentVisible:false,
         ids:[{% for therapist in therapists %}{{ therapist.user.id }}{% if not forloop.last %}, {% endif %}{% endfor %}],
         currentIndex:-1,
         _controller:null,
         open(id, preserve=false){
           console.log('[profileModal] open called (therapists page) with id', id, 'preserve=', preserve, 'at', Date.now());
-          // If already showing keep it; first open locks scroll
+          // Skip redundant load
+            if(this.show && this.therapist && this.therapist.id === id && !preserve){ return; }
           if(!this.show){
             this.show=true;
             document.documentElement.classList.add('overflow-hidden');
@@ -22,8 +24,9 @@
           }
           this.error=null;
           this.loading=true;
+          this.contentVisible=false;
           if(!preserve){
-            this.therapist={};
+            this.therapist={ id };
           }
           if(this.ids && this.ids.length){
             const idx = this.ids.indexOf(id);
@@ -36,7 +39,7 @@
             .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
             .then(d=>{ this.therapist=d; })
             .catch(e=>{ if(e.name!== 'AbortError'){ console.error(e); this.error=e.message; } })
-            .finally(()=>{ if(this._controller && this._controller.signal.aborted){ return; } this.loading=false; });
+            .finally(()=>{ if(this._controller && this._controller.signal.aborted){ return; } this.loading=false; this.contentVisible=true; });
         },
         next(){
           if(!this.ids || this.currentIndex===-1) return;
@@ -55,6 +58,7 @@
         close(){
           console.log('[profileModal] close called (therapists page) at', Date.now());
           this.show=false;
+          this.contentVisible=false;
           requestAnimationFrame(()=>{
             document.documentElement.classList.remove('overflow-hidden');
             document.body.classList.remove('overflow-hidden');

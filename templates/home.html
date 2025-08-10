@@ -9,24 +9,33 @@
       therapist: {},
       loading: false,
       error: null,
+      contentVisible: false,
       open(id) {
-    console.log('[profileModal] open called with id', id, 'at', Date.now());
-        this.show = true;
-        // Lock background scroll
-        document.documentElement.classList.add('overflow-hidden');
-        document.body.classList.add('overflow-hidden');
+        console.log('[profileModal] open called with id', id, 'at', Date.now());
+        // If already showing this therapist, just ensure focus & exit
+        if (this.show && this.therapist && this.therapist.id === id) {
+          return;
+        }
         this.error = null;
         this.loading = true;
-        this.therapist = {};
+        this.contentVisible = false;
+        this.therapist = { id }; // optimistic id placeholder
+        // Show immediately so backdrop appears without perceived flash
+        if (!this.show) {
+          this.show = true;
+          document.documentElement.classList.add('overflow-hidden');
+          document.body.classList.add('overflow-hidden');
+        }
         fetch(`/users/api/therapists/${id}/profile_full/`)
           .then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
           .then(d => { this.therapist = d; })
           .catch(e => { console.error(e); this.error = e.message; })
-          .finally(() => { this.loading = false; });
+          .finally(() => { this.loading = false; this.contentVisible = true; });
       },
       close(){
     console.log('[profileModal] close called at', Date.now());
         this.show=false;
+        this.contentVisible = false;
         // Unlock background scroll (delay to allow transition end if needed)
         requestAnimationFrame(()=>{
           document.documentElement.classList.remove('overflow-hidden');

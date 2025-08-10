@@ -1,14 +1,14 @@
 {% load location_extras %}
 {% load therapist_extras %}
 
-<section class="w-full grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 items-start justify-center py-0" x-data="{}">
+<section class="w-full grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 items-stretch justify-center py-0" x-data="{}">
   <!-- Therapist Left -->
-  <div class="flex px-4 sm:px-6 md:px-4 flex-col items-center justify-center">
-    <div class="flex flex-col w-full">
+  <div class="flex px-0 sm:px-2 md:px-0 flex-col items-stretch justify-start h-full">
+    <div class="flex flex-col w-full h-full">
       <h3 class="text-xl font-bold mb-8 self-center" style="color: #89B0AE;">Therapist</h3>
       {% if top_therapist %}
-      <div class="relative w-full flex flex-col md:flex-row gap-6 rounded-2xl shadow-lg p-6 md:p-8 bg-[#FAF9F9]" style="box-shadow:0 4px 18px -4px #555B6E33;">
-        <!-- Image Column (smaller portrait) -->
+  <div class="relative w-full flex flex-col md:flex-row gap-6 rounded-2xl shadow-lg p-6 md:p-8 bg-[#FAF9F9] h-full min-h-[560px]" style="box-shadow:0 4px 18px -4px #555B6E33;">
+        <!-- Image Column -->
         <div class="relative flex-shrink-0 w-32 h-48 md:w-40 md:h-56 overflow-hidden rounded-xl">
           {% if top_therapist.profile_photo %}
             {% profile_photo_srcset top_therapist 'webp' as ss_webp %}
@@ -63,6 +63,68 @@
               <span class="px-2 py-1 rounded-full bg-[#FFDDD0] text-[#444] font-medium shadow-sm">{{ s.specialty.name }}</span>
             {% endif %}{% endfor %}
           </div>
+          <!-- Status / Meta Badges -->
+          <div class="flex flex-wrap gap-2 mt-1 text-[10px] font-semibold tracking-wide">
+            {% if top_therapist.accepting_new_clients and top_therapist.accepting_new_clients|lower != 'no' %}
+              <span class="px-2 py-1 rounded-full bg-[#F5E2D6] text-[#555B6E] shadow-sm border border-[#FF9950]/30">Accepting New Clients</span>
+            {% else %}
+              <span class="px-2 py-1 rounded-full bg-[#ECECEC] text-[#666] shadow-sm">Waitlist</span>
+            {% endif %}
+            {% if top_therapist.offers_intro_call %}
+              <span class="px-2 py-1 rounded-full bg-[#DDF4EC] text-[#116466] shadow-sm">Intro Call</span>
+            {% endif %}
+            {% if top_therapist.therapy_delivery_method %}
+              <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#444] shadow-sm">{{ top_therapist.therapy_delivery_method }}</span>
+            {% endif %}
+          </div>
+          <!-- Cost & Finance -->
+          {% if top_therapist.individual_session_cost or top_therapist.couples_session_cost or top_therapist.sliding_scale_pricing_available %}
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs mt-2 text-[#555B6E]">
+            {% if top_therapist.individual_session_cost %}<div><span class="font-semibold">Individual:</span> {{ top_therapist.individual_session_cost }}</div>{% endif %}
+            {% if top_therapist.couples_session_cost %}<div><span class="font-semibold">Couples:</span> {{ top_therapist.couples_session_cost }}</div>{% endif %}
+            {% if top_therapist.sliding_scale_pricing_available %}<div class="px-2 py-0.5 rounded-full bg-[#BEE3DB] text-[10px] font-semibold">Sliding Scale</div>{% endif %}
+            {% if top_therapist.finance_note %}<div class="italic opacity-80">{{ top_therapist.finance_note|truncatechars:60 }}</div>{% endif %}
+          </div>
+          {% endif %}
+          <!-- Types of Therapy -->
+          {% with therapy_types=top_therapist.types_of_therapy.all %}
+            {% if therapy_types %}
+              <div class="flex flex-wrap gap-2 mt-2 text-[11px]">
+                {% for sel in therapy_types|slice:':4' %}
+                  <span class="px-2 py-1 rounded-full bg-[#DDECF9] text-[#32506b] font-medium shadow-sm">{{ sel.therapy_type.name }}</span>
+                {% endfor %}
+                {% if therapy_types|length > 4 %}
+                  <span class="px-2 py-1 rounded-full bg-[#DDECF9] text-[#32506b] font-semibold shadow-sm">+{{ therapy_types|length|add:'-4' }}</span>
+                {% endif %}
+              </div>
+            {% endif %}
+          {% endwith %}
+          <!-- Payment Methods -->
+          {% with pay=top_therapist.accepted_payment_methods.all %}
+            {% if pay %}
+              <div class="flex flex-wrap gap-2 mt-2 text-[10px]">
+                {% for p in pay|slice:':3' %}
+                  <span class="px-2 py-1 rounded-full bg-[#EFEFFD] text-[#444] font-medium shadow-sm">{{ p.payment_method.name }}</span>
+                {% endfor %}
+                {% if pay|length > 3 %}
+                  <span class="px-2 py-1 rounded-full bg-[#EFEFFD] text-[#444] font-semibold shadow-sm">+{{ pay|length|add:'-3' }}</span>
+                {% endif %}
+              </div>
+            {% endif %}
+          {% endwith %}
+          <!-- Insurance Providers -->
+          {% with ins=top_therapist.insurance_details.all %}
+            {% if ins %}
+              <div class="flex flex-wrap gap-2 mt-2 text-[10px]">
+                {% for det in ins|slice:':3' %}
+                  <span class="px-2 py-1 rounded-full bg-[#FFF4D6] text-[#664d16] font-medium shadow-sm">{{ det.provider.name }}</span>
+                {% endfor %}
+                {% if ins|length > 3 %}
+                  <span class="px-2 py-1 rounded-full bg-[#FFF4D6] text-[#664d16] font-semibold shadow-sm">+{{ ins|length|add:'-3' }}</span>
+                {% endif %}
+              </div>
+            {% endif %}
+          {% endwith %}
           <!-- Intro Statement Snippet -->
           {% if top_therapist.intro_statement %}
             <div class="text-sm leading-relaxed max-h-24 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
@@ -76,14 +138,7 @@
           <div class="mt-auto flex flex-wrap items-center gap-4 pt-2">
             <button
               type="button"
-              @click="
-                fetch('/users/api/profile_click/', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ user_id: {{ top_therapist.user.id }} })
-                });
-                $store.profileModal.open({{ top_therapist.user.id }});
-              "
+              @click="fetch('/users/api/profile_click/', {method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: {{ top_therapist.user.id }} })}); $store.profileModal.open({{ top_therapist.user.id }});"
               class="get-started-btn font-semibold rounded-lg px-5 py-2.5 cursor-pointer bg-[#116466] text-white hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition"
             >View Profile</button>
           </div>
@@ -93,64 +148,112 @@
         <div class="font-semibold text-lg mb-1 self-center" style="color: #555B6E;">No therapist available</div>
       {% endif %}
     </div>
-  {# Global modal included at page level; removed here #}
   </div>
+
   <!-- Blog Post Right -->
-  <div class="flex px-4 sm:px-6 md:px-4 flex-col items-center" x-data="{ showBlogModal: false }">
-    <div class="flex flex-col items-center w-full text-center">
-      <h3 class="text-xl font-bold mb-8" style="color: #89B0AE;">Blog Post</h3>
-      <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden mb-4 bg-[#BEE3DB] flex items-center justify-center mx-auto">
-        {% if top_blog_post and top_blog_post.image %}
-          <img src="{{ top_blog_post.image.url }}" alt="{{ top_blog_post.title }}" class="object-cover w-full h-full rounded-lg" />
-        {% else %}
-          <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80" alt="Featured Blog" class="object-cover w-full h-full rounded-lg" />
-        {% endif %}
-      </div>
+  <div class="flex px-0 sm:px-2 md:px-0 flex-col items-stretch h-full" x-data="{ showBlogModal: false }">
+    <div class="flex flex-col w-full h-full">
+      <h3 class="text-xl font-bold mb-8 self-center" style="color: #89B0AE;">Blog Post</h3>
       {% if top_blog_post %}
-        <div class="font-semibold text-lg mb-1" style="color: #555B6E;">{{ top_blog_post.title|truncatechars:40 }}</div>
-        {% with profile=top_blog_post.author.therapistprofile %}
-        <div class="text-xs text-gray-500 mb-2">by {{ profile.first_name }} {{ profile.last_name }}, {{ profile.credentials }}</div>
-        {% endwith %}
-        <p class="text-sm mb-2" style="color: #555B6E;">{{ top_blog_post.content|truncatewords:20|safe }}</p>
-        <button @click="showBlogModal = true" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E] transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #fff;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#fff';">Read Blog</button>
-        <!-- Blog Modal -->
-        <div x-show="showBlogModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5);">
-          <div class="rounded-xl shadow-lg p-0 w-[98vw] max-w-3xl relative overflow-y-auto max-h-[90vh] bg-white" @click.away="showBlogModal = false" style="background-color: #FAF9F9;">
-            <button @click="showBlogModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
-              <span class="sr-only">Close</span>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
-              </svg>
-            </button>
-            <article class="flex flex-col items-center px-6 pt-10 pb-8">
-              <div class="w-full max-w-2xl mx-auto mb-6">
-                {% if top_blog_post.image %}
-                  <img src="{{ top_blog_post.image.url }}" alt="{{ top_blog_post.title }}" class="object-cover w-full h-64 rounded-xl shadow mb-4" />
-                {% else %}
-                  <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80" alt="Featured Blog" class="object-cover w-full h-64 rounded-xl shadow mb-4" />
-                {% endif %}
-              </div>
-              <h2 class="text-3xl font-extrabold mb-2 text-center" style="color: #555B6E;">{{ top_blog_post.title }}</h2>
-              {% with profile=top_blog_post.author.therapistprofile %}
-              <div class="flex items-center justify-center gap-3 mb-4">
-                {% if profile.profile_photo %}
-                  <img src="{{ profile.profile_photo.url }}" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-12 h-12 rounded-full object-cover border-2 border-[#BEE3DB] shadow" />
-                {% else %}
-                  <div class="flex-shrink-0 w-12 h-12 rounded-full bg-[#BEE3DB] flex items-center justify-center text-lg font-bold" style="color: #555B6E;">
-                    {{ profile.first_name|slice:"0:1" }}{{ profile.last_name|slice:"0:1" }}
-                  </div>
-                {% endif %}
-                <div class="text-left">
-                  <div class="font-semibold text-base" style="color: #555B6E;">{{ profile.first_name }} {{ profile.last_name }}</div>
-                  <div class="text-xs text-[#89B0AE] font-medium">{{ profile.credentials }}</div>
-                </div>
-              </div>
-              {% endwith %}
-              <div class="prose prose-lg max-w-none mb-6" style="color: #555B6E;">{{ top_blog_post.content|safe }}</div>
-              <a :href="'/blog/{{ top_blog_post.slug }}'" class="mt-2 px-4 py-2 rounded-full font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E] transition-colors duration-150" style="background-color: #89B0AE; color: #fff;">View Full Blog Post</a>
-            </article>
-          </div>
+  <div class="relative w-full flex flex-col gap-5 rounded-2xl shadow-lg p-6 md:p-8 bg-[#FAF9F9] h-full min-h-[560px]" style="box-shadow:0 4px 18px -4px #555B6E33;">
+        <!-- Banner Image -->
+        <div class="relative w-full h-48 md:h-56 overflow-hidden rounded-xl bg-[#BEE3DB] flex items-center justify-center">
+          {% if top_blog_post.image %}
+            <img src="{{ top_blog_post.image.url }}" alt="{{ top_blog_post.title }}" class="w-full h-full object-cover object-center rounded-xl" loading="lazy" decoding="async" />
+          {% else %}
+            <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=70" alt="Featured Blog" class="w-full h-full object-cover object-center rounded-xl" loading="lazy" decoding="async" />
+          {% endif %}
+          <span class="absolute bottom-2 right-2 bg-[#F5E2D6] text-[#555B6E] px-2.5 py-1 rounded-full text-[10px] font-semibold shadow-sm border border-[#FF9950]/30">Featured</span>
         </div>
+        <!-- Title & Author -->
+        <div class="flex flex-col gap-3">
+          <h4 class="text-2xl font-extrabold leading-snug text-[#555B6E]">{{ top_blog_post.title|truncatechars:70 }}</h4>
+          {% with profile=top_blog_post.author.therapistprofile %}
+          <div class="flex items-center gap-3">
+            {% if profile.profile_photo %}
+              <img src="{{ profile.profile_photo.url }}" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-11 h-11 rounded-full object-cover border-2 border-[#BEE3DB] shadow" />
+            {% else %}
+              <div class="w-11 h-11 rounded-full bg-[#BEE3DB] flex items-center justify-center text-sm font-bold text-[#555B6E]">{{ profile.first_name|slice:"0:1" }}{{ profile.last_name|slice:"0:1" }}</div>
+            {% endif %}
+            <div class="leading-tight">
+              <div class="text-sm font-semibold text-[#555B6E]">{{ profile.first_name }} {{ profile.last_name }}</div>
+              <div class="text-xs text-[#89B0AE] font-medium">{{ profile.credentials }}</div>
+            </div>
+          </div>
+          {% endwith %}
+        </div>
+        <!-- Tags -->
+        {% with tags=top_blog_post.tags.all %}{% if tags %}
+        <div class="flex flex-wrap gap-2 text-[11px] leading-tight">
+          {% for tag in tags %}
+            <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#444] font-medium shadow-sm">{{ tag.name }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}{% endwith %}
+        <!-- Content Snippet -->
+        <div class="text-sm leading-relaxed max-h-28 overflow-hidden relative text-[#555B6E]" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
+          {{ top_blog_post.content|truncatechars_html:420|safe }}
+        </div>
+        <!-- Actions -->
+        <div class="mt-auto flex items-center gap-4 pt-2">
+          <button
+            type="button"
+            @click="showBlogModal = true"
+            class="get-started-btn font-semibold rounded-lg px-5 py-2.5 cursor-pointer bg-[#116466] text-white hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition"
+          >Read Blog</button>
+          <a :href="'/blog/{{ top_blog_post.slug }}'" class="text-sm font-semibold text-[#116466] hover:text-[#0d4c4d] underline-offset-2 hover:underline">Open Full Page</a>
+        </div>
+      </div>
       {% else %}
-        <div class="font-semibold text-lg mb-1" style="color: #555B6E;">No blog post available</div>
+        <div class="font-semibold text-lg mb-1 self-center" style="color: #555B6E;">No blog post available</div>
       {% endif %}
+      <!-- Modal -->
+      {% if top_blog_post %}
+      <div x-show="showBlogModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5);">
+        <div class="rounded-xl shadow-lg p-0 w-[98vw] max-w-3xl relative overflow-y-auto max-h-[90vh] bg-white" @click.away="showBlogModal = false" style="background-color: #FAF9F9;">
+          <button @click="showBlogModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
+            <span class="sr-only">Close</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <article class="flex flex-col items-center px-6 pt-10 pb-8">
+            <div class="w-full max-w-2xl mx-auto mb-6">
+              {% if top_blog_post.image %}
+                <img src="{{ top_blog_post.image.url }}" alt="{{ top_blog_post.title }}" class="object-cover w-full h-64 rounded-xl shadow mb-4" />
+              {% else %}
+                <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=70" alt="Featured Blog" class="object-cover w-full h-64 rounded-xl shadow mb-4" />
+              {% endif %}
+            </div>
+            <h2 class="text-3xl font-extrabold mb-2 text-center" style="color: #555B6E;">{{ top_blog_post.title }}</h2>
+            {% with profile=top_blog_post.author.therapistprofile %}
+            <div class="flex items-center justify-center gap-3 mb-4">
+              {% if profile.profile_photo %}
+                <img src="{{ profile.profile_photo.url }}" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-12 h-12 rounded-full object-cover border-2 border-[#BEE3DB] shadow" />
+              {% else %}
+                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-[#BEE3DB] flex items-center justify-center text-lg font-bold" style="color: #555B6E;">
+                  {{ profile.first_name|slice:"0:1" }}{{ profile.last_name|slice:"0:1" }}
+                </div>
+              {% endif %}
+              <div class="text-left">
+                <div class="font-semibold text-base" style="color: #555B6E;">{{ profile.first_name }} {{ profile.last_name }}</div>
+                <div class="text-xs text-[#89B0AE] font-medium">{{ profile.credentials }}</div>
+              </div>
+            </div>
+            {% endwith %}
+            {% with tags=top_blog_post.tags.all %}{% if tags %}
+            <div class="flex flex-wrap gap-2 mb-4 text-[11px]">
+              {% for tag in tags %}
+                <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#444] font-medium shadow-sm">{{ tag.name }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}{% endwith %}
+            <div class="prose prose-lg max-w-none mb-6" style="color: #555B6E;">{{ top_blog_post.content|safe }}</div>
+            <a :href="'/blog/{{ top_blog_post.slug }}'" class="mt-2 px-5 py-2.5 rounded-lg font-semibold text-sm bg-[#116466] text-white hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition">View Full Blog Post</a>
+          </article>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
 </section>

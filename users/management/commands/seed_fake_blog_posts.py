@@ -2,10 +2,14 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 from django.db import transaction
+from django.db.models import Q
 from faker import Faker
 from users.models_blog import BlogPost, BlogTag
-import random, uuid, requests, tempfile, os
+import random, uuid, requests, tempfile, os, time
 from django.core.files import File
+from django.core.files.base import ContentFile
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 
 fake = Faker()
 User = get_user_model()
@@ -114,17 +118,19 @@ def unique_slug(title: str) -> str:
     return slug
 
 
-def ensure_author():
-    author = User.objects.filter(is_superuser=True).order_by('id').first()
-    if author:
-        return author
-    # fallback: any existing
-    any_user = User.objects.order_by('id').first()
-    if any_user:
-        return any_user
-    # create a seed author
-    email = f"editor.{uuid.uuid4().hex[:6]}@example.com"
-    return User.objects.create_user(username=email, email=email, password="password123")
+def ensure_author_pool(min_size: int = 3):
+    """Return a list of non-superuser authors; create seed authors if none.
+
+    Ensures we NEVER use the admin/superuser account for seeded blog content
+    and provides a small pool so authorship looks varied.
+    """
+    authors = list(User.objects.filter(is_superuser=False).order_by('id'))
+    if not authors:
+        # create a small pool of seed authors
+        for i in range(min_size):
+            email = f"editor{i+1}.{uuid.uuid4().hex[:6]}@example.com"
+            authors.append(User.objects.create_user(username=email, email=email, password="password123"))
+    return authors
 
 
 def ensure_tags(tag_strings):
@@ -144,54 +150,165 @@ class Command(BaseCommand):
         parser.add_argument('--fetch-images', action='store_true', help='Attempt to download and attach topic images')
         parser.add_argument('--publish', action='store_true', help='Mark posts as published')
         parser.add_argument('--seed', type=int, help='Random seed for reproducibility')
+        parser.add_argument('--backfill-missing-images', action='store_true', help='Only fetch images for existing posts that lack one (no new posts created)')
+        parser.add_argument('--image-retries', type=int, default=3, help='Retries per post for fetching an image (with fallbacks)')
+        parser.add_argument('--verbose-images', action='store_true', help='Log per-attempt image fetch details')
+        parser.add_argument('--allow-placeholder', action='store_true', help='Generate a local placeholder if remote image fetch fails')
 
     @transaction.atomic
     def handle(self, *args, **opts):
         count = opts['count']
         purge = opts['purge']
         fetch_images = opts['fetch_images']
+        backfill_only = opts['backfill_missing_images']
         publish = opts['publish']
         seed = opts.get('seed')
+        image_retries = max(1, opts['image_retries'])
+        verbose_images = opts['verbose_images']
+        allow_placeholder = opts['allow_placeholder']
         if seed is not None:
             random.seed(seed); Faker.seed(seed)
         if purge:
-            qs = BlogPost.objects.filter(author__email__icontains='editor.')
+            topic_titles = [t[0] for t in ALL_TOPICS]
+            qs = BlogPost.objects.filter(
+                Q(author__email__icontains='editor.') | Q(title__in=topic_titles)
+            )
             deleted = qs.count()
             qs.delete()
-            self.stdout.write(self.style.WARNING(f"Purged {deleted} existing seeded posts"))
+            self.stdout.write(self.style.WARNING(f"Purged {deleted} existing seeded/topic-matching posts"))
+
+        def generate_placeholder(post, primary_kw):
+            """Create a simple local placeholder (1200x800) with title + keywords text."""
+            try:
+                W, H = 1200, 800
+                img = Image.new('RGB', (W, H), color=(35, 61, 82))
+                draw = ImageDraw.Draw(img)
+                title_text = (post.title[:42] + '…') if len(post.title) > 43 else post.title
+                kw_text = ", ".join(primary_kw[:2])
+                body_text = f"{title_text}\n{kw_text}" if kw_text else title_text
+                try:
+                    font = ImageFont.truetype('Arial.ttf', 50)
+                except Exception:
+                    font = ImageFont.load_default()
+                lines = body_text.split('\n')
+                metrics = []
+                total_h = 0
+                for line in lines:
+                    x0, y0, x1, y1 = draw.textbbox((0,0), line, font=font)
+                    w, h = x1 - x0, y1 - y0
+                    metrics.append((line, w, h))
+                    total_h += h + 12
+                y = (H - total_h)//2
+                for line, w, h in metrics:
+                    x = (W - w)//2
+                    draw.text((x, y), line, fill=(255,255,255), font=font)
+                    y += h + 12
+                bio = BytesIO()
+                img.save(bio, format='JPEG', quality=85)
+                return ContentFile(bio.getvalue(), name=f"blog_{post.slug}_ph.jpg")
+            except Exception as e:
+                if verbose_images:
+                    self.stdout.write(f"    Placeholder generation failed: {e}")
+            return None
+
+        def fetch_and_attach_image(post, primary_kw, secondary_kw):
+            if not fetch_images or post.image:
+                return False
+            attempt = 0
+            kw_pairs = []
+            base_primary = primary_kw[:2]
+            base_secondary = secondary_kw[:2]
+            if base_primary:
+                kw_pairs.append(base_primary)
+            if base_primary and base_secondary:
+                kw_pairs.append([base_primary[0], base_secondary[0]])
+            kw_pairs.append(IMAGE_QUERY_FALLBACKS[:2])
+            saved = False
+            while attempt < image_retries and not saved:
+                attempt += 1
+                pair = kw_pairs[min(attempt-1, len(kw_pairs)-1)]
+                img_url = pick_image_url(pair, [])
+                headers = {'User-Agent': 'Mozilla/5.0 (compatible; TCSeedBot/1.0)', 'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'}
+                try:
+                    resp = requests.get(img_url, timeout=25, headers=headers)
+                    ctype = resp.headers.get('Content-Type','')
+                    ok = resp.status_code == 200 and ctype.startswith('image') and resp.content and len(resp.content) > 1024
+                    if verbose_images:
+                        self.stdout.write(f"    Image attempt {attempt} url={img_url} status={resp.status_code} ctype={ctype} ok={ok}")
+                    if ok:
+                        tmp = tempfile.NamedTemporaryFile(delete=True, suffix='.jpg')
+                        tmp.write(resp.content)
+                        tmp.flush()
+                        post.image.save(f"blog_{post.slug}.jpg", File(tmp), save=True)
+                        saved = True
+                        break
+                except Exception as e:
+                    if verbose_images:
+                        self.stdout.write(f"    Image attempt {attempt} exception: {e}")
+                time.sleep(0.35)
+            if not saved:
+                # Picsum direct fallback
+                try:
+                    picsum_url = f"https://picsum.photos/seed/{uuid.uuid4().hex[:8]}/1200/800.jpg"
+                    resp = requests.get(picsum_url, timeout=15)
+                    ctype = resp.headers.get('Content-Type','')
+                    if verbose_images:
+                        self.stdout.write(f"    Picsum fallback status={resp.status_code} ctype={ctype}")
+                    if resp.status_code == 200 and ctype.startswith('image') and len(resp.content) > 1024:
+                        tmp = tempfile.NamedTemporaryFile(delete=True, suffix='.jpg')
+                        tmp.write(resp.content)
+                        tmp.flush()
+                        post.image.save(f"blog_{post.slug}.jpg", File(tmp), save=True)
+                        saved = True
+                except Exception as e:
+                    if verbose_images:
+                        self.stdout.write(f"    Picsum fallback exception: {e}")
+            if not saved and allow_placeholder:
+                ph = generate_placeholder(post, primary_kw)
+                if ph:
+                    post.image.save(ph.name, ph, save=True)
+                    saved = True
+                    if verbose_images:
+                        self.stdout.write("    Used generated placeholder image")
+            if not saved and verbose_images:
+                self.stdout.write(self.style.WARNING(f"    Failed image fetch for {post.slug}"))
+            return saved
+
+        if backfill_only:
+            if not fetch_images:
+                self.stdout.write(self.style.ERROR("--backfill-missing-images requires --fetch-images"))
+                return
+            imageless = (BlogPost.objects.filter(image='') | BlogPost.objects.filter(image__isnull=True)).order_by('-created_at')
+            processed = 0
+            success = 0
+            for post in imageless[:count]:
+                tags = list(post.tags.values_list('name', flat=True))
+                primary_kw = tags[:2] or IMAGE_QUERY_FALLBACKS[:2]
+                secondary_kw = tags[2:4]
+                if fetch_and_attach_image(post, primary_kw, secondary_kw):
+                    success += 1
+                processed += 1
+            self.stdout.write(self.style.SUCCESS(f"Backfill complete. processed={processed} images_added={success}"))
+            return
+
         topics = list(ALL_TOPICS)
         random.shuffle(topics)
         if count < len(topics):
             topics = topics[:count]
-        author = ensure_author()
+        authors = ensure_author_pool()
         created = 0
-        for idx, (title, primary_kw, secondary_kw) in enumerate(topics, start=1):
+        img_success = 0
+        for (title, primary_kw, secondary_kw) in topics:
             slug = unique_slug(title)
             keywords_display = ", ".join(primary_kw[:2])
             concepts = ", ".join(secondary_kw)
             content = build_content(title, keywords_display, concepts)
-            post = BlogPost.objects.create(
-                title=title,
-                slug=slug,
-                content=content,
-                author=author,
-                published=publish,
-            )
-            # Tags: combine primary and a subset of secondary
-            tag_objs = ensure_tags(primary_kw + secondary_kw[:2])
-            post.tags.set(tag_objs)
-            if fetch_images:
-                try:
-                    img_url = pick_image_url(primary_kw, secondary_kw)
-                    resp = requests.get(img_url, timeout=20)
-                    if resp.status_code == 200 and resp.headers.get('Content-Type','').startswith('image'):
-                        tmp = tempfile.NamedTemporaryFile(delete=True, suffix='.jpg')
-                        tmp.write(resp.content)
-                        tmp.flush()
-                        post.image.save(f"blog_{slug}.jpg", File(tmp), save=True)
-                except Exception as e:
-                    self.stdout.write(self.style.WARNING(f"Image fetch failed for {slug}: {e}"))
+            post_author = random.choice(authors)
+            post = BlogPost.objects.create(title=title, slug=slug, content=content, author=post_author, published=publish)
+            post.tags.set(ensure_tags(primary_kw + secondary_kw[:2]))
+            if fetch_and_attach_image(post, primary_kw, secondary_kw):
+                img_success += 1
             created += 1
             if created % 5 == 0 or created == count:
-                self.stdout.write(f"  Created {created}/{count}")
-        self.stdout.write(self.style.SUCCESS(f"Done. created={created}"))
+                self.stdout.write(f"  Created {created}/{count} (images={img_success})")
+        self.stdout.write(self.style.SUCCESS(f"Done. created={created} images_saved={img_success}"))
