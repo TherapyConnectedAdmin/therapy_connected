@@ -1,4 +1,5 @@
 {% load location_extras %}
+{% load therapist_extras %}
 
 <section class="w-full grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 items-start justify-center py-0" x-data="{}">
   <!-- Therapist Left -->
@@ -10,9 +11,18 @@
         <!-- Image Column (smaller portrait) -->
         <div class="relative flex-shrink-0 w-32 h-48 md:w-40 md:h-56 overflow-hidden rounded-xl">
           {% if top_therapist.profile_photo %}
-            <img src="{{ top_therapist.profile_photo.url }}" alt="{{ top_therapist.first_name }} {{ top_therapist.last_name }}" class="w-full h-full object-cover object-center rounded-xl" />
+            {% profile_photo_srcset top_therapist 'webp' as ss_webp %}
+            {% profile_photo_srcset top_therapist 'jpg' as ss_jpg %}
+            {% if ss_webp or ss_jpg %}
+              <picture>
+                <source type="image/webp" srcset="{{ ss_webp }}" sizes="160px">
+                <img src="{% profile_photo_variant top_therapist 'medium' 'jpg' %}" srcset="{{ ss_jpg }}" sizes="160px" alt="{{ top_therapist.first_name }} {{ top_therapist.last_name }}" class="w-full h-full object-cover object-center rounded-xl" loading="lazy" decoding="async" />
+              </picture>
+            {% else %}
+              <img src="{{ top_therapist.profile_photo.url }}" alt="{{ top_therapist.first_name }} {{ top_therapist.last_name }}" class="w-full h-full object-cover object-center rounded-xl" loading="lazy" decoding="async" />
+            {% endif %}
           {% else %}
-            <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="Therapist" class="w-full h-full object-cover object-center rounded-xl" />
+            <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="Therapist" class="w-full h-full object-cover object-center rounded-xl" loading="lazy" decoding="async" />
           {% endif %}
           {% if top_therapist.distance is not None %}
             <span class="absolute top-2 left-2 bg-[#F5E2D6] text-[#555B6E] px-2.5 py-1 rounded-full text-[10px] font-semibold shadow-sm border border-[#FF9950]/30">{{ top_therapist.distance }} mi</span>
@@ -30,7 +40,11 @@
                 <div class="text-sm font-semibold mt-0.5 text-[#555B6E]">{{ primary.practice_name }}</div>
               {% endif %}
               <div class="text-xs opacity-80 text-[#555B6E]">
-                {% if primary %}{{ primary.city }}, {{ primary.state }}{% endif %}
+                {% if top_therapist.closest_location %}
+                  {{ top_therapist.closest_location.city }}, {{ top_therapist.closest_location.state }}
+                {% elif primary %}
+                  {{ primary.city }}, {{ primary.state }}
+                {% endif %}
               </div>
             {% endwith %}
             {% if top_therapist.credentials_note %}

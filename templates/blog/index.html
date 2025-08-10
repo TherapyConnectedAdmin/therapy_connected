@@ -42,13 +42,33 @@
       {% for post in page_obj %}
       <a href="{% url 'blog_detail' slug=post.slug %}" class="block rounded-2xl shadow-lg p-10 sm:p-14 mx-auto transition-transform hover:-translate-y-1 hover:shadow-xl" style="background-color: #FAF9F9; color: #555B6E; width: 75%; min-width: 280px; max-width: 900px;">
         {% if post.image %}
-        <img src="{{ post.image.url }}" alt="{{ post.title }}" class="w-full h-48 object-cover rounded mb-4" />
+          {% load therapist_extras %}
+          {% image_srcset post 'webp' as post_ss_webp %}
+          {% image_srcset post 'jpg' as post_ss_jpg %}
+          {% if post_ss_webp or post_ss_jpg %}
+            <picture>
+              <source type="image/webp" srcset="{{ post_ss_webp }}" sizes="(max-width: 800px) 100vw, 600px">
+              <img src="{% image_variant post 'medium' 'jpg' %}" srcset="{{ post_ss_jpg }}" sizes="(max-width: 800px) 100vw, 600px" alt="{{ post.title }}" class="w-full h-48 object-cover rounded mb-4" loading="lazy" decoding="async" />
+            </picture>
+          {% else %}
+            <img src="{{ post.image.url }}" alt="{{ post.title }}" class="w-full h-48 object-cover rounded mb-4" loading="lazy" decoding="async" />
+          {% endif %}
         {% endif %}
         <h3 class="text-2xl font-bold mb-4" style="color: #555B6E;">{{ post.title }}</h3>
+        {% load therapist_extras %}
         {% with profile=post.author.therapistprofile %}
         <div class="flex items-center gap-4 mb-4">
           {% if profile.profile_photo %}
-            <img src="{{ profile.profile_photo.url }}" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-12 h-12 rounded-full object-cover border-2 border-[#BEE3DB]" />
+            {% profile_photo_srcset profile 'webp' as ss_webp %}
+            {% profile_photo_srcset profile 'jpg' as ss_jpg %}
+            {% if ss_webp or ss_jpg %}
+              <picture>
+                <source type="image/webp" srcset="{{ ss_webp }}" sizes="48px">
+                <img src="{% profile_photo_variant profile 'thumb' 'jpg' %}" srcset="{{ ss_jpg }}" sizes="48px" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-12 h-12 rounded-full object-cover border-2 border-[#BEE3DB]" loading="lazy" decoding="async" />
+              </picture>
+            {% else %}
+              <img src="{{ profile.profile_photo.url }}" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-12 h-12 rounded-full object-cover border-2 border-[#BEE3DB]" loading="lazy" decoding="async" />
+            {% endif %}
           {% else %}
             <div class="flex-shrink-0 w-12 h-12 rounded-full bg-[#BEE3DB] flex items-center justify-center text-xl font-bold" style="color: #555B6E;">
               {{ profile.first_name|slice:":1" }}{{ profile.last_name|slice:":1" }}

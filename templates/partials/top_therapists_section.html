@@ -10,9 +10,18 @@
         <!-- Image -->
         <div class="relative w-full h-48 overflow-hidden">
           {% if therapist.profile_photo %}
-            <img src="{{ therapist.profile_photo.url }}" alt="{{ therapist.first_name }} {{ therapist.last_name }}" class="w-full h-full object-cover object-center" />
+            {% profile_photo_srcset therapist 'webp' as ss_webp %}
+            {% profile_photo_srcset therapist 'jpg' as ss_jpg %}
+            {% if ss_webp or ss_jpg %}
+              <picture>
+                <source type="image/webp" srcset="{{ ss_webp }}" sizes="(max-width:640px) 160px, (max-width:1024px) 400px, 800px">
+                <img src="{% profile_photo_variant therapist 'medium' 'jpg' %}" srcset="{{ ss_jpg }}" sizes="(max-width:640px) 160px, (max-width:1024px) 400px, 800px" alt="{{ therapist.first_name }} {{ therapist.last_name }}" class="w-full h-full object-cover object-center" loading="lazy" decoding="async" />
+              </picture>
+            {% else %}
+              <img src="{{ therapist.profile_photo.url }}" alt="{{ therapist.first_name }} {{ therapist.last_name }}" class="w-full h-full object-cover object-center" loading="lazy" decoding="async" />
+            {% endif %}
           {% else %}
-            <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="Therapist" class="w-full h-full object-cover object-center" />
+            <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="Therapist" class="w-full h-full object-cover object-center" loading="lazy" decoding="async" />
           {% endif %}
           {% if therapist.distance is not None %}
             <span class="absolute top-3 left-3 bg-[#F5E2D6] text-[#555B6E] px-3 py-1 rounded-full text-[11px] font-semibold shadow-sm border border-[#FF9950]/30">{{ therapist.distance }} mi</span>
@@ -30,7 +39,11 @@
                 <div class="text-sm font-semibold mt-0.5 text-[#555B6E]">{{ primary.practice_name }}</div>
               {% endif %}
               <div class="text-xs opacity-80 text-[#555B6E]">
-                {% if primary %}{{ primary.city }}, {{ primary.state }}{% endif %}
+                {% if therapist.closest_location %}
+                  {{ therapist.closest_location.city }}, {{ therapist.closest_location.state }}
+                {% elif primary %}
+                  {{ primary.city }}, {{ primary.state }}
+                {% endif %}
               </div>
             {% endwith %}
             {% if therapist.credentials_note %}

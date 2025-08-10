@@ -1,4 +1,5 @@
 {% load location_extras %}
+{% load therapist_extras %}
 {# Redesigned Therapist Card: Portrait image column + content + chips + distance overlay #}
 <div x-data="{}" class="relative rounded-2xl shadow-lg mb-10 mx-auto overflow-hidden flex flex-col md:flex-row md:h-[360px]" style="background-color:#FAF9F9; color:#555B6E; width:80%; min-width:280px; max-width:1100px;">
   {# IMAGE COLUMN (reduced size) #}
@@ -6,9 +7,18 @@
     {% comment %}Image fills column height via flex + object-cover. Use a wrapper to constrain max height to avoid extreme portrait stretching.{% endcomment %}
   <div class="w-full h-56 md:h-full md:min-h-full overflow-hidden">
       {% if therapist.profile_photo %}
-  <img src="{{ therapist.profile_photo.url }}" alt="Portrait of {{ therapist.first_name }} {{ therapist.last_name }}" class="w-full h-full object-cover object-center md:rounded-l-2xl" style="min-height:100%;" />
+        {% profile_photo_srcset therapist 'webp' as ss_webp %}
+        {% profile_photo_srcset therapist 'jpg' as ss_jpg %}
+        {% if ss_webp or ss_jpg %}
+          <picture>
+            <source type="image/webp" srcset="{{ ss_webp }}" sizes="(max-width:640px) 160px, (max-width:1024px) 600px, 1200px">
+            <img src="{% profile_photo_variant therapist 'medium' 'jpg' %}" srcset="{{ ss_jpg }}" sizes="(max-width:640px) 160px, (max-width:1024px) 600px, 1200px" alt="Portrait of {{ therapist.first_name }} {{ therapist.last_name }}" class="w-full h-full object-cover object-center md:rounded-l-2xl" style="min-height:100%;" loading="lazy" decoding="async" />
+          </picture>
+        {% else %}
+          <img src="{{ therapist.profile_photo.url }}" alt="Portrait of {{ therapist.first_name }} {{ therapist.last_name }}" class="w-full h-full object-cover object-center md:rounded-l-2xl" style="min-height:100%;" loading="lazy" decoding="async" />
+        {% endif %}
       {% else %}
-  <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="Placeholder portrait for {{ therapist.first_name }} {{ therapist.last_name }}" class="w-full h-full object-cover object-center md:rounded-l-2xl" style="min-height:100%;" />
+        <img src="https://randomuser.me/api/portraits/lego/1.jpg" alt="Placeholder portrait for {{ therapist.first_name }} {{ therapist.last_name }}" class="w-full h-full object-cover object-center md:rounded-l-2xl" style="min-height:100%;" loading="lazy" decoding="async" />
       {% endif %}
     </div>
     {% if therapist.distance is not None %}
@@ -24,12 +34,17 @@
         {% if therapist.license_type %}<span class="text-base font-semibold" style="color:#116466;">{{ therapist.license_type.name }}</span>{% endif %}
       </h3>
       {% with primary=therapist.locations.all|get_primary_location %}
-        {% if primary and primary.practice_name %}
-          <div class="text-sm font-semibold mt-0.5">{{ primary.practice_name }}</div>
+        {% if therapist.closest_location %}
+          {% if primary and primary.practice_name %}
+            <div class="text-sm font-semibold mt-0.5">{{ primary.practice_name }}</div>
+          {% endif %}
+          <div class="text-xs opacity-80">{{ therapist.closest_location.city }}, {{ therapist.closest_location.state }}</div>
+        {% else %}
+          {% if primary and primary.practice_name %}
+            <div class="text-sm font-semibold mt-0.5">{{ primary.practice_name }}</div>
+          {% endif %}
+          <div class="text-xs opacity-80">{% if primary %}{{ primary.city }}, {{ primary.state }}{% endif %}</div>
         {% endif %}
-        <div class="text-xs opacity-80">
-          {% if primary %}{{ primary.city }}, {{ primary.state }}{% endif %}
-        </div>
       {% endwith %}
       {% if therapist.credentials_note %}
         <div class="mt-2 text-sm font-medium" style="color:#89B0AE;">{{ therapist.credentials_note }}</div>

@@ -156,6 +156,8 @@ class TherapistProfile(models.Model):
     finance_note = models.CharField(max_length=128, blank=True)
     credentials_note = models.TextField(max_length=500, blank=True)
     profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
+    # Stores generated variant metadata for profile_photo (paths, flags, dimensions, quality metrics)
+    profile_photo_meta = models.JSONField(blank=True, null=True, default=dict)
     practice_website_url = models.CharField(max_length=256, blank=True)
     facebook_url = models.CharField(max_length=256, blank=True)
     instagram_url = models.CharField(max_length=256, blank=True)
@@ -176,6 +178,27 @@ class TherapistProfile(models.Model):
     age_groups = models.ManyToManyField('AgeGroup', related_name='therapists', blank=True)
     def __str__(self):
         return f"{self.first_name} {self.last_name}".strip()
+
+    # Convenience flag helpers (robust against missing meta)
+    @property
+    def photo_flags(self):
+        return (self.profile_photo_meta or {}).get('flags', [])
+
+    @property
+    def photo_is_low_res(self):
+        return 'low_res' in self.photo_flags
+
+    @property
+    def photo_is_blurry(self):
+        return 'blurry' in self.photo_flags
+
+    @property
+    def photo_is_rejected(self):
+        return 'rejected' in self.photo_flags
+
+    @property
+    def photo_pipeline_version(self):
+        return (self.profile_photo_meta or {}).get('pipeline_version')
 
 # Credential model for multi-value therapist credentials
 class Credential(models.Model):
@@ -206,6 +229,15 @@ class Location(models.Model):
     # ...phone and email fields removed, only on TherapistProfile...
     def __str__(self):
         return f"{self.practice_name} ({self.city}, {self.state})"
+
+# ZipCode reference model for distance calculations (seeded via management command)
+class ZipCode(models.Model):
+    zip = models.CharField(max_length=5, primary_key=True)
+    city = models.CharField(max_length=64)
+    state = models.CharField(max_length=2, db_index=True)
+    latitude = models.DecimalField(max_digits=8, decimal_places=5)
+    longitude = models.DecimalField(max_digits=8, decimal_places=5)
+    def __str__(self): return f"{self.zip} ({self.city}, {self.state})"
 
 
 class Education(models.Model):
@@ -275,6 +307,7 @@ class GalleryImage(models.Model):
     therapist = models.ForeignKey('TherapistProfile', on_delete=models.CASCADE, related_name='gallery_images')
     image = models.ImageField(upload_to='gallery/')
     caption = models.CharField(max_length=128, blank=True)
+    image_meta = models.JSONField(blank=True, null=True, default=dict)
     def __str__(self): return self.caption or str(self.image)
 
 class InsuranceDetail(models.Model):

@@ -87,15 +87,67 @@ class LicenseTypeInline(admin.TabularInline):
     extra = 0
 
 # TherapistProfile admin customization
+class PhotoFlagFilter(admin.SimpleListFilter):
+    title = 'photo flag'
+    parameter_name = 'photo_flag'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('low_res', 'Low Res'),
+            ('blurry', 'Blurry'),
+            ('rejected', 'Rejected'),
+        ]
+
+    def queryset(self, request, queryset):
+        val = self.value()
+        if val:
+            # JSON list contains lookup
+            return queryset.filter(profile_photo_meta__flags__contains=[val])
+        return queryset
+
+
+class PhotoPipelineVersionFilter(admin.SimpleListFilter):
+    title = 'photo pipeline version'
+    parameter_name = 'photo_pipeline_version'
+
+    def lookups(self, request, model_admin):
+        qs = model_admin.get_queryset(request).exclude(profile_photo_meta__pipeline_version__isnull=True)
+        versions = sorted({m.profile_photo_meta.get('pipeline_version') for m in qs if isinstance(m.profile_photo_meta, dict) and m.profile_photo_meta.get('pipeline_version') is not None})
+        return [(str(v), f"v{v}") for v in versions]
+
+    def queryset(self, request, queryset):
+        v = self.value()
+        if v is not None:
+            return queryset.filter(profile_photo_meta__pipeline_version=int(v))
+        return queryset
+
+
 class TherapistProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'first_name', 'last_name', 'onboarding_status_display')
-    list_filter = ()
+    list_display = (
+        'user', 'first_name', 'last_name', 'onboarding_status_display',
+        'photo_low_res', 'photo_blurry', 'photo_rejected', 'photo_pipeline_version'
+    )
+    list_filter = (PhotoFlagFilter, PhotoPipelineVersionFilter)
     search_fields = ('user__email', 'user__first_name', 'user__last_name')
-    # No filter_horizontal fields since none are valid ManyToMany fields on TherapistProfile
 
     def onboarding_status_display(self, obj):
         return format_html('<span>{}</span>', obj.user.onboarding_status)
     onboarding_status_display.short_description = 'Onboarding Status'
+
+    def photo_low_res(self, obj):
+        return obj.photo_is_low_res
+    photo_low_res.boolean = True
+    def photo_blurry(self, obj):
+        return obj.photo_is_blurry
+    photo_blurry.boolean = True
+    def photo_rejected(self, obj):
+        return obj.photo_is_rejected
+    photo_rejected.boolean = True
+    def photo_pipeline_version(self, obj):
+        return obj.photo_pipeline_version
+
+admin.site.unregister(TherapistProfile)
+admin.site.register(TherapistProfile, TherapistProfileAdmin)
 
 #############################################
 # Lookup purge actions (operate across lookups)

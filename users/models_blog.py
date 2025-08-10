@@ -15,6 +15,7 @@ class BlogPost(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     published = models.BooleanField(default=False)
     image = models.ImageField(upload_to='blog_images/', blank=True, null=True)
+    image_meta = models.JSONField(blank=True, null=True, default=dict)
     tags = models.ManyToManyField(BlogTag, blank=True)
 
     class Meta:

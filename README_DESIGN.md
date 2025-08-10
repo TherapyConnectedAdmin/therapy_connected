@@ -45,3 +45,40 @@ Use inline `style` attributes or extend Tailwind config for these colors as need
 ---
 
 Use these guidelines and Tailwind utility classes for a clean, modern, and consistent UI. See the [Tailwind CSS documentation](https://tailwindcss.com/docs) for more options and best practices.
+
+---
+
+## Data Seeding & Location / Distance Architecture
+
+### Zip Codes
+The application maintains a local `ZipCode` table (zip, city, state, latitude, longitude) enabling fast distance calculations without external API calls.
+
+Loading strategies:
+1. Full national load (recommended):
+```
+python manage.py seed_zipcodes_full --truncate
+```
+Ingests ~42k ZIP rows from the `uszipcode` package's bundled SQLite dataset (`comprehensive_zipcode`). Progress prints every 10k.
+
+2. Partial load for faster dev cycles:
+```
+python manage.py seed_zipcodes_full --truncate --limit=2000
+```
+3. Minimal legacy sample CSV (quick smoke tests):
+```
+python manage.py seed_zipcodes --truncate --limit=200
+```
+
+Dynamic enrichment: When a user sets a ZIP not present, `ensure_zipcode()` (in `users/location_utils.py`) attempts on-demand lookup via `uszipcode` and inserts it.
+
+Indexing: Migration `0007_zipcode_state_index` adds an index on `ZipCode.state` for future state-level filters.
+
+### Fake Therapist Generation
+`scripts/generate_fake_therapists.py` now sources real city/state/zip combinations directly from the populated `ZipCode` table. Seed ZIPs first, then:
+```
+python manage.py shell < scripts/generate_fake_therapists.py
+```
+If the table is empty the script raises a clear error.
+
+### Distance Calculations
+All distance logic (therapist listing, home page, geo endpoint) uses local data + Haversine great-circle distance. `geo_zip` now returns the nearest stored ZIP (no external API call). Future optimization: spatial index or region bucketing for large-scale queries.

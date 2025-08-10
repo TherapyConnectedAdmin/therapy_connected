@@ -47,43 +47,16 @@ def therapists_page(request):
     # Distance-based default ordering and filtering
     if user_zip:
         try:
-            # Updated for current uszipcode API (no simple_zipcode kwarg)
-            from uszipcode import SearchEngine
             import math, re
-            # Simple dataset (default) first
-            search_simple = SearchEngine()
-            # Comprehensive dataset for fallback when a given zip has no coords in simple DB
-            search_full = SearchEngine(simple_or_comprehensive=SearchEngine.SimpleOrComprehensiveArgEnum.comprehensive)
-
-            user_zip_norm = re.match(r"\d{5}", user_zip or "")
-            user_zip_clean = user_zip_norm.group(0) if user_zip_norm else user_zip
-            user_zip_obj = search_simple.by_zipcode(user_zip_clean)
-            if not (getattr(user_zip_obj, 'lat', None) and getattr(user_zip_obj, 'lng', None)):
-                user_zip_obj_full = search_full.by_zipcode(user_zip_clean)
-                if user_zip_obj_full and user_zip_obj_full.lat and user_zip_obj_full.lng:
-                    user_zip_obj = user_zip_obj_full
-
-            zip_cache = {}
-
-            def get_latlng(z):
-                if not z:
-                    return None
-                m = re.match(r"\d{5}", str(z))
-                if not m:
-                    return None
-                z5 = m.group(0)
-                if z5 in zip_cache:
-                    return zip_cache[z5]
-                zobj = search_simple.by_zipcode(z5)
-                if (not zobj or not zobj.lat or not zobj.lng):
-                    zobj_full = search_full.by_zipcode(z5)
-                    if zobj_full and zobj_full.lat and zobj_full.lng:
-                        zobj = zobj_full
-                if zobj and zobj.lat and zobj.lng:
-                    zip_cache[z5] = (zobj.lat, zobj.lng)
-                else:
-                    zip_cache[z5] = None
-                return zip_cache[z5]
+            from users.models_profile import ZipCode
+            user_zip_clean = re.match(r"\d{5}", user_zip or "")
+            user_zip_clean = user_zip_clean.group(0) if user_zip_clean else user_zip
+            user_zip_row = ZipCode.objects.filter(pk=user_zip_clean).first()
+            if not user_zip_row:
+                raise ValueError('User ZIP not found in ZipCode table')
+            # Preload all distinct location zips appearing in queryset
+            location_zips = set(therapists.values_list('locations__zip', flat=True))
+            zip_rows = {z.zip: z for z in ZipCode.objects.filter(zip__in=location_zips)}
 
             def haversine(lat1, lon1, lat2, lon2):
                 R = 3958.8
@@ -96,31 +69,31 @@ def therapists_page(request):
                 return R * c
 
             def compute_min_distance(therapist):
-                if not user_zip_obj or not getattr(user_zip_obj, 'lat', None) or not getattr(user_zip_obj, 'lng', None):
-                    return None
                 min_d = None
+                nearest_loc = None
                 for loc in therapist.locations.all():
-                    ll = get_latlng(getattr(loc, 'zip', None))
-                    if ll and ll[0] and ll[1]:
-                        d = haversine(user_zip_obj.lat, user_zip_obj.lng, ll[0], ll[1])
+                    zr = zip_rows.get(getattr(loc, 'zip', None))
+                    if zr:
+                        d = haversine(float(user_zip_row.latitude), float(user_zip_row.longitude), float(zr.latitude), float(zr.longitude))
                         if min_d is None or d < min_d:
                             min_d = d
+                            nearest_loc = loc
+                if nearest_loc is not None:
+                    # Attach for template usage (city/state display of closest location)
+                    therapist.closest_location = nearest_loc
                 return round(min_d, 1) if min_d is not None else None
 
             therapists = list(therapists.distinct())
             for t in therapists:
                 t.distance = compute_min_distance(t)
-
             therapists.sort(key=lambda t: t.distance if t.distance is not None else float('inf'))
-
-            RADIUS = 150  # miles
+            RADIUS = 150
             within_radius = [t for t in therapists if t.distance is not None and t.distance <= RADIUS]
             if len(within_radius) >= 150:
                 therapists = within_radius
             else:
                 therapists = (within_radius + [t for t in therapists if t not in within_radius])[:150]
-        except Exception as e:
-            # Capture the exception reason in DEBUG via attaching attribute (optional)
+        except Exception:
             therapists = list(therapists.distinct().order_by('-user__last_login')[:150])
             for t in therapists:
                 t.distance = None
@@ -166,12 +139,11 @@ def therapists_page(request):
     user_zip_state = None
     if user_zip:
         try:
-            from uszipcode import SearchEngine
-            search_meta = SearchEngine()
-            meta_obj = search_meta.by_zipcode(user_zip)
-            if meta_obj:
-                user_zip_city = getattr(meta_obj, 'major_city', None) or getattr(meta_obj, 'post_office_city', None) or getattr(meta_obj, 'city', None)
-                user_zip_state = getattr(meta_obj, 'state', None)
+            from users.models_profile import ZipCode
+            zrow = ZipCode.objects.filter(pk=user_zip[:5]).first()
+            if zrow:
+                user_zip_city = zrow.city
+                user_zip_state = zrow.state
         except Exception:
             pass
     return render(request, 'therapists.html', {
@@ -187,46 +159,33 @@ def therapists_page(request):
 def set_zip(request):
     zip_code = request.GET.get('zip')
     if zip_code:
-        request.session['user_zip'] = zip_code
-        return JsonResponse({'status': 'ok', 'zip': zip_code})
+        # Ensure we have the ZIP stored (dynamic enrichment if missing)
+        try:
+            from users.location_utils import ensure_zipcode
+            ensure_zipcode(zip_code)
+        except Exception:
+            pass
+        request.session['user_zip'] = zip_code[:5]
+        return JsonResponse({'status': 'ok', 'zip': zip_code[:5]})
     return JsonResponse({'status': 'error', 'message': 'No zip provided'}, status=400)
 
 def geo_zip(request):
-    """Return nearest ZIP for provided lat/lon using uszipcode SearchEngine."""
+    """Return nearest stored ZIP for provided lat/lon using local ZipCode table.
+    If table is empty returns 404. (Future: add bounding-box prefilter or spatial index.)
+    """
     try:
-        lat_raw = request.GET.get('lat', '')
-        lng_raw = request.GET.get('lng', '')
-        lat = float(lat_raw)
-        lng = float(lng_raw)
+        lat = float(request.GET.get('lat', ''))
+        lng = float(request.GET.get('lng', ''))
     except (TypeError, ValueError):
         return JsonResponse({'status': 'error', 'message': 'Invalid coordinates'}, status=400)
     try:
-        from uszipcode import SearchEngine
-        debug = []
-        try:
-            search_simple = SearchEngine()
-            results = search_simple.by_coordinates(lat, lng, radius=40, returns=10) or []
-            debug.append(f"simple_results={len(results)}")
-        except Exception as e1:
-            results = []
-            debug.append(f"simple_err={e1.__class__.__name__}")
-        if not results:
-            try:
-                search_full = SearchEngine(simple_or_comprehensive=SearchEngine.SimpleOrComprehensiveArgEnum.comprehensive)
-                results = search_full.by_coordinates(lat, lng, radius=60, returns=10) or []
-                debug.append(f"full_results={len(results)}")
-            except Exception as e2:
-                debug.append(f"full_err={e2.__class__.__name__}")
-        # Pick first with zipcode
-        for z in results:
-            for attr in ("zipcode", "zip"):
-                zc = getattr(z, attr, None)
-                if zc:
-                    return JsonResponse({'status': 'ok', 'zip': zc})
-        payload = {'status': 'error', 'message': 'No ZIP found for coordinates'}
-        if getattr(settings, 'DEBUG', False):
-            payload['debug'] = debug
-        return JsonResponse(payload, status=404)
+        from users.location_utils import nearest_zip_from_coordinates, ensure_zipcode
+        zc = nearest_zip_from_coordinates(lat, lng)
+        if not zc:
+            return JsonResponse({'status': 'error', 'message': 'No stored ZIPs'}, status=404)
+        # Defensive: ensure_zipcode (no-op if exists)
+        ensure_zipcode(zc)
+        return JsonResponse({'status': 'ok', 'zip': zc})
     except Exception as e:
         payload = {'status': 'error', 'message': 'Lookup failed'}
         if getattr(settings, 'DEBUG', False):
@@ -235,8 +194,11 @@ def geo_zip(request):
 
 
 def home(request):
+    """Home page view that now attaches closest_location similar to therapists_page.
+    Shows top therapists (max 6) ordered by distance if user_zip known.
+    """
     user_zip = request.session.get('user_zip')
-    DEFAULT_ZIP = "10001"  # Set your default zip code here
+    DEFAULT_ZIP = "10001"
     if not user_zip:
         user_zip = DEFAULT_ZIP
         user_zip_is_default = True
@@ -244,7 +206,9 @@ def home(request):
         user_zip_is_default = False
 
     query = request.GET.get('q', '').strip()
-    therapists = TherapistProfile.objects.filter(user__is_active=True, user__onboarding_status='active')
+    therapists = (TherapistProfile.objects
+                  .filter(user__is_active=True, user__onboarding_status='active')
+                  .prefetch_related('locations'))
     if query:
         from users.utils.state_normalize import normalize_state
         normalized_query = normalize_state(query)
@@ -262,12 +226,12 @@ def home(request):
         )
         therapists = therapists.filter(q_obj)
 
-    from uszipcode import SearchEngine
-    import math
-    from users.location_utils import get_primary_location
-    search_simple = SearchEngine()
-    search_full = SearchEngine(simple_or_comprehensive=SearchEngine.SimpleOrComprehensiveArgEnum.comprehensive)
-    user_zip_obj = search_simple.by_zipcode(user_zip) or search_full.by_zipcode(user_zip)
+    import math, re
+    from users.models_profile import ZipCode
+    # Clean user zip & fetch row
+    user_zip_clean = re.match(r"\d{5}", user_zip or "")
+    user_zip_clean = user_zip_clean.group(0) if user_zip_clean else user_zip
+    user_zip_row = ZipCode.objects.filter(pk=user_zip_clean).first()
 
     def haversine(lat1, lon1, lat2, lon2):
         R = 3958.8
@@ -279,23 +243,32 @@ def home(request):
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         return R * c
 
-    def get_min_distance(locations):
-        if not user_zip_obj or not locations.exists():
+    # Preload all location zip rows once
+    therapist_zips = set(therapists.values_list('locations__zip', flat=True))
+    zip_rows = {z.zip: z for z in ZipCode.objects.filter(zip__in=therapist_zips)}
+
+    def compute_min_distance_and_attach(therapist):
+        """Compute min distance for therapist; set therapist.closest_location; return rounded miles or None."""
+        if not user_zip_row:
             return None
-        min_dist = None
-        for loc in locations:
-            zip_code = getattr(loc, 'zip', None)
-            zip_obj = (search_simple.by_zipcode(zip_code) or search_full.by_zipcode(zip_code)) if zip_code else None
-            if zip_obj and zip_obj.lat and zip_obj.lng and user_zip_obj.lat and user_zip_obj.lng:
-                dist = haversine(user_zip_obj.lat, user_zip_obj.lng, zip_obj.lat, zip_obj.lng)
-                if min_dist is None or dist < min_dist:
-                    min_dist = dist
-        return round(min_dist, 1) if min_dist is not None else None
+        min_d = None
+        nearest_loc = None
+        for loc in therapist.locations.all():
+            zr = zip_rows.get(getattr(loc, 'zip', None))
+            if zr:
+                d = haversine(float(user_zip_row.latitude), float(user_zip_row.longitude), float(zr.latitude), float(zr.longitude))
+                if min_d is None or d < min_d:
+                    min_d = d
+                    nearest_loc = loc
+        if nearest_loc is not None:
+            therapist.closest_location = nearest_loc
+        return round(min_d, 1) if min_d is not None else None
 
-    therapists = list(therapists)
+    therapists = list(therapists.distinct())
     for t in therapists:
-        t.distance = get_min_distance(t.locations.all())
+        t.distance = compute_min_distance_and_attach(t)
 
+    # Order by distance (None last) and limit to 6
     therapists_final = sorted(therapists, key=lambda t: t.distance if t.distance is not None else float('inf'))[:6]
 
     from users.models_featured import FeaturedTherapistHistory, FeaturedBlogPostHistory
@@ -304,16 +277,19 @@ def home(request):
     featured_therapist_entry = FeaturedTherapistHistory.objects.filter(date=today).first()
     featured_blog_entry = FeaturedBlogPostHistory.objects.filter(date=today).first()
     top_therapist = featured_therapist_entry.therapist if featured_therapist_entry else (therapists_final[0] if therapists_final else None)
+    # Ensure top_therapist has distance / closest_location if sourced from history outside therapists_final
+    if top_therapist and not hasattr(top_therapist, 'distance'):
+        try:
+            top_therapist.distance = compute_min_distance_and_attach(top_therapist)
+        except Exception:
+            top_therapist.distance = None
     top_blog_post = featured_blog_entry.blog_post if featured_blog_entry else BlogPost.objects.filter(published=True).order_by('-created_at').first()
     # Add city/state meta for current zip
     user_zip_city = None
     user_zip_state = None
-    try:
-        if user_zip_obj:
-            user_zip_city = getattr(user_zip_obj, 'major_city', None) or getattr(user_zip_obj, 'post_office_city', None) or getattr(user_zip_obj, 'city', None)
-            user_zip_state = getattr(user_zip_obj, 'state', None)
-    except Exception:
-        pass
+    if user_zip_row:
+        user_zip_city = user_zip_row.city
+        user_zip_state = user_zip_row.state
     return render(request, 'home.html', {
         'therapists': therapists_final,
         'top_blog_post': top_blog_post,

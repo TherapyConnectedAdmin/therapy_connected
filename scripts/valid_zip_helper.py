@@ -1,13 +1,20 @@
+import os
+import django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'therapy_connected.settings')
+django.setup()
 import random
-from uszipcode import SearchEngine
+from users.models_profile import ZipCode
 
-# Get a valid US zip code from the uszipcode database
-search = SearchEngine()
 def get_valid_zip():
-    # Try up to 10 times to get a valid zip
-    for _ in range(10):
-        z = search.by_index(random.randint(0, 42000))
-        if z and z.zipcode and z.lat and z.lng:
-            return z.zipcode
-    # Fallback to a known valid zip
-    return "32550"
+    """Return a random valid ZIP from the local ZipCode table.
+
+    Raises RuntimeError if table empty.
+    """
+    count = ZipCode.objects.count()
+    if not count:
+        raise RuntimeError("ZipCode table empty. Seed with seed_zipcodes_full first.")
+    offset = random.randint(0, count - 1)
+    return ZipCode.objects.all()[offset].zip
+
+if __name__ == '__main__':
+    print(get_valid_zip())

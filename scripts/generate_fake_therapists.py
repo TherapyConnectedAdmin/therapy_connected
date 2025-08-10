@@ -11,14 +11,37 @@ from typing import List, Dict, Tuple
 import uuid
 
 #############################################
-# Dynamic US location generation (faker)
+# ZipCode table integration (uses fully seeded ZipCode model)
 #############################################
+from users.models_profile import ZipCode
+_ZIP_PK_CACHE = None
+
+_STREET_SUFFIXES = [
+    'St', 'Ave', 'Blvd', 'Rd', 'Ln', 'Dr', 'Ct', 'Way', 'Pl'
+]
+
+def _generate_street_name() -> str:
+    base = fake.last_name()
+    suffix = random.choice(_STREET_SUFFIXES)
+    return f"{base} {suffix}"
+
 def generate_us_location() -> Dict[str, str]:
-    # Use faker for city + state abbr + zip; ensures wide distribution
+    """Generate a US address selecting a random ZipCode row for real city/state/zip."""
+    global _ZIP_PK_CACHE
+    if _ZIP_PK_CACHE is None:
+        _ZIP_PK_CACHE = list(ZipCode.objects.values_list('zip', flat=True))
+    if not _ZIP_PK_CACHE:
+        raise RuntimeError("ZipCode table empty. Run seed_zipcodes_full first.")
+    zcode = random.choice(_ZIP_PK_CACHE)
+    zrow = ZipCode.objects.filter(pk=zcode).only('city','state','zip').first()
+    street_num = random.randint(10, 9999)
+    street = _generate_street_name()
     return {
-        "city": fake.city(),
-        "state": fake.state_abbr(),
-        "zip": fake.zipcode()[:5],  # ensure 5-digit
+        'practice_name': '',
+        'street_address': f"{street_num} {street}",
+        'city': zrow.city,
+        'state': zrow.state,
+        'zip': zrow.zip,
     }
 import tempfile
 import requests
@@ -43,17 +66,19 @@ User = get_user_model()
 _RANDOMUSER_POOL = {('men', i) for i in range(0, 100)} | {('women', i) for i in range(0, 100)}
 _RANDOMUSER_USED = set()
 
-def generate_profile_image_url() -> str:
-    """Return a random unused (gender, index) combo from randomuser.me to maximize variety.
-    Falls back to random choice if pool exhausted."""
+def reserve_randomuser_portrait() -> tuple[str, str]:
+    """Reserve and return (gender_category, image_url).
+
+    gender_category is 'men' or 'women' corresponding to randomuser path segment.
+    """
     remaining = list(_RANDOMUSER_POOL - _RANDOMUSER_USED)
     if not remaining:
-        # Reset if all used
         _RANDOMUSER_USED.clear()
         remaining = list(_RANDOMUSER_POOL)
-    gender, idx = random.choice(remaining)
-    _RANDOMUSER_USED.add((gender, idx))
-    return f"https://randomuser.me/api/portraits/{gender}/{idx}.jpg"
+    gender_cat, idx = random.choice(remaining)
+    _RANDOMUSER_USED.add((gender_cat, idx))
+    url = f"https://randomuser.me/api/portraits/{gender_cat}/{idx}.jpg"
+    return gender_cat, url
 def generate_gallery_image_url() -> str:
     # picsum with unique seed for variety
     return f"https://picsum.photos/seed/{uuid.uuid4().hex[:12]}/400/300"
@@ -145,11 +170,28 @@ get_random = lambda model: model.objects.order_by('?').first()
 get_random_many = lambda model, n: random.sample(list(model.objects.all()), min(n, model.objects.count()))
 
 def create_fake_profile(index: int):
+    # Conditional debug logging (suppress spam for large batches)
+    if NUM_PROFILES <= 100 or index % 50 == 0:
+        print('DEBUG: About to create TherapistProfile', index + 1, 'of', NUM_PROFILES)
 
-    # Create User
-    first = fake.first_name()
+    # Create User & reserve portrait for gender-aligned naming
+    portrait_gender_cat, portrait_url = reserve_randomuser_portrait()
+    if portrait_gender_cat == 'men':
+        first = fake.first_name_male()
+        gender_lookup_name = 'Male'
+    else:
+        first = fake.first_name_female()
+        gender_lookup_name = 'Female'
     last = fake.last_name()
-    email = f"{first.lower()}.{last.lower()}@example.com"
+
+    def _unique_email(base_first: str, base_last: str) -> str:
+        # Loop until a unique email/username is found (fast with UUID segment)
+        while True:
+            candidate = f"{base_first.lower()}.{base_last.lower()}.{uuid.uuid4().hex[:8]}@example.com"
+            if not User.objects.filter(username=candidate).exists():
+                return candidate
+
+    email = _unique_email(first, last)
     user = User.objects.create_user(username=email, email=email, password="password123")
     user.onboarding_status = 'active'
     user.is_active = True
@@ -157,7 +199,7 @@ def create_fake_profile(index: int):
 
     # Round-robin license types for coverage
     license_type = _LICENSE_TYPES[index % len(_LICENSE_TYPES)]
-    print('DEBUG: About to create TherapistProfile')
+    # (legacy debug removed; consolidated above)
     chosen_modalities = get_random_many(TherapyType, random.randint(2, 5))
     chosen_specialties = get_random_many(SpecialtyLookup, random.randint(2, 5))
     # Preselect participant types & age groups for narrative consistency
@@ -177,6 +219,9 @@ def create_fake_profile(index: int):
     # Derive mental health role from license category when available
     role = MENTAL_HEALTH_ROLE_BY_CATEGORY.get(getattr(license_type, 'category', ''), random.choice(["Therapist", "Clinician"]))
 
+    # Attempt to set Gender model consistent with chosen name/photo if matching entries exist
+    chosen_gender_obj = Gender.objects.filter(name__iexact=gender_lookup_name).first() or get_random(Gender)
+
     profile = TherapistProfile(
         user=user,
         first_name=first,
@@ -184,9 +229,9 @@ def create_fake_profile(index: int):
         last_name=last,
         title=get_random(Title),
         display_title=random.choice([True, False]),
-    personal_statement_q1=ps_q1,
-    personal_statement_q2=ps_q2,
-    personal_statement_q3=ps_q3,
+        personal_statement_q1=ps_q1,
+        personal_statement_q2=ps_q2,
+        personal_statement_q3=ps_q3,
         practice_name=fake.company(),
         phone_number=fake.phone_number(),
         phone_extension=str(random.randint(100,999)) if random.random() < 0.5 else "",
@@ -217,20 +262,19 @@ def create_fake_profile(index: int):
         mental_health_role=role,
         license_number=fake.bothify(text='??#####'),
         license_expiration=f"{random.randint(2025,2030)}-12",
-        # credential_type removed
         license_state=random.choice(STATES),
         date_of_birth=fake.date_of_birth(minimum_age=28, maximum_age=70),
-        gender=get_random(Gender),
+        gender=chosen_gender_obj,
         license_type=license_type,
     )
-    print('DEBUG: TherapistProfile created')
     profile.save()
+    if NUM_PROFILES <= 100 or index % 50 == 0:
+        print('DEBUG: TherapistProfile created (id=', profile.id, ')')
     # Download a random profile image and upload to S3 (optional)
     if FAKE_FETCH_MEDIA:
-        for attempt in range(3):  # retry a few times for robustness
+        for attempt in range(3):
             try:
-                img_url = generate_profile_image_url()
-                response = requests.get(img_url, timeout=10)
+                response = requests.get(portrait_url, timeout=10)
                 if response.status_code == 200 and response.headers.get('Content-Type','').startswith('image'):
                     tmp = tempfile.NamedTemporaryFile(delete=True, suffix='.jpg')
                     tmp.write(response.content)
@@ -307,8 +351,8 @@ def create_fake_profile(index: int):
         loc = generate_us_location()
         Location.objects.create(
             therapist=profile,
-            practice_name=profile.practice_name if i == 0 else fake.company(),
-            street_address=fake.street_address(),
+            practice_name=loc.get('practice_name') or (profile.practice_name if i == 0 else fake.company()),
+            street_address=loc.get('street_address') or fake.street_address(),
             address_line_2=fake.secondary_address(),
             city=loc['city'],
             state=loc['state'],

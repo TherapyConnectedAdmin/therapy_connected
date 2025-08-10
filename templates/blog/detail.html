@@ -5,10 +5,20 @@
     <div class="rounded-2xl shadow-lg p-8 sm:p-12" style="background-color: #FAF9F9;">
       <a href="{% url 'blog_index' %}" class="text-[#89B0AE] hover:underline mb-4 inline-block">&larr; Back to Blog</a>
       <h1 class="text-4xl font-bold mb-6" style="color: #555B6E;">{{ post.title }}</h1>
+      {% load therapist_extras %}
       {% with profile=post.author.therapistprofile %}
       <div class="flex items-center gap-4 mb-8">
         {% if profile.profile_photo %}
-          <img src="{{ profile.profile_photo.url }}" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-14 h-14 rounded-full object-cover border-2 border-[#BEE3DB]" />
+          {% profile_photo_srcset profile 'webp' as ss_webp %}
+          {% profile_photo_srcset profile 'jpg' as ss_jpg %}
+          {% if ss_webp or ss_jpg %}
+            <picture>
+              <source type="image/webp" srcset="{{ ss_webp }}" sizes="56px">
+              <img src="{% profile_photo_variant profile 'thumb' 'jpg' %}" srcset="{{ ss_jpg }}" sizes="56px" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-14 h-14 rounded-full object-cover border-2 border-[#BEE3DB]" loading="lazy" decoding="async" />
+            </picture>
+          {% else %}
+            <img src="{{ profile.profile_photo.url }}" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-14 h-14 rounded-full object-cover border-2 border-[#BEE3DB]" loading="lazy" decoding="async" />
+          {% endif %}
         {% else %}
           <div class="flex-shrink-0 w-14 h-14 rounded-full bg-[#BEE3DB] flex items-center justify-center text-2xl font-bold" style="color: #555B6E;">
             {{ profile.first_name|slice:":1" }}{{ profile.last_name|slice:":1" }}
@@ -22,7 +32,17 @@
       </div>
       {% endwith %}
       {% if post.image %}
-      <img src="{{ post.image.url }}" alt="{{ post.title }}" class="w-full h-64 object-cover rounded mb-6" />
+        {% load therapist_extras %}
+        {% image_srcset post 'webp' as post_ss_webp %}
+        {% image_srcset post 'jpg' as post_ss_jpg %}
+        {% if post_ss_webp or post_ss_jpg %}
+        <picture>
+          <source type="image/webp" srcset="{{ post_ss_webp }}" sizes="(max-width: 768px) 100vw, 960px">
+          <img src="{% image_variant post 'medium' 'jpg' %}" srcset="{{ post_ss_jpg }}" sizes="(max-width: 768px) 100vw, 960px" alt="{{ post.title }}" class="w-full h-64 object-cover rounded mb-6" loading="lazy" decoding="async" />
+        </picture>
+        {% else %}
+        <img src="{{ post.image.url }}" alt="{{ post.title }}" class="w-full h-64 object-cover rounded mb-6" loading="lazy" decoding="async" />
+        {% endif %}
       {% endif %}
       <div class="prose prose-lg max-w-none mb-6" style="color: #555B6E;">{{ post.content|safe }}</div>
       <div class="flex flex-wrap gap-2 mt-2">
