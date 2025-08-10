@@ -83,7 +83,18 @@ def blog_index(request):
 def blog_detail(request, slug):
     post = get_object_or_404(BlogPost, slug=slug, published=True)
     tags = BlogTag.objects.all().order_by('name')
-    return render(request, 'blog/detail.html', {'post': post, 'tags': tags})
+    # Sidebar data
+    recent_posts = BlogPost.objects.filter(published=True).exclude(id=post.id).order_by('-created_at')[:6]
+    related_posts = BlogPost.objects.filter(published=True, tags__in=post.tags.all()).exclude(id=post.id).distinct().order_by('-created_at')[:6]
+    # Simple popular tags: top 10 by usage count
+    popular_tags = BlogTag.objects.all().order_by('name')[:10]
+    return render(request, 'blog/detail.html', {
+        'post': post,
+        'tags': tags,
+        'recent_posts': recent_posts,
+        'related_posts': related_posts,
+        'popular_tags': popular_tags,
+    })
 
 @login_required
 def user_blog_list(request):
