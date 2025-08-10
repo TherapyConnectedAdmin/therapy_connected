@@ -1,46 +1,81 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="py-8 w-full min-h-screen" style="background-color: #BEE3DB;">
+<section class="pt-8 w-full" style="background-color: #BEE3DB;">
   <div class="max-w-3xl mx-auto text-center px-2 sm:px-4" style="padding-bottom:30px;">
     <h2 class="text-3xl font-bold mb-2 text-center" style="color: #555B6E;">Therapy Connected Blog</h2>
     <p class="text-base sm:text-lg mb-8" style="color: #555B6E;">Search and filter blog posts from our expert community.</p>
-    <form method="get" action="" class="flex flex-col md:flex-row gap-4 justify-center items-center w-full max-w-2xl mx-auto">
+    <form method="get" class="flex flex-col md:flex-row gap-4 justify-center items-center mb-4 w-full max-w-2xl mx-auto">
       <div class="flex w-full">
-        <input type="text" name="q" value="{{ q|default:'' }}" placeholder="Search blog posts..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" aria-label="Search blog posts">
-        <button type="submit" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;">Search</button>
+        <input type="text" name="q" value="{{ q|default:'' }}" placeholder="Search blog posts..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" aria-label="Search blog posts" />
+        <button type="submit" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#FAF9F9';">Search</button>
       </div>
     </form>
-    <div x-data="{ open: false }" class="w-full mt-2 mb-8">
-      <button type="button" @click="open = !open" class="flex items-center gap-2 px-4 py-2 bg-white border border-[#89B0AE] rounded-full shadow text-[#555B6E] font-semibold focus:outline-none focus:ring-2 focus:ring-[#89B0AE] mx-auto mb-2">
-        <span>Advanced Filters</span>
-        <svg :class="{ 'rotate-180': open }" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-      </button>
-      <div x-show="open" x-transition:enter="transition-all ease-out duration-300" x-transition:enter-start="max-height:0;opacity:0;" x-transition:enter-end="max-height:500px;opacity:1;" x-transition:leave="transition-all ease-in duration-200" x-transition:leave-start="max-height:500px;opacity:1;" x-transition:leave-end="max-height:0;opacity:0;" class="w-full max-w-7xl bg-white border border-[#BEE3DB] rounded-xl shadow-lg p-8 mt-4 overflow-hidden mx-auto">
-        <div class="flex flex-col md:flex-row gap-8">
-          <div class="flex-1">
-            <label class="block text-sm font-medium text-[#555B6E] mb-1">Tag</label>
-            <select name="tag" class="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#89B0AE] text-[#555B6E] bg-[#FAF9F9]">
-              <option value="">All Tags</option>
-              {% for tag in tags %}
-                <option value="{{ tag.id }}" {% if tag.id|stringformat:'s' == selected_tag %}selected{% endif %}>{{ tag.name }}</option>
-              {% endfor %}
-            </select>
+  </div>
+  <div class="w-full px-3 sm:px-6 md:px-8 lg:px-10 max-w-screen-xl mx-auto -mt-6">
+    <form method="get" x-data="{ open:false }" class="w-full">
+      <input type="hidden" name="q" value="{{ q|default:'' }}" />
+      <div class="flex items-center justify-center gap-4 mb-4">
+        <button type="button" @click="open=!open" class="group flex items-center gap-2 px-5 py-2.5 bg-white border border-[#BEE3DB] rounded-full shadow-sm text-[#116466] font-semibold focus:outline-none focus:ring-2 focus:ring-[#89B0AE] hover:bg-[#FAF9F9] transition">
+          <svg class="w-5 h-5 text-[#116466]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h18M6 12h12M10 19h4"/></svg>
+          <span>Advanced Filters</span>
+          <svg :class="{ 'rotate-180': open }" class="w-5 h-5 text-[#555B6E] transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+        </button>
+      </div>
+      <div x-show="open" x-transition.opacity x-cloak class="mt-5 mb-6 w-full bg-white border border-[#BEE3DB] rounded-2xl shadow-lg p-6">
+        <fieldset class="advanced-filters grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <div>
+            <label class="filter-label">Tag</label>
+            <div class="select-wrapper"><select name="tag" class="filter-select pr-10">
+              <option value="">All</option>
+              {% for tag in tags %}<option value="{{ tag.id }}" {% if tag.id|stringformat:'s' == selected_tag %}selected{% endif %}>{{ tag.name }}</option>{% endfor %}
+            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
           </div>
-          <div class="flex-1">
-            <label class="block text-sm font-medium text-[#555B6E] mb-1">Author</label>
-            <select name="author" class="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#89B0AE] text-[#555B6E] bg-[#FAF9F9]">
-              <option value="">All Authors</option>
-              {% for author in authors %}
-                <option value="{{ author.id }}" {% if author.id|stringformat:'s' == selected_author %}selected{% endif %}>{{ author.first_name }} {{ author.last_name }}</option>
-              {% endfor %}
-            </select>
+          <div>
+            <label class="filter-label">Author</label>
+            {% if authors %}
+            <div class="select-wrapper"><select name="author" class="filter-select pr-10">
+              <option value="">All</option>
+              {% for author in authors %}<option value="{{ author.id }}" {% if author.id|stringformat:'s' == selected_author %}selected{% endif %}>{{ author.first_name }} {{ author.last_name }}</option>{% endfor %}
+            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+            {% else %}
+            <div class="select-wrapper"><select class="filter-select pr-10" disabled>
+              <option>No authors yet</option>
+            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+            {% endif %}
+          </div>
+        </fieldset>
+  <div class="mt-6 advanced-filters grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 items-end">
+          <div class="col-span-2 md:col-span-1 xl:col-span-1">
+            <label class="filter-label">Sort</label>
+            <div class="select-wrapper"><select name="sort" class="filter-select pr-10">
+              <option value="recent" {% if selected_sort == 'recent' %}selected{% endif %}>Newest</option>
+              <option value="oldest" {% if selected_sort == 'oldest' %}selected{% endif %}>Oldest</option>
+              <option value="title" {% if selected_sort == 'title' %}selected{% endif %}>Title (A-Z)</option>
+              <option value="title_desc" {% if selected_sort == 'title_desc' %}selected{% endif %}>Title (Z-A)</option>
+              <option value="author" {% if selected_sort == 'author' %}selected{% endif %}>Author</option>
+            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
           </div>
         </div>
+        <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-stretch">
+          <button type="submit" class="px-7 py-3 rounded-full bg-[#116466] text-white font-semibold text-sm shadow hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-[#89B0AE] transition">Apply Filters</button>
+          <a href="{{ request.path }}" class="px-7 py-3 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold text-sm shadow hover:bg-[#D2E7E4] focus:outline-none focus:ring-2 focus:ring-[#89B0AE] transition text-center">Reset</a>
+        </div>
+        <style>
+          .filter-label{display:block;font-size:11px;font-weight:600;letter-spacing:.05em;color:#555B6E;margin-bottom:4px;text-transform:uppercase;}
+          .advanced-filters .select-wrapper{position:relative;}
+          .advanced-filters .select-wrapper .select-arrow{position:absolute;top:50%;right:.75rem;transform:translateY(-50%);display:flex;align-items:center;color:#116466;pointer-events:none;}
+          .advanced-filters .filter-select{display:block;width:100%;border:1px solid #89B0AE;border-radius:9999px;padding:.625rem 2.25rem .625rem 1rem;background:#FAF9F9;color:#555B6E;font-size:.875rem;line-height:1.25rem;font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:.15s;-webkit-appearance:none;-moz-appearance:none;appearance:none;}
+          .advanced-filters .filter-select:hover{background:#fff;}
+          .advanced-filters .filter-select:focus{outline:none;border-color:#116466;box-shadow:0 0 0 2px rgba(137,176,174,.45);background:#fff;}
+          .advanced-filters .filter-select.has-value{color:#116466;border-color:#116466;font-weight:600;}
+        </style>
+        <script>document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.advanced-filters .filter-select').forEach(s=>{const f=()=>{if(s.value) s.classList.add('has-value'); else s.classList.remove('has-value');};s.addEventListener('change',f);f();});});</script>
       </div>
-    </div>
-    <div class="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] flex flex-col gap-12 py-8 px-0" style="background-color: #FFF6ED;">
+    </form>
+  </div>
+  <div class="flex flex-col gap-12 py-8 px-2 sm:px-4" style="background-color: #FFF6ED;">
       {% for post in page_obj %}
-      <a href="{% url 'blog_detail' slug=post.slug %}" class="block rounded-2xl shadow-lg p-10 sm:p-14 mx-auto transition-transform hover:-translate-y-1 hover:shadow-xl" style="background-color: #FAF9F9; color: #555B6E; width: 75%; min-width: 280px; max-width: 900px;">
+  <a href="{% url 'blog_detail' slug=post.slug %}" class="block rounded-2xl shadow-lg p-10 sm:p-14 mx-auto transition-transform hover:-translate-y-1 hover:shadow-xl" style="background-color: #FAF9F9; color: #555B6E; width:80%; min-width:280px; max-width:1100px;">
         {% if post.image %}
           {% load therapist_extras %}
           {% image_srcset post 'webp' as post_ss_webp %}
@@ -76,7 +111,11 @@
           {% endif %}
           <div>
             <div class="font-semibold text-lg" style="color: #555B6E;">{{ profile.first_name }} {{ profile.last_name }}</div>
-            <div class="text-sm text-[#89B0AE] font-medium">{{ profile.credentials }}</div>
+            {% with lic=profile.license_type %}
+            <div class="text-sm text-[#89B0AE] font-medium">
+              {% if lic %}{% if lic.short_description %}{{ lic.short_description }}{% else %}{{ lic.name }}{% endif %}{% elif profile.credentials_note %}{{ profile.credentials_note|truncatechars:60 }}{% elif profile.mental_health_role %}{{ profile.mental_health_role }}{% else %}&nbsp;{% endif %}
+            </div>
+            {% endwith %}
             <div class="text-xs text-[#555B6E]">{{ post.created_at|date:"M d, Y" }}</div>
           </div>
         </div>
@@ -91,28 +130,24 @@
       {% empty %}
       <div class="text-center text-[#555B6E] text-lg">No blog posts yet.</div>
       {% endfor %}
-    </div>
-    <!-- Pagination -->
     {% if page_obj.paginator.num_pages > 1 %}
-    <nav class="flex justify-center items-center mt-8" aria-label="Pagination">
-      <ul class="inline-flex -space-x-px">
-        {% if page_obj.has_previous %}
-          <li><a href="?page={{ page_obj.previous_page_number }}" class="px-4 py-2 rounded-l-lg bg-[#89B0AE] text-white font-semibold hover:bg-[#555B6E]">Previous</a></li>
-        {% else %}
-          <li><span class="px-4 py-2 rounded-l-lg bg-gray-200 text-gray-400 cursor-not-allowed">Previous</span></li>
-        {% endif %}
-        {% for num in page_obj.paginator.page_range %}
-          {% if page_obj.number == num %}
-            <li><span class="px-4 py-2 bg-[#FF9950] text-white font-semibold">{{ num }}</span></li>
-          {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-            <li><a href="?page={{ num }}" class="px-4 py-2 bg-white text-[#555B6E] hover:bg-[#BEE3DB] rounded">{{ num }}</a></li>
+    <nav class="flex justify-center items-center mt-12 pb-2" aria-label="Pagination">
+      <ul class="flex gap-4 items-center">
+        <li>
+          {% if page_obj.has_previous %}
+            <a href="?q={{ q }}&tag={{ selected_tag }}&author={{ selected_author }}&sort={{ selected_sort }}&page={{ page_obj.previous_page_number }}" class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white">Previous</a>
+          {% else %}
+            <span class="get-started-btn rounded-full px-6 py-2 text-base font-semibold bg-[#BEE3DB] text-[#555B6E] opacity-50 cursor-not-allowed">Previous</span>
           {% endif %}
-        {% endfor %}
-        {% if page_obj.has_next %}
-          <li><a href="?page={{ page_obj.next_page_number }}" class="px-4 py-2 rounded-r-lg bg-[#89B0AE] text-white font-semibold hover:bg-[#555B6E]">Next</a></li>
-        {% else %}
-          <li><span class="px-4 py-2 rounded-r-lg bg-gray-200 text-gray-400 cursor-not-allowed">Next</span></li>
-        {% endif %}
+        </li>
+        <li><span class="text-[#555B6E] font-medium text-base bg-[#FAF9F9] rounded-full px-5 py-2 border border-[#BEE3DB] shadow-sm">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+        <li>
+          {% if page_obj.has_next %}
+            <a href="?q={{ q }}&tag={{ selected_tag }}&author={{ selected_author }}&sort={{ selected_sort }}&page={{ page_obj.next_page_number }}" class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white">Next</a>
+          {% else %}
+            <span class="get-started-btn rounded-full px-6 py-2 text-base font-semibold bg-[#BEE3DB] text-[#555B6E] opacity-50 cursor-not-allowed">Next</span>
+          {% endif %}
+        </li>
       </ul>
     </nav>
     {% endif %}

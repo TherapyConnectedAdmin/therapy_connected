@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from .models_blog import BlogPost, BlogTag
+from django.db.models import Q
 from django.core.paginator import Paginator
 from .forms_blog import BlogPostForm
 from django.utils.text import slugify
@@ -28,17 +29,35 @@ def user_blog_edit(request, pk):
     return render(request, 'users/user_blog_form.html', {'form': form, 'edit_mode': True, 'post': post})
 
 def blog_index(request):
-    posts = BlogPost.objects.filter(published=True).order_by('-created_at')
+    posts = BlogPost.objects.filter(published=True).select_related('author').prefetch_related('tags')
     q = request.GET.get('q', '').strip()
     tag = request.GET.get('tag', '').strip()
     author = request.GET.get('author', '').strip()
+    sort = request.GET.get('sort', '').strip() or 'recent'
+
     if q:
-        posts = posts.filter(title__icontains=q) | posts.filter(content__icontains=q) | posts.filter(tags__name__icontains=q)
-        posts = posts.distinct()
+        posts = posts.filter(
+            Q(title__icontains=q) | Q(content__icontains=q) | Q(tags__name__icontains=q)
+        ).distinct()
     if tag:
         posts = posts.filter(tags__id=tag)
     if author:
         posts = posts.filter(author__id=author)
+
+    # Sorting
+    if sort == 'recent':
+        posts = posts.order_by('-created_at')
+    elif sort == 'oldest':
+        posts = posts.order_by('created_at')
+    elif sort == 'title':
+        posts = posts.order_by('title')
+    elif sort == 'title_desc':
+        posts = posts.order_by('-title')
+    elif sort == 'author':
+        posts = posts.order_by('author__first_name', 'author__last_name', '-created_at')
+    else:
+        posts = posts.order_by('-created_at')
+
     paginator = Paginator(posts, 6)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -47,7 +66,19 @@ def blog_index(request):
     from django.contrib.auth import get_user_model
     User = get_user_model()
     authors = User.objects.filter(blogpost__published=True).distinct().order_by('first_name', 'last_name')
-    return render(request, 'blog/index.html', {'page_obj': page_obj, 'tags': tags, 'authors': authors, 'selected_tag': tag, 'selected_author': author, 'q': q})
+    # Fallback: if no authors resolved but posts exist (edge case), derive from posts
+    if not authors.exists() and posts.exists():
+        author_ids = posts.values_list('author_id', flat=True)
+        authors = User.objects.filter(id__in=author_ids).order_by('first_name', 'last_name')
+    return render(request, 'blog/index.html', {
+        'page_obj': page_obj,
+        'tags': tags,
+        'authors': authors,
+        'selected_tag': tag,
+        'selected_author': author,
+        'selected_sort': sort,
+        'q': q,
+    })
 
 def blog_detail(request, slug):
     post = get_object_or_404(BlogPost, slug=slug, published=True)

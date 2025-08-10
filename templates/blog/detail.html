@@ -26,7 +26,11 @@
         {% endif %}
         <div>
           <div class="font-semibold text-xl" style="color: #555B6E;">{{ profile.first_name }} {{ profile.last_name }}</div>
-          <div class="text-base text-[#89B0AE] font-medium">{{ profile.credentials }}</div>
+          {% with lic=profile.license_type %}
+          <div class="text-base text-[#89B0AE] font-medium">
+            {% if lic %}{% if lic.short_description %}{{ lic.short_description }}{% else %}{{ lic.name }}{% endif %}{% elif profile.credentials_note %}{{ profile.credentials_note|truncatechars:80 }}{% elif profile.mental_health_role %}{{ profile.mental_health_role }}{% else %}&nbsp;{% endif %}
+          </div>
+          {% endwith %}
           <div class="text-xs text-[#555B6E]">{{ post.created_at|date:"M d, Y" }}</div>
         </div>
       </div>

@@ -151,7 +151,7 @@
   </div>
 
   <!-- Blog Post Right -->
-  <div class="flex px-0 sm:px-2 md:px-0 flex-col items-stretch h-full" x-data="{ showBlogModal: false }">
+  <div class="flex px-0 sm:px-2 md:px-0 flex-col items-stretch h-full">
     <div class="flex flex-col w-full h-full">
       <h3 class="text-xl font-bold mb-8 self-center" style="color: #89B0AE;">Blog Post</h3>
       {% if top_blog_post %}
@@ -196,64 +196,16 @@
         </div>
         <!-- Actions -->
         <div class="mt-auto flex items-center gap-4 pt-2">
-          <button
-            type="button"
-            @click="showBlogModal = true"
+          <a
+            href="/blog/{{ top_blog_post.slug }}"
             class="get-started-btn font-semibold rounded-lg px-5 py-2.5 cursor-pointer bg-[#116466] text-white hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition"
-          >Read Blog</button>
-          <a :href="'/blog/{{ top_blog_post.slug }}'" class="text-sm font-semibold text-[#116466] hover:text-[#0d4c4d] underline-offset-2 hover:underline">Open Full Page</a>
+          >Read Blog</a>
         </div>
       </div>
       {% else %}
         <div class="font-semibold text-lg mb-1 self-center" style="color: #555B6E;">No blog post available</div>
       {% endif %}
-      <!-- Modal -->
-      {% if top_blog_post %}
-      <div x-show="showBlogModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" style="background: rgba(176,174,174,0.5);">
-        <div class="rounded-xl shadow-lg p-0 w-[98vw] max-w-3xl relative overflow-y-auto max-h-[90vh] bg-white" @click.away="showBlogModal = false" style="background-color: #FAF9F9;">
-          <button @click="showBlogModal = false" class="absolute top-4 right-6 bg-[#FF9950] text-white hover:bg-[#555B6E] rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-150" style="font-size:2rem;">
-            <span class="sr-only">Close</span>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <article class="flex flex-col items-center px-6 pt-10 pb-8">
-            <div class="w-full max-w-2xl mx-auto mb-6">
-              {% if top_blog_post.image %}
-                <img src="{{ top_blog_post.image.url }}" alt="{{ top_blog_post.title }}" class="object-cover w-full h-64 rounded-xl shadow mb-4" />
-              {% else %}
-                <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=70" alt="Featured Blog" class="object-cover w-full h-64 rounded-xl shadow mb-4" />
-              {% endif %}
-            </div>
-            <h2 class="text-3xl font-extrabold mb-2 text-center" style="color: #555B6E;">{{ top_blog_post.title }}</h2>
-            {% with profile=top_blog_post.author.therapistprofile %}
-            <div class="flex items-center justify-center gap-3 mb-4">
-              {% if profile.profile_photo %}
-                <img src="{{ profile.profile_photo.url }}" alt="{{ profile.first_name }} {{ profile.last_name }}" class="w-12 h-12 rounded-full object-cover border-2 border-[#BEE3DB] shadow" />
-              {% else %}
-                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-[#BEE3DB] flex items-center justify-center text-lg font-bold" style="color: #555B6E;">
-                  {{ profile.first_name|slice:"0:1" }}{{ profile.last_name|slice:"0:1" }}
-                </div>
-              {% endif %}
-              <div class="text-left">
-                <div class="font-semibold text-base" style="color: #555B6E;">{{ profile.first_name }} {{ profile.last_name }}</div>
-                <div class="text-xs text-[#89B0AE] font-medium">{{ profile.credentials }}</div>
-              </div>
-            </div>
-            {% endwith %}
-            {% with tags=top_blog_post.tags.all %}{% if tags %}
-            <div class="flex flex-wrap gap-2 mb-4 text-[11px]">
-              {% for tag in tags %}
-                <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#444] font-medium shadow-sm">{{ tag.name }}</span>
-              {% endfor %}
-            </div>
-            {% endif %}{% endwith %}
-            <div class="prose prose-lg max-w-none mb-6" style="color: #555B6E;">{{ top_blog_post.content|safe }}</div>
-            <a :href="'/blog/{{ top_blog_post.slug }}'" class="mt-2 px-5 py-2.5 rounded-lg font-semibold text-sm bg-[#116466] text-white hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition">View Full Blog Post</a>
-          </article>
-        </div>
-      </div>
-      {% endif %}
+      <!-- Blog modal removed: direct link only -->
     </div>
   </div>
 </section>
