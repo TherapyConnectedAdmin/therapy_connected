@@ -22,7 +22,17 @@ def therapists_page(request):
     query = request.GET.get('q', '').strip()
     tier = request.GET.get('tier', '').strip()
     specialty = request.GET.get('specialty', '').strip()
+    # New advanced filters
+    accepting = request.GET.get('accepting', '').strip().lower()  # 'yes' or 'no'
+    intro_call = request.GET.get('intro_call', '').strip()  # '1'
+    license_id = request.GET.get('license', '').strip()
+    participant_id = request.GET.get('participant', '').strip()
+    age_id = request.GET.get('age', '').strip()
+    therapy_type_id = request.GET.get('therapy_type', '').strip()
+    sort_opt = request.GET.get('sort', 'distance').strip()  # distance|name|recent
     therapists = TherapistProfile.objects.filter(user__is_active=True, user__onboarding_status='active').prefetch_related('locations')
+    # Prefetch for filters
+    therapists = therapists.prefetch_related('participant_types', 'age_groups', 'types_of_therapy__therapy_type')
     if query:
         from users.utils.state_normalize import normalize_state
         normalized_query = normalize_state(query)
@@ -41,11 +51,37 @@ def therapists_page(request):
         therapists = therapists.filter(q_obj)
     if tier:
         therapists = therapists.filter(license_type__name__iexact=tier)
+    if accepting == 'yes':
+        therapists = therapists.filter(accepting_new_clients__iexact='Yes')
+    elif accepting == 'no':
+        therapists = therapists.exclude(accepting_new_clients__iexact='Yes')
+    if intro_call == '1':
+        therapists = therapists.filter(offers_intro_call=True)
+    if license_id:
+        try:
+            therapists = therapists.filter(license_type__id=int(license_id))
+        except ValueError:
+            pass
+    if participant_id:
+        try:
+            therapists = therapists.filter(participant_types__id=int(participant_id))
+        except ValueError:
+            pass
+    if age_id:
+        try:
+            therapists = therapists.filter(age_groups__id=int(age_id))
+        except ValueError:
+            pass
+    if therapy_type_id:
+        try:
+            therapists = therapists.filter(types_of_therapy__therapy_type__id=int(therapy_type_id))
+        except ValueError:
+            pass
     # Removed specialty filtering due to missing PracticeAreaTag model
 
     user_zip = request.session.get('user_zip')
     # Distance-based default ordering and filtering
-    if user_zip:
+    if user_zip and sort_opt == 'distance':
         try:
             import math, re
             from users.models_profile import ZipCode
@@ -99,7 +135,14 @@ def therapists_page(request):
                 t.distance = None
     else:
         # No user zip: just take most recently active up to 150
-        therapists = list(therapists.distinct().order_by('-user__last_login')[:150])
+        base_qs = therapists.distinct()
+        if sort_opt == 'name':
+            base_qs = base_qs.order_by('last_name', 'first_name')
+        elif sort_opt == 'recent':
+            base_qs = base_qs.order_by('-user__last_login')
+        else:  # distance requested but no zip -> fallback recent
+            base_qs = base_qs.order_by('-user__last_login')
+        therapists = list(base_qs[:150])
         for t in therapists:
             t.distance = None
 
@@ -146,6 +189,12 @@ def therapists_page(request):
                 user_zip_state = zrow.state
         except Exception:
             pass
+    # Provide lookup lists for advanced filter UI
+    from users.models_profile import LicenseType, ParticipantType, AgeGroup, TherapyType
+    license_types = LicenseType.objects.all().order_by('name')
+    participant_types = ParticipantType.objects.all().order_by('name')
+    age_groups = AgeGroup.objects.all().order_by('name')
+    therapy_types = TherapyType.objects.all().order_by('name')
     return render(request, 'therapists.html', {
         'therapists': therapists_page_obj,
         'paginator': paginator,
@@ -154,6 +203,20 @@ def therapists_page(request):
         'user_zip_city': user_zip_city,
         'user_zip_state': user_zip_state,
         'user_zip_is_default': False,
+        # Current filter state
+        'filter_query': query,
+        'filter_accepting': accepting,
+        'filter_intro_call': intro_call,
+        'filter_license': license_id,
+        'filter_participant': participant_id,
+        'filter_age': age_id,
+        'filter_therapy_type': therapy_type_id,
+        'filter_sort': sort_opt,
+        # Lookup lists
+        'license_types': license_types,
+        'participant_types_list': participant_types,
+        'age_groups_list': age_groups,
+        'therapy_types_list': therapy_types,
     })
 
 def set_zip(request):

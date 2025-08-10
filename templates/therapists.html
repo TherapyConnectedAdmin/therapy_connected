@@ -14,56 +14,26 @@
         currentIndex:-1,
         _controller:null,
         open(id, preserve=false){
-          console.log('[profileModal] open called (therapists page) with id', id, 'preserve=', preserve, 'at', Date.now());
-          // Skip redundant load
-            if(this.show && this.therapist && this.therapist.id === id && !preserve){ return; }
+          if(this.show && this.therapist && this.therapist.id === id && !preserve){ return; }
           if(!this.show){
             this.show=true;
             document.documentElement.classList.add('overflow-hidden');
             document.body.classList.add('overflow-hidden');
           }
-          this.error=null;
-          this.loading=true;
-          this.contentVisible=false;
-          if(!preserve){
-            this.therapist={ id };
-          }
-          if(this.ids && this.ids.length){
-            const idx = this.ids.indexOf(id);
-            if(idx !== -1) this.currentIndex = idx;
-          }
-          // Abort any in-flight fetch
+            this.error=null; this.loading=true; this.contentVisible=false;
+          if(!preserve){ this.therapist={ id }; }
+          if(this.ids && this.ids.length){ const idx = this.ids.indexOf(id); if(idx!==-1) this.currentIndex = idx; }
           try { if(this._controller){ this._controller.abort(); } } catch(e){}
           this._controller = new AbortController();
           fetch(`/users/api/therapists/${id}/profile_full/`, { signal:this._controller.signal })
             .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
             .then(d=>{ this.therapist=d; })
-            .catch(e=>{ if(e.name!== 'AbortError'){ console.error(e); this.error=e.message; } })
+            .catch(e=>{ if(e.name!== 'AbortError'){ this.error=e.message; } })
             .finally(()=>{ if(this._controller && this._controller.signal.aborted){ return; } this.loading=false; this.contentVisible=true; });
         },
-        next(){
-          if(!this.ids || this.currentIndex===-1) return;
-            if(this.currentIndex < this.ids.length - 1){
-              const nextId = this.ids[this.currentIndex + 1];
-              this.open(nextId, true);
-            }
-        },
-        prev(){
-          if(!this.ids || this.currentIndex===-1) return;
-            if(this.currentIndex > 0){
-              const prevId = this.ids[this.currentIndex - 1];
-              this.open(prevId, true);
-            }
-        },
-        close(){
-          console.log('[profileModal] close called (therapists page) at', Date.now());
-          this.show=false;
-          this.contentVisible=false;
-          requestAnimationFrame(()=>{
-            document.documentElement.classList.remove('overflow-hidden');
-            document.body.classList.remove('overflow-hidden');
-          });
-        }
+        next(){ if(!this.ids || this.currentIndex===-1) return; if(this.currentIndex < this.ids.length-1){ this.open(this.ids[this.currentIndex+1], true); } },
+        prev(){ if(!this.ids || this.currentIndex===-1) return; if(this.currentIndex > 0){ this.open(this.ids[this.currentIndex-1], true); } },
+        close(){ this.show=false; this.contentVisible=false; requestAnimationFrame(()=>{ document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden'); }); }
       });
     }
   });
@@ -74,40 +44,90 @@
     <p class="text-base sm:text-lg mb-8" style="color: #555B6E;">Search and filter to find the right therapist for you.</p>
     <form method="get" class="flex flex-col md:flex-row gap-4 justify-center items-center mb-4 w-full max-w-2xl mx-auto">
       <div class="flex w-full">
-        <input type="text" name="q" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" />
+        <input type="text" name="q" value="{{ filter_query }}" placeholder="Search therapists, practices, or specialties..." class="homepage-search-input border rounded-l-full px-4 py-3 w-full focus:ring-2 text-sm sm:text-base" style="border-color: #89B0AE; color: #555B6E; background-color: #FAF9F9;" />
         <button type="submit" class="homepage-search-btn font-semibold rounded-r-full px-4 sm:px-6 py-3 text-sm sm:text-base transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] cursor-pointer" style="background-color: #89B0AE; color: #FAF9F9; border-left: 0 !important; border-left-color: transparent !important;" onmouseover="this.style.backgroundColor='#555B6E'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='#89B0AE'; this.style.color='#FAF9F9';">Search</button>
       </div>
     </form>
-    <div x-data="{ open: false }" class="w-full mt-2">
-      <button type="button" @click="open = !open" class="flex items-center gap-2 px-4 py-2 bg-white border border-[#89B0AE] rounded-full shadow text-[#555B6E] font-semibold focus:outline-none focus:ring-2 focus:ring-[#89B0AE] mx-auto">
-        <span>Advanced Filters</span>
-        <svg :class="{ 'rotate-180': open }" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-      </button>
-      <div x-show="open" x-transition:enter="transition-all ease-out duration-300" x-transition:enter-start="max-height:0;opacity:0;" x-transition:enter-end="max-height:500px;opacity:1;" x-transition:leave="transition-all ease-in duration-200" x-transition:leave-start="max-height:500px;opacity:1;" x-transition:leave-end="max-height:0;opacity:0;" class="w-full max-w-7xl bg-white border border-[#BEE3DB] rounded-xl shadow-lg p-8 mt-4 overflow-hidden mx-auto">
-        <div class="flex flex-col md:flex-row gap-8">
-          <div class="flex-1">
-            <label class="block text-sm font-medium text-[#555B6E] mb-1">Tier</label>
-            <select name="tier" class="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#89B0AE] text-[#555B6E] bg-[#FAF9F9]">
-              <option value="">All Tiers</option>
-              <option value="Starter">Starter</option>
-              <option value="Professional">Professional</option>
-            </select>
-          </div>
-          <div class="flex-1">
-            <label class="block text-sm font-medium text-[#555B6E] mb-1">Specialty</label>
-            <select name="specialty" class="border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#89B0AE] text-[#555B6E] bg-[#FAF9F9]">
-              <option value="">All Specialties</option>
-              {% for tag in practice_areas_tags %}
-              <option value="{{ tag.id }}">{{ tag.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
-  <!-- Therapist Cards & Pagination (pagination moved inside same background container) -->
-  <div class="flex flex-col gap-2 py-8 pb-16 px-2 sm:px-4" style="background-color: #FFF6ED;">
+  <div class="w-full px-3 sm:px-6 md:px-8 lg:px-10 max-w-screen-xl mx-auto -mt-6">
+    <form method="get" x-data="{ open:false }" class="w-full">
+      <input type="hidden" name="q" value="{{ filter_query }}" />
+      <div class="flex items-center justify-center gap-4 mb-4">
+        <button type="button" @click="open=!open" class="group flex items-center gap-2 px-5 py-2.5 bg-white border border-[#BEE3DB] rounded-full shadow-sm text-[#116466] font-semibold focus:outline-none focus:ring-2 focus:ring-[#89B0AE] hover:bg-[#FAF9F9] transition">
+          <svg class="w-5 h-5 text-[#116466]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h18M6 12h12M10 19h4"/></svg>
+          <span>Advanced Filters</span>
+          <svg :class="{ 'rotate-180': open }" class="w-5 h-5 text-[#555B6E] transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+        </button>
+      </div>
+      <div x-show="open" x-transition.opacity x-cloak class="mt-5 mb-6 w-full bg-white border border-[#BEE3DB] rounded-2xl shadow-lg p-6">
+  <fieldset class="advanced-filters grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+          <div>
+            <label class="filter-label">License Type</label>
+            <div class="select-wrapper"><select name="license" class="filter-select pr-10">
+              <option value="">Any</option>{% for lt in license_types %}<option value="{{ lt.id }}" {% if filter_license == lt.id|stringformat:'s' %}selected{% endif %}>{{ lt.name }}</option>{% endfor %}
+            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+          </div>
+          <div>
+            <label class="filter-label">Participant Type</label>
+            <div class="select-wrapper"><select name="participant" class="filter-select pr-10">
+              <option value="">Any</option>{% for pt in participant_types_list %}<option value="{{ pt.id }}" {% if filter_participant == pt.id|stringformat:'s' %}selected{% endif %}>{{ pt.name }}</option>{% endfor %}
+            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+          </div>
+          <div>
+            <label class="filter-label">Age Group</label>
+            <div class="select-wrapper"><select name="age" class="filter-select pr-10">
+              <option value="">Any</option>{% for ag in age_groups_list %}<option value="{{ ag.id }}" {% if filter_age == ag.id|stringformat:'s' %}selected{% endif %}>{{ ag.name }}</option>{% endfor %}
+            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+          </div>
+          <div>
+            <label class="filter-label">Therapy Type</label>
+            <div class="select-wrapper"><select name="therapy_type" class="filter-select pr-10">
+              <option value="">Any</option>{% for tt in therapy_types_list %}<option value="{{ tt.id }}" {% if filter_therapy_type == tt.id|stringformat:'s' %}selected{% endif %}>{{ tt.name }}</option>{% endfor %}
+            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+          </div>
+          <div>
+            <label class="filter-label">Accepting New</label>
+            <div class="select-wrapper"><select name="accepting" class="filter-select pr-10">
+              <option value="" {% if not filter_accepting %}selected{% endif %}>Either</option>
+              <option value="yes" {% if filter_accepting == 'yes' %}selected{% endif %}>Yes</option>
+              <option value="no" {% if filter_accepting == 'no' %}selected{% endif %}>No</option>
+            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+          </div>
+          <div>
+            <label class="filter-label">Intro Call</label>
+            <div class="select-wrapper"><select name="intro_call" class="filter-select pr-10">
+              <option value="" {% if not filter_intro_call %}selected{% endif %}>Either</option>
+              <option value="1" {% if filter_intro_call == '1' %}selected{% endif %}>Offers Intro Call</option>
+            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+          </div>
+          <div>
+            <label class="filter-label">Sort By</label>
+            <div class="select-wrapper"><select name="sort" class="filter-select pr-10">
+              <option value="distance" {% if filter_sort == 'distance' %}selected{% endif %}>Distance{% if not user_zip %} (Recent){% endif %}</option>
+              <option value="recent" {% if filter_sort == 'recent' %}selected{% endif %}>Most Active</option>
+              <option value="name" {% if filter_sort == 'name' %}selected{% endif %}>Name (A-Z)</option>
+            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+          </div>
+        </fieldset>
+        <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-stretch">
+          <button type="submit" class="px-7 py-3 rounded-full bg-[#116466] text-white font-semibold text-sm shadow hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-[#89B0AE] transition">Apply Filters</button>
+          <a href="{{ request.path }}" class="px-7 py-3 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold text-sm shadow hover:bg-[#D2E7E4] focus:outline-none focus:ring-2 focus:ring-[#89B0AE] transition text-center">Reset</a>
+        </div>
+        <p class="mt-2 text-center text-[11px] text-[#555B6E] opacity-70">Results limited to first 150 matches after sorting.</p>
+        <style>
+          .filter-label{display:block;font-size:11px;font-weight:600;letter-spacing:.05em;color:#555B6E;margin-bottom:4px;text-transform:uppercase;}
+          .advanced-filters .select-wrapper{position:relative;}
+          .advanced-filters .select-wrapper .select-arrow{position:absolute;top:50%;right:.75rem;transform:translateY(-50%);display:flex;align-items:center;color:#116466;pointer-events:none;}
+          .advanced-filters .filter-select{display:block;width:100%;border:1px solid #89B0AE;border-radius:9999px;padding:.625rem 2.25rem .625rem 1rem;background:#FAF9F9;color:#555B6E;font-size:.875rem;line-height:1.25rem;font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:.15s;-webkit-appearance:none;-moz-appearance:none;appearance:none;}
+          .advanced-filters .filter-select:hover{background:#fff;}
+          .advanced-filters .filter-select:focus{outline:none;border-color:#116466;box-shadow:0 0 0 2px rgba(137,176,174,.45);background:#fff;}
+          .advanced-filters .filter-select.has-value{color:#116466;border-color:#116466;font-weight:600;}
+        </style>
+        <script>document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.advanced-filters .filter-select').forEach(s=>{const f=()=>{if(s.value) s.classList.add('has-value'); else s.classList.remove('has-value');};s.addEventListener('change',f);f();});});</script>
+      </div>
+    </form>
+  </div>
+  <div class="flex flex-col gap-2 py-8 pb-16 px-2 sm:px-4" style="background-color:#FFF6ED;">
     {% for therapist in therapists %}
       {% include "partials/therapist_card.html" with therapist=therapist %}
     {% empty %}
@@ -118,21 +138,15 @@
       <ul class="flex gap-4 items-center">
         <li>
           {% if page_obj.has_previous %}
-            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.tier %}tier={{ request.GET.tier }}&{% endif %}{% if request.GET.specialty %}specialty={{ request.GET.specialty }}&{% endif %}page={{ page_obj.previous_page_number }}"
-              class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white"
-            >Previous</a>
+            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.tier %}tier={{ request.GET.tier }}&{% endif %}{% if request.GET.specialty %}specialty={{ request.GET.specialty }}&{% endif %}page={{ page_obj.previous_page_number }}" class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white">Previous</a>
           {% else %}
             <span class="get-started-btn rounded-full px-6 py-2 text-base font-semibold bg-[#BEE3DB] text-[#555B6E] opacity-50 cursor-not-allowed">Previous</span>
           {% endif %}
         </li>
-        <li>
-          <span class="text-[#555B6E] font-medium text-base bg-[#FAF9F9] rounded-full px-5 py-2 border border-[#BEE3DB] shadow-sm">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
-        </li>
+        <li><span class="text-[#555B6E] font-medium text-base bg-[#FAF9F9] rounded-full px-5 py-2 border border-[#BEE3DB] shadow-sm">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span></li>
         <li>
           {% if page_obj.has_next %}
-            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.tier %}tier={{ request.GET.tier }}&{% endif %}{% if request.GET.specialty %}specialty={{ request.GET.specialty }}&{% endif %}page={{ page_obj.next_page_number }}"
-              class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white"
-            >Next</a>
+            <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.tier %}tier={{ request.GET.tier }}&{% endif %}{% if request.GET.specialty %}specialty={{ request.GET.specialty }}&{% endif %}page={{ page_obj.next_page_number }}" class="get-started-btn rounded-full px-6 py-2 text-base font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-[#89B0AE] text-[#FAF9F9] hover:bg-[#555B6E] hover:text-white">Next</a>
           {% else %}
             <span class="get-started-btn rounded-full px-6 py-2 text-base font-semibold bg-[#BEE3DB] text-[#555B6E] opacity-50 cursor-not-allowed">Next</span>
           {% endif %}
