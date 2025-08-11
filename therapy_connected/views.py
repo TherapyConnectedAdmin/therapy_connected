@@ -23,16 +23,26 @@ def therapists_page(request):
     tier = request.GET.get('tier', '').strip()
     specialty = request.GET.get('specialty', '').strip()
     # New advanced filters
-    accepting = request.GET.get('accepting', '').strip().lower()  # 'yes' or 'no'
-    intro_call = request.GET.get('intro_call', '').strip()  # '1'
-    license_id = request.GET.get('license', '').strip()
-    participant_id = request.GET.get('participant', '').strip()
-    age_id = request.GET.get('age', '').strip()
-    therapy_type_id = request.GET.get('therapy_type', '').strip()
-    sort_opt = request.GET.get('sort', 'distance').strip()  # distance|name|recent
+    # Removed accepting and intro_call filters per UI change
+    # Multi-select capable filters (can still receive a single value)
+    license_ids = [v for v in request.GET.getlist('license') if v.strip()]
+    participant_ids = [v for v in request.GET.getlist('participant') if v.strip()]
+    age_ids = [v for v in request.GET.getlist('age') if v.strip()]
+    therapy_type_ids = [v for v in request.GET.getlist('therapy_type') if v.strip()]
+    specialty_ids = [v for v in request.GET.getlist('specialty') if v.strip()]
+    # Identity filters (multi)
+    gender_ids = [v for v in request.GET.getlist('gender') if v.strip()]
+    race_ids = [v for v in request.GET.getlist('race') if v.strip()]
+    faith_ids = [v for v in request.GET.getlist('faith') if v.strip()]
+    lgbtqia_ids = [v for v in request.GET.getlist('lgbtqia') if v.strip()]
+    other_identity_ids = [v for v in request.GET.getlist('other_identity') if v.strip()]
+    sort_opt = request.GET.get('sort', 'distance').strip()  # distance|name (recent removed)
     therapists = TherapistProfile.objects.filter(user__is_active=True, user__onboarding_status='active').prefetch_related('locations')
     # Prefetch for filters
-    therapists = therapists.prefetch_related('participant_types', 'age_groups', 'types_of_therapy__therapy_type')
+    therapists = therapists.prefetch_related(
+        'participant_types', 'age_groups', 'types_of_therapy__therapy_type',
+        'race_ethnicities__race_ethnicity', 'faiths__faith', 'lgbtqia_identities__lgbtqia', 'other_identities__other_identity'
+    )
     if query:
         from users.utils.state_normalize import normalize_state
         normalized_query = normalize_state(query)
@@ -51,32 +61,49 @@ def therapists_page(request):
         therapists = therapists.filter(q_obj)
     if tier:
         therapists = therapists.filter(license_type__name__iexact=tier)
-    if accepting == 'yes':
-        therapists = therapists.filter(accepting_new_clients__iexact='Yes')
-    elif accepting == 'no':
-        therapists = therapists.exclude(accepting_new_clients__iexact='Yes')
-    if intro_call == '1':
-        therapists = therapists.filter(offers_intro_call=True)
-    if license_id:
-        try:
-            therapists = therapists.filter(license_type__id=int(license_id))
-        except ValueError:
-            pass
-    if participant_id:
-        try:
-            therapists = therapists.filter(participant_types__id=int(participant_id))
-        except ValueError:
-            pass
-    if age_id:
-        try:
-            therapists = therapists.filter(age_groups__id=int(age_id))
-        except ValueError:
-            pass
-    if therapy_type_id:
-        try:
-            therapists = therapists.filter(types_of_therapy__therapy_type__id=int(therapy_type_id))
-        except ValueError:
-            pass
+    # accepting / intro_call filtering removed
+    def to_int_list(values):
+        out = []
+        for v in values:
+            try:
+                out.append(int(v))
+            except (TypeError, ValueError):
+                continue
+        return out
+
+    int_license_ids = to_int_list(license_ids)
+    if int_license_ids:
+        therapists = therapists.filter(license_type__id__in=int_license_ids)
+    int_participant_ids = to_int_list(participant_ids)
+    if int_participant_ids:
+        therapists = therapists.filter(participant_types__id__in=int_participant_ids)
+    int_age_ids = to_int_list(age_ids)
+    if int_age_ids:
+        therapists = therapists.filter(age_groups__id__in=int_age_ids)
+    int_therapy_type_ids = to_int_list(therapy_type_ids)
+    if int_therapy_type_ids:
+        therapists = therapists.filter(types_of_therapy__therapy_type__id__in=int_therapy_type_ids)
+    int_specialty_ids = to_int_list(specialty_ids)
+    if int_specialty_ids:
+        therapists = therapists.filter(specialties__specialty__id__in=int_specialty_ids)
+    # Identity filters application
+    int_gender_ids = to_int_list(gender_ids)
+    if int_gender_ids:
+        therapists = therapists.filter(gender_id__in=int_gender_ids)
+    int_race_ids = to_int_list(race_ids)
+    if int_race_ids:
+        therapists = therapists.filter(race_ethnicities__race_ethnicity__id__in=int_race_ids)
+    int_faith_ids = to_int_list(faith_ids)
+    if int_faith_ids:
+        therapists = therapists.filter(faiths__faith__id__in=int_faith_ids)
+    int_lgbtqia_ids = to_int_list(lgbtqia_ids)
+    if int_lgbtqia_ids:
+        therapists = therapists.filter(lgbtqia_identities__lgbtqia__id__in=int_lgbtqia_ids)
+    int_other_identity_ids = to_int_list(other_identity_ids)
+    if int_other_identity_ids:
+        therapists = therapists.filter(other_identities__other_identity__id__in=int_other_identity_ids)
+    # Ensure distinct after multi joins
+    therapists = therapists.distinct()
     # Removed specialty filtering due to missing PracticeAreaTag model
 
     user_zip = request.session.get('user_zip')
@@ -138,8 +165,6 @@ def therapists_page(request):
         base_qs = therapists.distinct()
         if sort_opt == 'name':
             base_qs = base_qs.order_by('last_name', 'first_name')
-        elif sort_opt == 'recent':
-            base_qs = base_qs.order_by('-user__last_login')
         else:  # distance requested but no zip -> fallback recent
             base_qs = base_qs.order_by('-user__last_login')
         therapists = list(base_qs[:150])
@@ -190,11 +215,20 @@ def therapists_page(request):
         except Exception:
             pass
     # Provide lookup lists for advanced filter UI
-    from users.models_profile import LicenseType, ParticipantType, AgeGroup, TherapyType
+    from users.models_profile import (
+    LicenseType, ParticipantType, AgeGroup, TherapyType, SpecialtyLookup,
+        Gender, RaceEthnicity, Faith, LGBTQIA, OtherIdentity
+    )
     license_types = LicenseType.objects.all().order_by('name')
     participant_types = ParticipantType.objects.all().order_by('name')
     age_groups = AgeGroup.objects.all().order_by('name')
     therapy_types = TherapyType.objects.all().order_by('name')
+    specialties_lookup = SpecialtyLookup.objects.all().order_by('name')
+    genders = Gender.objects.all().order_by('name')
+    race_ethnicities = RaceEthnicity.objects.all().order_by('name')
+    faiths = Faith.objects.all().order_by('name')
+    lgbtqia_identities = LGBTQIA.objects.all().order_by('name')
+    other_identities = OtherIdentity.objects.all().order_by('name')
     return render(request, 'therapists.html', {
         'therapists': therapists_page_obj,
         'paginator': paginator,
@@ -205,18 +239,29 @@ def therapists_page(request):
         'user_zip_is_default': False,
         # Current filter state
         'filter_query': query,
-        'filter_accepting': accepting,
-        'filter_intro_call': intro_call,
-        'filter_license': license_id,
-        'filter_participant': participant_id,
-        'filter_age': age_id,
-        'filter_therapy_type': therapy_type_id,
-        'filter_sort': sort_opt,
-        # Lookup lists
-        'license_types': license_types,
-        'participant_types_list': participant_types,
-        'age_groups_list': age_groups,
-        'therapy_types_list': therapy_types,
+    # removed accepting & intro_call context vars
+    'filter_license': license_ids,
+    'filter_participant': participant_ids,
+    'filter_age': age_ids,
+    'filter_therapy_type': therapy_type_ids,
+    'filter_gender': gender_ids,
+    'filter_race': race_ids,
+    'filter_faith': faith_ids,
+    'filter_lgbtqia': lgbtqia_ids,
+    'filter_other_identity': other_identity_ids,
+    'filter_specialty': specialty_ids,
+    'filter_sort': sort_opt,
+    # Lookup lists
+    'license_types': license_types,
+    'participant_types_list': participant_types,
+    'age_groups_list': age_groups,
+    'therapy_types_list': therapy_types,
+    'specialties_list': specialties_lookup,
+    'genders': genders,
+    'race_ethnicities': race_ethnicities,
+    'faiths': faiths,
+    'lgbtqia_identities': lgbtqia_identities,
+    'other_identities': other_identities,
     })
 
 def set_zip(request):

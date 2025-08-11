@@ -129,6 +129,8 @@ class TherapistProfile(models.Model):
     first_name = models.CharField(max_length=64, default="")
     middle_name = models.CharField(max_length=64, blank=True)
     last_name = models.CharField(max_length=64, default="")
+    # SEO friendly slug for public profile pages (generated from name + id)
+    slug = models.SlugField(max_length=160, unique=True, blank=True)
     title = models.ForeignKey('Title', on_delete=models.SET_NULL, blank=True, null=True, related_name='therapists')
     display_title = models.BooleanField(default=False)
     personal_statement_q1 = models.TextField(max_length=500, blank=True)
@@ -178,6 +180,20 @@ class TherapistProfile(models.Model):
     age_groups = models.ManyToManyField('AgeGroup', related_name='therapists', blank=True)
     def __str__(self):
         return f"{self.first_name} {self.last_name}".strip()
+
+    def save(self, *args, **kwargs):
+        from django.utils.text import slugify
+        base = f"{self.first_name} {self.last_name}".strip() or str(self.user_id or '')
+        if not self.slug:
+            raw = slugify(base)[:120]
+            candidate = raw
+            # Ensure uniqueness (avoid race; best-effort)
+            counter = 2
+            while candidate and TherapistProfile.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
+                candidate = f"{raw}-{counter}"[:155]
+                counter += 1
+            self.slug = candidate or slugify(f"therapist-{self.pk or ''}")
+        super().save(*args, **kwargs)
 
     # Convenience flag helpers (robust against missing meta)
     @property
@@ -229,6 +245,27 @@ class Location(models.Model):
     # ...phone and email fields removed, only on TherapistProfile...
     def __str__(self):
         return f"{self.practice_name} ({self.city}, {self.state})"
+
+class OfficeHour(models.Model):
+    """Represents a single day's office hours for a specific location.
+    Allows optional second interval (split shift) and flags for closed / by appointment.
+    Stored in 24h HH:MM format for easy client formatting.
+    """
+    location = models.ForeignKey('Location', on_delete=models.CASCADE, related_name='office_hours')
+    # 0=Monday .. 6=Sunday for consistent ordering
+    weekday = models.PositiveSmallIntegerField(help_text="0=Mon .. 6=Sun")
+    is_closed = models.BooleanField(default=False)
+    by_appointment_only = models.BooleanField(default=False, help_text="Ignore times; display 'By appointment' if true")
+    start_time_1 = models.CharField(max_length=5, blank=True, help_text="HH:MM")
+    end_time_1 = models.CharField(max_length=5, blank=True, help_text="HH:MM")
+    start_time_2 = models.CharField(max_length=5, blank=True, help_text="Optional second interval start HH:MM")
+    end_time_2 = models.CharField(max_length=5, blank=True, help_text="Optional second interval end HH:MM")
+    notes = models.CharField(max_length=64, blank=True)
+    class Meta:
+        ordering = ["location", "weekday"]
+        unique_together = ("location", "weekday")
+    def __str__(self):
+        return f"{self.location.practice_name or 'Location'} day {self.weekday}" 
 
 # ZipCode reference model for distance calculations (seeded via management command)
 class ZipCode(models.Model):
@@ -308,6 +345,7 @@ class GalleryImage(models.Model):
     image = models.ImageField(upload_to='gallery/')
     caption = models.CharField(max_length=128, blank=True)
     image_meta = models.JSONField(blank=True, null=True, default=dict)
+    is_primary = models.BooleanField(default=False, help_text="Marks the primary gallery image for emphasized display")
     def __str__(self): return self.caption or str(self.image)
 
 class InsuranceDetail(models.Model):

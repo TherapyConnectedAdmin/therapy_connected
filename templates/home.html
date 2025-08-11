@@ -5,6 +5,7 @@
 <script>
   document.addEventListener('alpine:init', () => {
   Alpine.store('profileModal', {
+      currentUserId: {% if request.user.is_authenticated %}{{ request.user.id }}{% else %}null{% endif %},
       show: false,
       therapist: {},
       loading: false,

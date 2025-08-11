@@ -5,6 +5,7 @@
   document.addEventListener('alpine:init', () => {
     if(!Alpine.store('profileModal')) {
       Alpine.store('profileModal', {
+        currentUserId: {% if request.user.is_authenticated %}{{ request.user.id }}{% else %}null{% endif %},
         show:false,
         therapist:{},
         loading:false,
@@ -61,55 +62,236 @@
       </div>
       <div x-show="open" x-transition.opacity x-cloak class="mt-5 mb-6 w-full bg-white border border-[#BEE3DB] rounded-2xl shadow-lg p-6">
   <fieldset class="advanced-filters grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-          <div>
+          <div x-data="{open:false,label:'Any',update(){const boxes=[...$refs.boxes.querySelectorAll('input[type=checkbox]')];const chosen=boxes.filter(b=>b.checked).map(b=>b.nextElementSibling.textContent.trim());this.label = chosen.length? (chosen.length===1? chosen[0]: `${chosen.length} selected`):'Any';},init(){this.update();}}" class="relative">
             <label class="filter-label">License Type</label>
-            <div class="select-wrapper"><select name="license" class="filter-select pr-10">
-              <option value="">Any</option>{% for lt in license_types %}<option value="{{ lt.id }}" {% if filter_license == lt.id|stringformat:'s' %}selected{% endif %}>{{ lt.name }}</option>{% endfor %}
-            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+            <button type="button" @click="open=!open" :aria-expanded="open" aria-haspopup="listbox" :class="{'has-value':label!=='Any'}" class="w-full filter-select flex items-center justify-between gap-2 pr-3 cursor-pointer !rounded-lg items-center">
+              <span class="truncate text-left" x-text="label"></span>
+              <svg :class="{'rotate-180':open}" class="w-4 h-4 text-[#116466] transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-transition @click.outside="open=false" class="absolute z-30 mt-1 w-56 max-h-64 overflow-auto rounded-xl border border-[#89B0AE] bg-white shadow-lg p-2 flex flex-col gap-1" x-ref="boxes">
+              {% for lt in license_types %}
+              <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#F2FAF9] text-xs cursor-pointer">
+                <input type="checkbox" name="license" value="{{ lt.id }}" class="rounded text-[#116466] focus:ring-[#116466]" {% if lt.id|stringformat:'s' in filter_license %}checked{% endif %} @change="update()">
+                <span class="flex-1">{{ lt.name }}</span>
+              </label>
+              {% endfor %}
+              <div class="mt-1 pt-1 border-t border-[#E5F4F2] flex gap-2">
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#E5F4F2] text-[#116466] font-semibold" @click="$el.closest('.relative').querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false); update()">Clear</button>
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold" @click="open=false">Done</button>
+              </div>
+            </div>
           </div>
-          <div>
+          <div x-data="{open:false,label:'Any',update(){const boxes=[...$refs.boxes.querySelectorAll('input[type=checkbox]')];const chosen=boxes.filter(b=>b.checked).map(b=>b.nextElementSibling.textContent.trim());this.label = chosen.length? (chosen.length===1? chosen[0]: `${chosen.length} selected`):'Any';},init(){this.update();}}" class="relative">
             <label class="filter-label">Participant Type</label>
-            <div class="select-wrapper"><select name="participant" class="filter-select pr-10">
-              <option value="">Any</option>{% for pt in participant_types_list %}<option value="{{ pt.id }}" {% if filter_participant == pt.id|stringformat:'s' %}selected{% endif %}>{{ pt.name }}</option>{% endfor %}
-            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+            <button type="button" @click="open=!open" :aria-expanded="open" aria-haspopup="listbox" :class="{'has-value':label!=='Any'}" class="w-full filter-select flex items-center justify-between gap-2 pr-3 cursor-pointer !rounded-lg items-center">
+              <span class="truncate text-left" x-text="label"></span>
+              <svg :class="{'rotate-180':open}" class="w-4 h-4 text-[#116466] transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-transition @click.outside="open=false" class="absolute z-30 mt-1 w-56 max-h-64 overflow-auto rounded-xl border border-[#89B0AE] bg-white shadow-lg p-2 flex flex-col gap-1" x-ref="boxes">
+              {% for pt in participant_types_list %}
+              <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#F2FAF9] text-xs cursor-pointer">
+                <input type="checkbox" name="participant" value="{{ pt.id }}" class="rounded text-[#116466] focus:ring-[#116466]" {% if pt.id|stringformat:'s' in filter_participant %}checked{% endif %} @change="update()">
+                <span class="flex-1">{{ pt.name }}</span>
+              </label>
+              {% endfor %}
+              <div class="mt-1 pt-1 border-t border-[#E5F4F2] flex gap-2">
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#E5F4F2] text-[#116466] font-semibold" @click="$el.closest('.relative').querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false); update()">Clear</button>
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold" @click="open=false">Done</button>
+              </div>
+            </div>
           </div>
-          <div>
+          <div x-data="{open:false,label:'Any',update(){const boxes=[...$refs.boxes.querySelectorAll('input[type=checkbox]')];const chosen=boxes.filter(b=>b.checked).map(b=>b.nextElementSibling.textContent.trim());this.label = chosen.length? (chosen.length===1? chosen[0]: `${chosen.length} selected`):'Any';},init(){this.update();}}" class="relative">
             <label class="filter-label">Age Group</label>
-            <div class="select-wrapper"><select name="age" class="filter-select pr-10">
-              <option value="">Any</option>{% for ag in age_groups_list %}<option value="{{ ag.id }}" {% if filter_age == ag.id|stringformat:'s' %}selected{% endif %}>{{ ag.name }}</option>{% endfor %}
-            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+            <button type="button" @click="open=!open" :aria-expanded="open" aria-haspopup="listbox" :class="{'has-value':label!=='Any'}" class="w-full filter-select flex items-center justify-between gap-2 pr-3 cursor-pointer !rounded-lg items-center">
+              <span class="truncate text-left" x-text="label"></span>
+              <svg :class="{'rotate-180':open}" class="w-4 h-4 text-[#116466] transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-transition @click.outside="open=false" class="absolute z-30 mt-1 w-56 max-h-64 overflow-auto rounded-xl border border-[#89B0AE] bg-white shadow-lg p-2 flex flex-col gap-1" x-ref="boxes">
+              {% for ag in age_groups_list %}
+              <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#F2FAF9] text-xs cursor-pointer">
+                <input type="checkbox" name="age" value="{{ ag.id }}" class="rounded text-[#116466] focus:ring-[#116466]" {% if ag.id|stringformat:'s' in filter_age %}checked{% endif %} @change="update()">
+                <span class="flex-1">{{ ag.name }}</span>
+              </label>
+              {% endfor %}
+              <div class="mt-1 pt-1 border-t border-[#E5F4F2] flex gap-2">
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#E5F4F2] text-[#116466] font-semibold" @click="$el.closest('.relative').querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false); update()">Clear</button>
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold" @click="open=false">Done</button>
+              </div>
+            </div>
           </div>
-          <div>
+          <div x-data="{open:false,label:'Any',update(){const boxes=[...$refs.ttBoxes.querySelectorAll('input[type=checkbox]')];const chosen=boxes.filter(b=>b.checked).map(b=>b.nextElementSibling.textContent.trim());this.label=chosen.length?(chosen.length===1?chosen[0]:`${chosen.length} selected`):'Any';},init(){this.update();}}" class="relative">
             <label class="filter-label">Therapy Type</label>
-            <div class="select-wrapper"><select name="therapy_type" class="filter-select pr-10">
-              <option value="">Any</option>{% for tt in therapy_types_list %}<option value="{{ tt.id }}" {% if filter_therapy_type == tt.id|stringformat:'s' %}selected{% endif %}>{{ tt.name }}</option>{% endfor %}
-            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+            <button type="button" @click="open=!open" :aria-expanded="open" aria-haspopup="listbox" :class="{'has-value':label!=='Any'}" class="w-full filter-select flex items-center justify-between gap-2 pr-3 cursor-pointer !rounded-lg items-center">
+              <span class="truncate text-left" x-text="label"></span>
+              <svg :class="{'rotate-180':open}" class="w-4 h-4 text-[#116466] transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-transition @click.outside="open=false" class="absolute z-30 mt-1 w-56 max-h-64 overflow-auto rounded-xl border border-[#89B0AE] bg-white shadow-lg p-2 flex flex-col gap-1" x-ref="ttBoxes">
+              {% for tt in therapy_types_list %}
+              <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#F2FAF9] text-xs cursor-pointer">
+                <input type="checkbox" name="therapy_type" value="{{ tt.id }}" class="rounded text-[#116466] focus:ring-[#116466]" {% if tt.id|stringformat:'s' in filter_therapy_type %}checked{% endif %} @change="update()">
+                <span class="flex-1">{{ tt.name }}</span>
+              </label>
+              {% endfor %}
+              <div class="mt-1 pt-1 border-t border-[#E5F4F2] flex gap-2">
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#E5F4F2] text-[#116466] font-semibold" @click="$el.closest('.relative').querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false); update()">Clear</button>
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold" @click="open=false">Done</button>
+              </div>
+            </div>
           </div>
-          <div>
-            <label class="filter-label">Accepting New</label>
-            <div class="select-wrapper"><select name="accepting" class="filter-select pr-10">
-              <option value="" {% if not filter_accepting %}selected{% endif %}>Either</option>
-              <option value="yes" {% if filter_accepting == 'yes' %}selected{% endif %}>Yes</option>
-              <option value="no" {% if filter_accepting == 'no' %}selected{% endif %}>No</option>
-            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+          <div x-data="{open:false,label:'Any',update(){const boxes=[...$refs.spBoxes.querySelectorAll('input[type=checkbox]')];const chosen=boxes.filter(b=>b.checked).map(b=>b.nextElementSibling.textContent.trim());this.label=chosen.length?(chosen.length===1?chosen[0]:`${chosen.length} selected`):'Any';},init(){this.update();}}" class="relative">
+            <label class="filter-label">Specialties</label>
+            <button type="button" @click="open=!open" :aria-expanded="open" aria-haspopup="listbox" :class="{'has-value':label!=='Any'}" class="w-full filter-select flex items-center justify-between gap-2 pr-3 cursor-pointer !rounded-lg items-center">
+              <span class="truncate text-left" x-text="label"></span>
+              <svg :class="{'rotate-180':open}" class="w-4 h-4 text-[#116466] transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-transition @click.outside="open=false" class="absolute z-30 mt-1 w-56 max-h-64 overflow-auto rounded-xl border border-[#89B0AE] bg-white shadow-lg p-2 flex flex-col gap-1" x-ref="spBoxes">
+              {% for sp in specialties_list %}
+              <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#F2FAF9] text-xs cursor-pointer">
+                <input type="checkbox" name="specialty" value="{{ sp.id }}" class="rounded text-[#116466] focus:ring-[#116466]" {% if sp.id|stringformat:'s' in filter_specialty %}checked{% endif %} @change="update()">
+                <span class="flex-1">{{ sp.name }}</span>
+              </label>
+              {% endfor %}
+              <div class="mt-1 pt-1 border-t border-[#E5F4F2] flex gap-2">
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#E5F4F2] text-[#116466] font-semibold" @click="$el.closest('.relative').querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false); update()">Clear</button>
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold" @click="open=false">Done</button>
+              </div>
+            </div>
           </div>
-          <div>
-            <label class="filter-label">Intro Call</label>
-            <div class="select-wrapper"><select name="intro_call" class="filter-select pr-10">
-              <option value="" {% if not filter_intro_call %}selected{% endif %}>Either</option>
-              <option value="1" {% if filter_intro_call == '1' %}selected{% endif %}>Offers Intro Call</option>
-            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+          <div x-data="{open:false,label:'Any',update(){const boxes=[...$refs.boxes.querySelectorAll('input[type=checkbox]')];const chosen=boxes.filter(b=>b.checked).map(b=>b.nextElementSibling.textContent.trim());this.label = chosen.length? (chosen.length===1? chosen[0]: `${chosen.length} selected`):'Any';},init(){this.update();}}" class="relative">
+            <label class="filter-label">Gender</label>
+            <button type="button" @click="open=!open" :aria-expanded="open" aria-haspopup="listbox" :class="{'has-value':label!=='Any'}" class="w-full filter-select flex items-center justify-between gap-2 pr-3 cursor-pointer !rounded-lg items-center">
+              <span class="truncate text-left" x-text="label"></span>
+              <svg :class="{'rotate-180':open}" class="w-4 h-4 text-[#116466] transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-transition @click.outside="open=false" class="absolute z-30 mt-1 w-56 max-h-64 overflow-auto rounded-xl border border-[#89B0AE] bg-white shadow-lg p-2 flex flex-col gap-1" x-ref="boxes">
+              {% for g in genders %}
+              <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#F2FAF9] text-xs cursor-pointer">
+                <input type="checkbox" name="gender" value="{{ g.id }}" class="rounded text-[#116466] focus:ring-[#116466]" {% if g.id|stringformat:'s' in filter_gender %}checked{% endif %} @change="update()">
+                <span class="flex-1">{{ g.name }}</span>
+              </label>
+              {% endfor %}
+              <div class="mt-1 pt-1 border-t border-[#E5F4F2] flex gap-2">
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#E5F4F2] text-[#116466] font-semibold" @click="$el.closest('.relative').querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false); update()">Clear</button>
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold" @click="open=false">Done</button>
+              </div>
+            </div>
           </div>
-          <div>
-            <label class="filter-label">Sort By</label>
-            <div class="select-wrapper"><select name="sort" class="filter-select pr-10">
-              <option value="distance" {% if filter_sort == 'distance' %}selected{% endif %}>Distance{% if not user_zip %} (Recent){% endif %}</option>
-              <option value="recent" {% if filter_sort == 'recent' %}selected{% endif %}>Most Active</option>
-              <option value="name" {% if filter_sort == 'name' %}selected{% endif %}>Name (A-Z)</option>
-            </select><span class="select-arrow"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></div>
+          <div x-data="{open:false,label:'Any',update(){const boxes=[...$refs.boxes.querySelectorAll('input[type=checkbox]')];const chosen=boxes.filter(b=>b.checked).map(b=>b.nextElementSibling.textContent.trim());this.label = chosen.length? (chosen.length===1? chosen[0]: `${chosen.length} selected`):'Any';},init(){this.update();}}" class="relative">
+            <label class="filter-label">Race / Ethnicity</label>
+            <button type="button" @click="open=!open" :aria-expanded="open" aria-haspopup="listbox" :class="{'has-value':label!=='Any'}" class="w-full filter-select flex items-center justify-between gap-2 pr-3 cursor-pointer !rounded-lg items-center">
+              <span class="truncate text-left" x-text="label"></span>
+              <svg :class="{'rotate-180':open}" class="w-4 h-4 text-[#116466] transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-transition @click.outside="open=false" class="absolute z-30 mt-1 w-56 max-h-64 overflow-auto rounded-xl border border-[#89B0AE] bg-white shadow-lg p-2 flex flex-col gap-1" x-ref="boxes">
+              {% for r in race_ethnicities %}
+              <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#F2FAF9] text-xs cursor-pointer">
+                <input type="checkbox" name="race" value="{{ r.id }}" class="rounded text-[#116466] focus:ring-[#116466]" {% if r.id|stringformat:'s' in filter_race %}checked{% endif %} @change="update()">
+                <span class="flex-1">{{ r.name }}</span>
+              </label>
+              {% endfor %}
+              <div class="mt-1 pt-1 border-t border-[#E5F4F2] flex gap-2">
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#E5F4F2] text-[#116466] font-semibold" @click="$el.closest('.relative').querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false); update()">Clear</button>
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold" @click="open=false">Done</button>
+              </div>
+            </div>
+          </div>
+          <div x-data="{open:false,label:'Any',update(){const boxes=[...$refs.boxes.querySelectorAll('input[type=checkbox]')];const chosen=boxes.filter(b=>b.checked).map(b=>b.nextElementSibling.textContent.trim());this.label = chosen.length? (chosen.length===1? chosen[0]: `${chosen.length} selected`):'Any';},init(){this.update();}}" class="relative">
+            <label class="filter-label">Faith</label>
+            <button type="button" @click="open=!open" :aria-expanded="open" aria-haspopup="listbox" :class="{'has-value':label!=='Any'}" class="w-full filter-select flex items-center justify-between gap-2 pr-3 cursor-pointer !rounded-lg items-center">
+              <span class="truncate text-left" x-text="label"></span>
+              <svg :class="{'rotate-180':open}" class="w-4 h-4 text-[#116466] transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-transition @click.outside="open=false" class="absolute z-30 mt-1 w-56 max-h-64 overflow-auto rounded-xl border border-[#89B0AE] bg-white shadow-lg p-2 flex flex-col gap-1" x-ref="boxes">
+              {% for f in faiths %}
+              <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#F2FAF9] text-xs cursor-pointer">
+                <input type="checkbox" name="faith" value="{{ f.id }}" class="rounded text-[#116466] focus:ring-[#116466]" {% if f.id|stringformat:'s' in filter_faith %}checked{% endif %} @change="update()">
+                <span class="flex-1">{{ f.name }}</span>
+              </label>
+              {% endfor %}
+              <div class="mt-1 pt-1 border-t border-[#E5F4F2] flex gap-2">
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#E5F4F2] text-[#116466] font-semibold" @click="$el.closest('.relative').querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false); update()">Clear</button>
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold" @click="open=false">Done</button>
+              </div>
+            </div>
+          </div>
+          <div x-data="{open:false,label:'Any',update(){const boxes=[...$refs.boxes.querySelectorAll('input[type=checkbox]')];const chosen=boxes.filter(b=>b.checked).map(b=>b.nextElementSibling.textContent.trim());this.label = chosen.length? (chosen.length===1? chosen[0]: `${chosen.length} selected`):'Any';},init(){this.update();}}" class="relative">
+            <label class="filter-label">LGBTQIA+</label>
+            <button type="button" @click="open=!open" :aria-expanded="open" aria-haspopup="listbox" :class="{'has-value':label!=='Any'}" class="w-full filter-select flex items-center justify-between gap-2 pr-3 cursor-pointer !rounded-lg items-center">
+              <span class="truncate text-left" x-text="label"></span>
+              <svg :class="{'rotate-180':open}" class="w-4 h-4 text-[#116466] transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-transition @click.outside="open=false" class="absolute z-30 mt-1 w-56 max-h-64 overflow-auto rounded-xl border border-[#89B0AE] bg-white shadow-lg p-2 flex flex-col gap-1" x-ref="boxes">
+              {% for l in lgbtqia_identities %}
+              <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#F2FAF9] text-xs cursor-pointer">
+                <input type="checkbox" name="lgbtqia" value="{{ l.id }}" class="rounded text-[#116466] focus:ring-[#116466]" {% if l.id|stringformat:'s' in filter_lgbtqia %}checked{% endif %} @change="update()">
+                <span class="flex-1">{{ l.name }}</span>
+              </label>
+              {% endfor %}
+              <div class="mt-1 pt-1 border-t border-[#E5F4F2] flex gap-2">
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#E5F4F2] text-[#116466] font-semibold" @click="$el.closest('.relative').querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false); update()">Clear</button>
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold" @click="open=false">Done</button>
+              </div>
+            </div>
+          </div>
+          <div x-data="{open:false,label:'Any',update(){const boxes=[...$refs.boxes.querySelectorAll('input[type=checkbox]')];const chosen=boxes.filter(b=>b.checked).map(b=>b.nextElementSibling.textContent.trim());this.label = chosen.length? (chosen.length===1? chosen[0]: `${chosen.length} selected`):'Any';},init(){this.update();}}" class="relative">
+            <label class="filter-label">Other Identity</label>
+            <button type="button" @click="open=!open" :aria-expanded="open" aria-haspopup="listbox" :class="{'has-value':label!=='Any'}" class="w-full filter-select flex items-center justify-between gap-2 pr-3 cursor-pointer !rounded-lg items-center">
+              <span class="truncate text-left" x-text="label"></span>
+              <svg :class="{'rotate-180':open}" class="w-4 h-4 text-[#116466] transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-transition @click.outside="open=false" class="absolute z-30 mt-1 w-56 max-h-64 overflow-auto rounded-xl border border-[#89B0AE] bg-white shadow-lg p-2 flex flex-col gap-1" x-ref="boxes">
+              {% for oi in other_identities %}
+              <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#F2FAF9] text-xs cursor-pointer">
+                <input type="checkbox" name="other_identity" value="{{ oi.id }}" class="rounded text-[#116466] focus:ring-[#116466]" {% if oi.id|stringformat:'s' in filter_other_identity %}checked{% endif %} @change="update()">
+                <span class="flex-1">{{ oi.name }}</span>
+              </label>
+              {% endfor %}
+              <div class="mt-1 pt-1 border-t border-[#E5F4F2] flex gap-2">
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#E5F4F2] text-[#116466] font-semibold" @click="$el.closest('.relative').querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false); update()">Clear</button>
+                <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold" @click="open=false">Done</button>
+              </div>
+            </div>
           </div>
         </fieldset>
-        <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-stretch">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6 mt-6">
+          <div x-data="{open:false,value:'{{ filter_sort|default:'distance' }}',options:[{v:'distance',t:'Distance{% if not user_zip %} (Recent){% endif %}'},{v:'name',t:'Name (A-Z)'}],
+            label(){const o=this.options.find(o=>o.v===this.value);return o?o.t:'Distance';}}" class="relative">
+            <label class="filter-label">Sort By</label>
+            <button type="button" @click="open=!open" :aria-expanded="open" aria-haspopup="listbox" :class="{'has-value':true}" class="w-full filter-select flex items-center justify-between gap-2 pr-3 cursor-pointer !rounded-lg">
+              <span class="truncate text-left" x-text="label()"></span>
+              <svg :class="{'rotate-180':open}" class="w-4 h-4 text-[#116466] transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div x-show="open" x-transition @click.outside="open=false" class="absolute z-30 mt-1 w-full max-h-64 overflow-auto rounded-xl border border-[#89B0AE] bg-white shadow-lg p-2 flex flex-col gap-1">
+              <template x-for="opt in options" :key="opt.v">
+                <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-[#F2FAF9] text-xs cursor-pointer">
+                  <input type="radio" name="sort" :value="opt.v" :checked="value===opt.v" @change="value=opt.v; open=false" class="text-[#116466] focus:ring-[#116466]">
+                  <span class="flex-1" x-text="opt.t"></span>
+                </label>
+              </template>
+            </div>
+          </div>
+        </div>
+  <!-- Active Filters Summary -->
+  <div class="mt-6" x-data>
+          <div class="flex flex-wrap gap-2" id="active-filters-wrapper">
+            {% for lt in license_types %}{% if lt.id|stringformat:'s' in filter_license %}<span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold">License: {{ lt.name }}</span>{% endif %}{% endfor %}
+            {% for pt in participant_types_list %}{% if pt.id|stringformat:'s' in filter_participant %}<span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold">Participant: {{ pt.name }}</span>{% endif %}{% endfor %}
+            {% for ag in age_groups_list %}{% if ag.id|stringformat:'s' in filter_age %}<span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold">Age: {{ ag.name }}</span>{% endif %}{% endfor %}
+            {% for tt in therapy_types_list %}{% if tt.id|stringformat:'s' in filter_therapy_type %}<span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold">Therapy: {{ tt.name }}</span>{% endif %}{% endfor %}
+            {% for sp in specialties_list %}{% if sp.id|stringformat:'s' in filter_specialty %}<span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold">Specialty: {{ sp.name }}</span>{% endif %}{% endfor %}
+            {% for g in genders %}{% if g.id|stringformat:'s' in filter_gender %}<span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold">Gender: {{ g.name }}</span>{% endif %}{% endfor %}
+            {% for r in race_ethnicities %}{% if r.id|stringformat:'s' in filter_race %}<span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold">Race: {{ r.name }}</span>{% endif %}{% endfor %}
+            {% for f in faiths %}{% if f.id|stringformat:'s' in filter_faith %}<span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold">Faith: {{ f.name }}</span>{% endif %}{% endfor %}
+            {% for l in lgbtqia_identities %}{% if l.id|stringformat:'s' in filter_lgbtqia %}<span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold">LGBTQIA+: {{ l.name }}</span>{% endif %}{% endfor %}
+            {% for oi in other_identities %}{% if oi.id|stringformat:'s' in filter_other_identity %}<span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold">Identity: {{ oi.name }}</span>{% endif %}{% endfor %}
+            
+            {% if filter_sort and filter_sort != 'distance' %}<span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold">Sort: {{ filter_sort|title }}</span>{% endif %}
+          </div>
+            {% if not filter_license and not filter_participant and not filter_age and not filter_therapy_type and not filter_specialty and not filter_gender and not filter_race and not filter_faith and not filter_lgbtqia and not filter_other_identity and filter_sort == 'distance' %}
+            <p class="mt-2 text-[11px] text-[#555B6E] opacity-60">No active filters.</p>
+          {% endif %}
+        </div>
+  <div class="mt-6 flex flex-wrap gap-4 justify-center items-stretch">
           <button type="submit" class="px-7 py-3 rounded-full bg-[#116466] text-white font-semibold text-sm shadow hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-[#89B0AE] transition">Apply Filters</button>
           <a href="{{ request.path }}" class="px-7 py-3 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold text-sm shadow hover:bg-[#D2E7E4] focus:outline-none focus:ring-2 focus:ring-[#89B0AE] transition text-center">Reset</a>
         </div>
@@ -118,12 +300,15 @@
           .filter-label{display:block;font-size:11px;font-weight:600;letter-spacing:.05em;color:#555B6E;margin-bottom:4px;text-transform:uppercase;}
           .advanced-filters .select-wrapper{position:relative;}
           .advanced-filters .select-wrapper .select-arrow{position:absolute;top:50%;right:.75rem;transform:translateY(-50%);display:flex;align-items:center;color:#116466;pointer-events:none;}
-          .advanced-filters .filter-select{display:block;width:100%;border:1px solid #89B0AE;border-radius:9999px;padding:.625rem 2.25rem .625rem 1rem;background:#FAF9F9;color:#555B6E;font-size:.875rem;line-height:1.25rem;font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:.15s;-webkit-appearance:none;-moz-appearance:none;appearance:none;}
+          /* Use flex so inner text sits perfectly centered vertically */
+          .advanced-filters .filter-select{display:flex;align-items:center;justify-content:space-between;width:100%;border:1px solid #89B0AE;border-radius:1rem;padding:.5rem .75rem;background:#FAF9F9;color:#555B6E;font-size:.75rem;line-height:1rem;font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:.15s;-webkit-appearance:none;-moz-appearance:none;appearance:none;min-height:2.75rem;}
+          .advanced-filters select[multiple]{background:#fff;overflow:auto;}
+          .advanced-filters select[multiple] option{padding:.25rem .5rem;font-size:.7rem;}
           .advanced-filters .filter-select:hover{background:#fff;}
           .advanced-filters .filter-select:focus{outline:none;border-color:#116466;box-shadow:0 0 0 2px rgba(137,176,174,.45);background:#fff;}
           .advanced-filters .filter-select.has-value{color:#116466;border-color:#116466;font-weight:600;}
         </style>
-        <script>document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.advanced-filters .filter-select').forEach(s=>{const f=()=>{if(s.value) s.classList.add('has-value'); else s.classList.remove('has-value');};s.addEventListener('change',f);f();});});</script>
+  <!-- Dynamic highlight handled via Alpine :class bindings on each custom dropdown -->
       </div>
     </form>
   </div>

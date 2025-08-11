@@ -46,10 +46,24 @@
   .profile-modal-scroll figure img { display:block; border:none; outline:none; }
   .profile-modal-scroll figure::before, .profile-modal-scroll figure::after { content:none !important; }
   .profile-modal-scroll figure img::before, .profile-modal-scroll figure img::after { content:none !important; }
+  /* Unified off-white shade (slightly darker than previous #FAF9F9) */
+  :root { --tc-offwhite: #F5F4F3; }
+  .bg-offwhite { background-color: var(--tc-offwhite); }
+  .bg-statement { background:#FCFCFB; }
 </style>
 {# Added defensive optional chaining so an undefined store doesn't throw and leave the modal visible #}
-<div x-data="{ lightboxImage:null }" x-cloak x-show="$store.profileModal?.show" class="fixed inset-0 z-[70] backdrop-blur-sm p-4" style="background: rgba(30,30,30,0.45);" @keydown.window.escape="$store.profileModal && $store.profileModal.close()" @click.self="$store.profileModal && $store.profileModal.close()" @keydown.window.arrow-right.prevent="$store.profileModal?.next && $store.profileModal.next()" @keydown.window.arrow-left.prevent="$store.profileModal?.prev && $store.profileModal.prev()">
-  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[98vw] max-w-7xl max-h-[90vh] rounded-3xl shadow-2xl bg-[#FAF9F9] ring-1 ring-[#BEE3DB] flex flex-col overflow-visible relative opacity-0 scale-95 transition-opacity transition-transform duration-150 ease-out" :class="$store.profileModal.contentVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'" role="dialog" aria-modal="true" aria-labelledby="therapistProfileHeading" x-ref="dialog">
+{% if standalone %}
+<div x-data="{ lightboxImage:null, showAllFields:false, expectedFields:[
+ 'id','first_name','middle_name','last_name','name','intro_statement','personal_statement_q1','personal_statement_q2','personal_statement_q3','credentials_note','practice_name','phone_number','phone_extension','receive_calls_from_client','mobile_number','receive_texts_from_clients','practice_email','office_email','receive_emails_from_clients','receive_emails_when_client_calls','therapy_delivery_method','accepting_new_clients','offers_intro_call','individual_session_cost','couples_session_cost','sliding_scale_pricing_available','finance_note','practice_website_url','facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url','therapy_types_note','specialties_note','mental_health_role','license_type','license_type_description','license_type_short','license_number','license_expiration','license_state','date_of_birth','gender','participant_types','age_groups','top_specialties','specialties','accepted_payment_methods','areas_of_expertise','types_of_therapy','therapy_types','other_therapy_types','gallery_images','video_gallery','locations','race_ethnicities','faiths','lgbtqia_identities','other_identities','insurance_details','additional_credentials','educations','years_in_practice','profile_photo_url','city','state'
+ ] }" x-cloak class="relative w-full max-w-7xl mx-auto my-8">
+{% else %}
+<div x-data="{ lightboxImage:null, showAllFields:false, expectedFields:[
+ 'id','first_name','middle_name','last_name','name','intro_statement','personal_statement_q1','personal_statement_q2','personal_statement_q3','credentials_note','practice_name','phone_number','phone_extension','receive_calls_from_client','mobile_number','receive_texts_from_clients','practice_email','office_email','receive_emails_from_clients','receive_emails_when_client_calls','therapy_delivery_method','accepting_new_clients','offers_intro_call','individual_session_cost','couples_session_cost','sliding_scale_pricing_available','finance_note','practice_website_url','facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url','therapy_types_note','specialties_note','mental_health_role','license_type','license_type_description','license_type_short','license_number','license_expiration','license_state','date_of_birth','gender','participant_types','age_groups','top_specialties','specialties','accepted_payment_methods','areas_of_expertise','types_of_therapy','therapy_types','other_therapy_types','gallery_images','video_gallery','locations','race_ethnicities','faiths','lgbtqia_identities','other_identities','insurance_details','additional_credentials','educations','years_in_practice','profile_photo_url','city','state'
+ ] }" x-cloak x-show="$store.profileModal?.show" class="fixed inset-0 z-[70] backdrop-blur-sm p-4" style="background: rgba(30,30,30,0.45);" @keydown.window.escape="$store.profileModal && $store.profileModal.close()" @click.self="$store.profileModal && $store.profileModal.close()" @keydown.window.arrow-right.prevent="$store.profileModal?.next && $store.profileModal.next()" @keydown.window.arrow-left.prevent="$store.profileModal?.prev && $store.profileModal.prev()">
+  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[98vw] max-w-7xl max-h-[90vh] rounded-3xl shadow-2xl ring-1 ring-[#BEE3DB] overflow-visible relative opacity-0 scale-95 transition-opacity transition-transform duration-150 ease-out bg-[#ECEBE8] flex flex-col min-h-0" :class="$store.profileModal.contentVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'" role="dialog" aria-modal="true" aria-labelledby="therapistProfileHeading" x-ref="dialog">
+    <div class="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-b from-[#E3E2DF] via-[#F5F4F3] to-[#E0DFDC]"></div>
+  <div class="relative z-10 flex flex-col flex-1 min-h-0">
+{% endif %}
     <!-- overflow-visible so external-positioned nav arrows (translated outside) are not clipped -->
     <!-- Internal edge-anchored navigation arrows -->
   <button x-show="$store.profileModal?.ids && $store.profileModal.ids.length && $store.profileModal.currentIndex>0" @click.stop="$store.profileModal.prev()" class="hidden md:flex absolute left-0 top-1/2 z-[85] w-11 h-11 -translate-y-1/2 rounded-full items-center justify-center bg-[#116466]/95 text-white shadow-lg hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-[#89B0AE] transition" style="transform:translate(-120%, -50%);" aria-label="Previous profile">
@@ -59,23 +73,41 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
     </button>
   <!-- Clipping wrapper to keep scrollbar & sticky header inside rounded corners -->
-  <div class="relative flex-1 flex flex-col rounded-3xl overflow-hidden">
+  <div class="relative flex-1 flex flex-col rounded-3xl overflow-hidden min-h-0">
   <!-- Loading Overlay (inside clipping wrapper) -->
   <div x-show="$store.profileModal.loading" x-transition.opacity class="absolute inset-0 flex flex-col items-center justify-center bg-white/85 z-[80]">
       <div class="animate-spin h-10 w-10 rounded-full border-4 border-[#BEE3DB] border-t-[#116466]"></div>
       <p class="mt-4 text-sm font-medium text-[#555B6E]">Loading profile…</p>
     </div>
   <!-- Header / Content (refactored) -->
-  <div class="flex-1 overflow-y-auto profile-modal-scroll" style="scrollbar-width:thin; position:relative;">
+  <div class="flex-1 overflow-y-auto profile-modal-scroll min-h-0" style="scrollbar-width:thin; position:relative;">
       <div class="profile-modal-scroll-mask" aria-hidden="true"></div>
-      <!-- Sticky Compact Header (always visible while scrolling) -->
-  <div class="sticky top-0 z-[2100] bg-[#FAF9F9] backdrop-blur-sm border-b border-[#BEE3DB] px-6 md:px-10 py-4 flex flex-col gap-3 md:flex-row md:items-center md:gap-4 shadow-sm">
+  {% if not standalone %}
+  <!-- Sticky Compact Header (modal only) -->
+  <div class="sticky top-0 z-[2100] bg-offwhite backdrop-blur-sm border-b border-[#BEE3DB] px-6 md:px-10 py-4 flex flex-col gap-3 md:flex-row md:items-center md:gap-4 shadow-sm">
         <!-- Heading / Name -->
         <template x-if="!$store.profileModal.loading">
           <h1 id="therapistProfileHeading" class="text-lg md:text-2xl font-extrabold leading-tight text-[#555B6E] flex items-center flex-wrap gap-2 md:min-w-[40%]">
             <span x-text="$store.profileModal.therapist.name || [$store.profileModal.therapist.first_name, $store.profileModal.therapist.last_name].filter(Boolean).join(' ')"></span>
-            <template x-if="$store.profileModal.therapist.license_type">
-              <span class="text-sm md:text-base font-semibold text-[#116466]" x-text="$store.profileModal.therapist.license_type"></span>
+            <template x-if="$store.profileModal.therapist.license_type || $store.profileModal.therapist.license_type_short">
+              <span x-data="{showLT:false}" @mouseenter="showLT=true" @mouseleave="showLT=false" class="relative flex items-baseline gap-0.5 cursor-help group">
+                <template x-if="$store.profileModal.therapist.license_type">
+                  <span class="text-sm md:text-base font-semibold text-[#116466] underline decoration-dotted underline-offset-4 group-hover:text-[#0d4c4d] transition-colors" x-text="$store.profileModal.therapist.license_type"></span>
+                </template>
+                <template x-if="$store.profileModal.therapist.license_type && $store.profileModal.therapist.license_type_short">
+                  <span class="text-[10px] md:text-xs font-medium text-[#89B0AE] underline decoration-dotted underline-offset-4 group-hover:text-[#116466] transition-colors" x-text="', ' + $store.profileModal.therapist.license_type_short"></span>
+                </template>
+                <template x-if="!$store.profileModal.therapist.license_type && $store.profileModal.therapist.license_type_short">
+                  <span class="text-[10px] md:text-xs font-medium text-[#89B0AE] underline decoration-dotted underline-offset-4 group-hover:text-[#116466] transition-colors" x-text="$store.profileModal.therapist.license_type_short"></span>
+                </template>
+                <!-- Tooltip -->
+                <template x-if="showLT && $store.profileModal.therapist.license_type_description">
+                  <span class="absolute left-0 top-full mt-3 z-[3000] px-4 py-3 rounded-xl bg-white/95 backdrop-blur-sm text-[#1f3636] text-[12px] md:text-[13px] leading-snug shadow-2xl ring-1 ring-[#89B0AE] max-w-md w-max font-medium tracking-normal tooltip-anim" style="filter:drop-shadow(0 6px 16px rgba(0,0,0,0.22));">
+                    <span class="block whitespace-pre-line" x-text="$store.profileModal.therapist.license_type_description"></span>
+                    <span class="absolute -top-2 left-6 w-3 h-3 rotate-45 bg-white/95 ring-1 ring-[#89B0AE]"></span>
+                  </span>
+                </template>
+              </span>
             </template>
           </h1>
         </template>
@@ -83,19 +115,25 @@
           <div class="h-6 md:h-8 w-56 md:w-72 rounded bg-[#E5F4F2] animate-pulse"></div>
         </template>
         <div class="flex flex-wrap items-center gap-2 text-[11px] md:flex-1 order-3 md:order-none">
-          <template x-if="$store.profileModal.therapist.years_in_practice">
-            <span class="px-2 py-1 rounded-full bg-[#BEE3DB] text-[#555B6E] font-medium">Years: <span x-text="$store.profileModal.therapist.years_in_practice"></span></span>
+          <!-- Delivery method first -->
+          <template x-if="$store.profileModal.therapist.therapy_delivery_method">
+            <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold" x-text="(() => { const raw = $store.profileModal.therapist.therapy_delivery_method || ''; const v = raw.toLowerCase(); if(/^(in[- ]?person)$/.test(v)) return 'In Person Only'; if(/^(online|telehealth)$/.test(v)) return 'Online Only'; if(/hybrid/.test(v) || (v.includes('person') && (v.includes('online')||v.includes('telehealth')))) return 'In Person & Online'; return raw; })()"></span>
           </template>
-          <template x-if="$store.profileModal.therapist.accepting_new_clients"><span class="px-2 py-1 rounded-full bg-[#116466] text-white font-semibold">Accepting New Clients</span></template>
-          <template x-if="$store.profileModal.therapist.offers_intro_call"><span class="px-2 py-1 rounded-full bg-[#FF9950] text-white font-semibold">Intro Call</span></template>
+          <template x-if="$store.profileModal.therapist.accepting_new_clients">
+            <span class="px-2 py-1 rounded-full bg-[#116466] text-white font-semibold">Accepting New Clients</span>
+          </template>
         </div>
-  <div class="flex items-center gap-12 shrink-0 md:ml-auto order-2 md:order-none">
+        <div class="flex items-center gap-3 md:gap-6 shrink-0 md:ml-auto order-2 md:order-none">
           <a :href="'/users/contact/' + $store.profileModal.therapist.id + '/'" target="_blank" class="px-4 py-2 rounded-full bg-[#116466] text-white text-sm font-semibold hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition w-full text-center md:w-auto">Contact Me</a>
+          <button type="button" x-show="$store.profileModal.currentUserId === $store.profileModal.therapist.id" @click="showAllFields=!showAllFields" class="px-4 py-2 rounded-full bg-[#E5F4F2] text-[#116466] text-sm font-semibold hover:bg-[#D2E7E4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition" x-text="showAllFields ? 'Hide All Fields' : 'Show All Fields'"></button>
+          {% if not standalone %}
           <button @click="$store.profileModal && $store.profileModal.close()" class="bg-[#FF9950] hover:bg-[#555B6E] text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition md:relative md:top-auto md:right-auto" aria-label="Close profile modal">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
+          {% endif %}
         </div>
-      </div>
+  </div>
+  {% endif %}
       <!-- Main Scroll Content -->
   <div class="px-6 md:px-10 pb-14 pt-8 flex flex-col gap-12">
         <!-- Hero Panel: Photo + Key Facts / Chips -->
@@ -115,56 +153,137 @@
             </template>
           </div>
           <div class="flex-1 flex flex-col gap-4 min-w-0 relative z-10">
-            <div class="text-sm font-medium text-[#89B0AE]" x-show="!$store.profileModal.loading && ($store.profileModal.therapist.license_type_description || $store.profileModal.therapist.credentials_note)">
-              <template x-if="$store.profileModal.therapist.license_type_description"><span x-text="$store.profileModal.therapist.license_type_description"></span></template>
-              <template x-if="$store.profileModal.therapist.license_type_description && $store.profileModal.therapist.credentials_note"><span> • </span></template>
-              <template x-if="$store.profileModal.therapist.credentials_note"><span x-text="$store.profileModal.therapist.credentials_note"></span></template>
+            {% if standalone %}
+            <!-- Public page inline header (moved from sticky) -->
+            <div class="flex flex-col gap-3 md:gap-4">
+              <div class="flex flex-col gap-1">
+                <h1 class="text-2xl md:text-3xl font-extrabold leading-tight text-[#555B6E] flex flex-wrap items-baseline gap-2">
+                  <span x-text="$store.profileModal.therapist.name || [$store.profileModal.therapist.first_name, $store.profileModal.therapist.last_name].filter(Boolean).join(' ')"></span>
+                  <template x-if="$store.profileModal.therapist.license_type || $store.profileModal.therapist.license_type_short">
+                    <span class="flex items-baseline gap-1">
+                      <template x-if="$store.profileModal.therapist.license_type">
+                        <span class="text-base md:text-lg font-semibold text-[#116466]" x-text="$store.profileModal.therapist.license_type"></span>
+                      </template>
+                      <template x-if="$store.profileModal.therapist.license_type_short">
+                        <span class="text-xs md:text-sm font-medium text-[#89B0AE]" x-text="$store.profileModal.therapist.license_type_short"></span>
+                      </template>
+                    </span>
+                  </template>
+                </h1>
+                <div class="flex flex-wrap gap-2 mt-1 text-[11px]">
+                  <template x-if="$store.profileModal.therapist.therapy_delivery_method">
+                    <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold" x-text="(() => { const raw = $store.profileModal.therapist.therapy_delivery_method || ''; const v = raw.toLowerCase(); if(/^(in[- ]?person)$/.test(v)) return 'In Person Only'; if(/^(online|telehealth)$/.test(v)) return 'Online Only'; if(/hybrid/.test(v) || (v.includes('person') && (v.includes('online')||v.includes('telehealth')))) return 'In Person & Online'; return raw; })()"></span>
+                  </template>
+                  <template x-if="$store.profileModal.therapist.accepting_new_clients">
+                    <span class="px-2 py-1 rounded-full bg-[#116466] text-white font-semibold">Accepting New Clients</span>
+                  </template>
+                </div>
+              </div>
+              <div>
+                <a :href="'/users/contact/' + $store.profileModal.therapist.id + '/'" target="_blank" class="inline-block px-5 py-2.5 rounded-full bg-[#116466] text-white text-sm font-semibold hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition shadow">Contact Me</a>
+              </div>
             </div>
-            <div class="text-xs text-[#555B6E] opacity-80" x-show="!$store.profileModal.loading && ($store.profileModal.therapist.city || $store.profileModal.therapist.state)">
-              <span x-text="[$store.profileModal.therapist.city, $store.profileModal.therapist.state].filter(Boolean).join(', ')"></span>
-            </div>
-            <!-- Top Specialties -->
+            {% endif %}
+            <!-- Credential Note + Intro Note panel (credential note first) -->
+            <template x-if="!$store.profileModal.loading && ($store.profileModal.therapist.credentials_note || $store.profileModal.therapist.intro_statement || $store.profileModal.therapist.personal_statement_q1)">
+              <div class="bg-offwhite rounded-xl p-3 shadow-lg relative" style="box-shadow:0 4px 14px -4px #555B6E22;">
+                <div class="text-sm md:text-base leading-relaxed font-light text-[#2e4a49]">
+                  <template x-if="$store.profileModal.therapist.credentials_note">
+                    <p class="mb-3 last:mb-0" x-text="$store.profileModal.therapist.credentials_note"></p>
+                  </template>
+                  <template x-if="$store.profileModal.therapist.intro_statement || $store.profileModal.therapist.personal_statement_q1">
+                    <p x-text="$store.profileModal.therapist.intro_statement || $store.profileModal.therapist.personal_statement_q1"></p>
+                  </template>
+                </div>
+              </div>
+            </template>
+            <!-- Aggregated Locations (replaces single primary city/state line) -->
+            <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.locations && $store.profileModal.therapist.locations.length">
+              <div class="text-xs text-[#555B6E] opacity-80">
+                <span class="font-semibold block mb-1">Locations:</span>
+                <div class="flex flex-col gap-0.5">
+                  <template x-for="loc in [...new Set(($store.profileModal.therapist.locations || []).map(l => [l.city, l.state].filter(Boolean).join(', ')).filter(Boolean))]" :key="loc">
+                    <span x-text="loc"></span>
+                  </template>
+                </div>
+              </div>
+            </template>
+            <template x-if="!$store.profileModal.loading && (!($store.profileModal.therapist.locations && $store.profileModal.therapist.locations.length)) && ($store.profileModal.therapist.city || $store.profileModal.therapist.state)">
+              <div class="text-xs text-[#555B6E] opacity-80">
+                <span x-text="[$store.profileModal.therapist.city, $store.profileModal.therapist.state].filter(Boolean).join(', ')"></span>
+              </div>
+            </template>
+            <!-- Participant Types & Age Groups -->
+            <template x-if="!$store.profileModal.loading && (($store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length) || ($store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length))">
+              <div class="flex flex-col gap-3">
+                <div class="flex flex-wrap gap-2 text-[11px]" x-show="$store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length">
+                  <template x-for="pt in $store.profileModal.therapist.participant_types" :key="'pt-' + pt"><span class="px-2 py-1 rounded-full bg-[#BEE3DB] text-[#444] font-semibold shadow-sm" x-text="pt"></span></template>
+                </div>
+                <div class="flex flex-wrap gap-2 text-[11px]" x-show="$store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length">
+                  <template x-for="ag in $store.profileModal.therapist.age_groups" :key="'ag-' + ag"><span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold shadow-sm" x-text="ag"></span></template>
+                </div>
+              </div>
+            </template>
+            <!-- Top Specialties (moved after participant & age groups) -->
             <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.top_specialties && $store.profileModal.therapist.top_specialties.length">
               <div>
                 <h3 class="text-xs font-semibold mb-2 tracking-wide text-[#555B6E] uppercase">Top Specialties</h3>
                 <div class="flex flex-wrap gap-2">
-                  <template x-for="s in $store.profileModal.therapist.top_specialties" :key="s">
+                  <template x-for="s in $store.profileModal.therapist.top_specialties" :key="'tops-' + s">
                     <span class='px-2 py-1 rounded-full bg-[#FFDDD0] text-[#444] text-xs font-medium shadow-sm' x-text="s"></span>
                   </template>
                 </div>
               </div>
             </template>
-            <!-- Payment Methods -->
-            <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.accepted_payment_methods && $store.profileModal.therapist.accepted_payment_methods.length">
-              <div>
-                <h3 class="text-xs font-semibold mb-2 tracking-wide text-[#555B6E] uppercase">Payment Methods</h3>
-                <div class="flex flex-wrap gap-2">
-                  <template x-for="pm in $store.profileModal.therapist.accepted_payment_methods" :key="pm">
-                    <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#444] text-[11px] font-medium shadow-sm" x-text="pm"></span>
-                  </template>
-                </div>
-              </div>
-            </template>
-            <!-- Quick Identifiers -->
-            <div class="flex flex-wrap gap-2 text-[11px]" x-show="!$store.profileModal.loading && $store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length">
-              <template x-for="pt in $store.profileModal.therapist.participant_types" :key="pt"><span class="px-2 py-1 rounded-full bg-[#BEE3DB] text-[#444] font-semibold shadow-sm" x-text="pt"></span></template>
-            </div>
           </div>
         </div>
         <!-- ABOUT / BIO + MEDIA -->
-        <section>
-          <h2 class="text-xl font-bold mb-3 text-[#555B6E]">About</h2>
-          <div class="relative z-10 bg-[#FAF9F9] rounded-lg">
-            <p class="text-sm leading-relaxed text-[#555B6E] whitespace-pre-line" x-text="$store.profileModal.therapist.intro_statement || $store.profileModal.therapist.personal_statement_q1"></p>
-          </div>
-          <!-- Image Gallery (featured first image, no overlap with Statement 2) -->
+        <!-- ABOUT WRAPPER (visually separated) -->
+  <div class="relative about-wrapper rounded-3xl bg-offwhite ring-1 ring-[#BEE3DB] shadow-xl px-4 md:px-5 py-5 -mx-1 md:mx-0" style="box-shadow:0 10px 40px -10px #555B6E33;">
+          <div class="relative z-10 flex flex-col gap-5">
+            <div>
+              <h2 class="text-2xl md:text-[25px] font-semibold mb-5 tracking-tight text-[#555B6E]">About Me</h2>
+              <div class="relative z-10 rounded-xl p-3 bg-statement shadow-lg" style="box-shadow:0 4px 14px -4px #555B6E22;">
+                <p class="text-base md:text-lg leading-relaxed font-light text-[#2e4a49] whitespace-pre-line" x-text="$store.profileModal.therapist.personal_statement_q1 || $store.profileModal.therapist.intro_statement"></p>
+              </div>
+            </div>
+            <!-- Personal Statement 2 / Gallery / Statement 3 remain below within this wrapper -->
+            <div class="flex flex-col gap-10">
+        <section class="p-0 m-0 contents">
+          <!-- Image Gallery -->
           <template x-if="$store.profileModal.therapist.gallery_images && $store.profileModal.therapist.gallery_images.length">
-            <div class="mt-8 relative z-0">
-              <div class="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                <template x-for="(img,i) in $store.profileModal.therapist.gallery_images" :key="img + i">
-                  <figure @click="($store.mediaLightbox ? $store.mediaLightbox.openImage(img) : (lightboxImage=img))" :data-lightbox-image="img" role="button" tabindex="0" @keydown.enter.prevent="$store.mediaLightbox ? $store.mediaLightbox.openImage(img) : (lightboxImage=img)" class="group relative w-full overflow-hidden cursor-zoom-in bg-[#F8FDFC] shadow-sm select-none focus:outline-none focus:ring-2 focus:ring-[#89B0AE]"
-                          :class="i===0 ? 'col-span-2 aspect-[4/3] md:aspect-[3/2]' : 'aspect-square'">
-                    <img :src="img" class="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105 block" loading="lazy" />
+            <div class="mt-8 relative z-0" x-data="{
+              layout:[],
+              build(){
+                const imgs = $store.profileModal.therapist.gallery_images || [];
+                // Determine primary index (first flagged, else 0)
+                let primaryIndex = imgs.findIndex(g=>g.is_primary);
+                if(primaryIndex === -1) primaryIndex = 0;
+                const spans = [];
+                const order = imgs.map((_,i)=>i);
+                let rowRemaining = 6;
+                order.forEach((idx)=>{
+                  if(idx === primaryIndex){
+                    if(rowRemaining < 3) rowRemaining = 6;
+                    spans[idx] = 3; rowRemaining -= 3; if(rowRemaining===0) rowRemaining=6; return;
+                  }
+                  if(rowRemaining === 1){ spans[idx]=1; rowRemaining=6; return; }
+                  if(rowRemaining === 5){ spans[idx]=2; rowRemaining-=2; return; }
+                  if(rowRemaining === 4){ const r=(this.hash(idx+imgs[idx].url)%100)/100; spans[idx]= r<0.7?2:1; rowRemaining -= spans[idx]; return; }
+                  if(rowRemaining === 3){ spans[idx]=1; rowRemaining-=1; if(rowRemaining===0) rowRemaining=6; return; }
+                  if(rowRemaining === 2){ spans[idx]=2; rowRemaining=6; return; }
+                  const r=(this.hash(idx+imgs[idx].url)%100)/100; spans[idx]= r<0.5?2:1; rowRemaining -= spans[idx];
+                });
+                this.layout = spans;
+              },
+              hash(str){ let h=0; for(let i=0;i<str.length;i++){ h=((h<<5)-h)+str.charCodeAt(i); h|=0;} return Math.abs(h); }
+            }" x-init="build()">
+              <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-3">My Images</h3>
+  <div class="grid grid-cols-4 sm:grid-cols-8 gap-0 overflow-hidden rounded-lg bg-statement">
+                <template x-for="(g,i) in $store.profileModal.therapist.gallery_images" :key="(g.url || '') + i">
+  <figure @click="($store.mediaLightbox ? $store.mediaLightbox.openImage(g.url) : (lightboxImage=g.url))" :data-lightbox-image="g.url" role="button" tabindex="0" @keydown.enter.prevent="$store.mediaLightbox ? $store.mediaLightbox.openImage(g.url) : (lightboxImage=g.url)" class="group relative cursor-zoom-in bg-statement select-none focus:outline-none focus:ring-2 focus:ring-[#89B0AE] flex items-start justify-start"
+          :class="(() => { const span = (g.is_primary || i===0) ? 4 : (layout[i]||1); const base = 'h-40 md:h-48'; if(g.is_primary || i===0) return 'col-span-4 sm:col-span-4 '+base; return span===2 ? 'col-span-2 sm:col-span-2 '+base : 'col-span-1 sm:col-span-1 '+base; })()">
+        <img :src="g.url" :alt="g.caption" class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105 block self-start" loading="lazy" />
                     <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 pointer-events-none"></div>
                   </figure>
                 </template>
@@ -173,13 +292,15 @@
           </template>
           <!-- Personal Statement 2 -->
           <template x-if="$store.profileModal.therapist.personal_statement_q2">
-            <div :class="($store.profileModal.therapist.gallery_images && $store.profileModal.therapist.gallery_images.length) ? 'mt-12' : 'mt-6'" class="relative z-10">
-              <p class="text-sm leading-relaxed text-[#555B6E] whitespace-pre-line" x-text="$store.profileModal.therapist.personal_statement_q2"></p>
+            <div class="mt-1 relative z-10">
+              <div class="rounded-xl p-3 bg-statement shadow-lg" style="box-shadow:0 4px 14px -4px #555B6E22;">
+                <p class="text-base md:text-lg leading-relaxed font-light text-[#2e4a49] whitespace-pre-line" x-text="$store.profileModal.therapist.personal_statement_q2"></p>
+              </div>
             </div>
           </template>
           <!-- Video Gallery -->
           <template x-if="$store.profileModal.therapist.video_gallery && $store.profileModal.therapist.video_gallery.length">
-            <div class="mt-10 relative z-0">
+            <div class="mt-2 relative z-0">
               <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 <template x-for="vid in $store.profileModal.therapist.video_gallery" :key="vid.video_url + (vid.caption||'')">
                   <figure class="flex flex-col gap-2 group">
@@ -193,28 +314,60 @@
               </div>
             </div>
           </template>
+          <!-- Personal Statement 3 -->
           <template x-if="$store.profileModal.therapist.personal_statement_q3">
-            <p class="mt-6 text-sm leading-relaxed text-[#555B6E] whitespace-pre-line" x-text="$store.profileModal.therapist.personal_statement_q3"></p>
+            <div class="mt-1 rounded-xl p-3 bg-statement shadow-lg" style="box-shadow:0 4px 14px -4px #555B6E22;">
+              <p class="text-base md:text-lg leading-relaxed font-light text-[#2e4a49] whitespace-pre-line" x-text="$store.profileModal.therapist.personal_statement_q3"></p>
+            </div>
           </template>
         </section>
-        <!-- Locations -->
+            </div>
+          </div>
+        </div>
+            </div>
+            {% if standalone %}{% else %}{% endif %}
+  <!-- Restored Lower Sections -->
+  <!-- Narrowed wrapper for lower sections (reverting to earlier centered width & tighter spacing) -->
+  <div class="mx-auto w-full max-w-[1200px] flex flex-col gap-12">
+  <!-- Locations -->
         <template x-if="$store.profileModal?.therapist?.locations && $store.profileModal.therapist.locations.length">
-          <section class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-[#BEE3DB]" x-data="{ mapsInit:false }" x-effect="$store.profileModal && $store.profileModal.show && !$store.profileModal.loading && !mapsInit && (mapsInit=true, $nextTick(()=> window.initTherapistLocationMaps && window.initTherapistLocationMaps()))">
+          <section class="bg-offwhite rounded-2xl p-4 shadow-lg" style="box-shadow:0 4px 18px -4px #555B6E22;" x-data="{ mapsInit:false }" x-effect="$store.profileModal && $store.profileModal.show && !$store.profileModal.loading && !mapsInit && (mapsInit=true, $nextTick(()=> window.initTherapistLocationMaps && window.initTherapistLocationMaps()))">
             <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-2">Locations</h3>
             <div class="space-y-5">
               <template x-for="(loc, idx) in $store.profileModal.therapist.locations" :key="(loc.practice_name||'') + loc.city + loc.state + loc.zip + idx">
-                <div class="text-xs text-[#555B6E] flex flex-col gap-1 border-b border-[#BEE3DB]/60 pb-3 last:border-b-0" :data-city="loc.city" :data-state="loc.state" :data-zip="loc.zip">
+                <div class="text-xs text-[#555B6E] flex flex-col gap-3 border-b border-[#BEE3DB]/60 pb-5 last:border-b-0" :data-city="loc.city" :data-state="loc.state" :data-zip="loc.zip" x-data="{weekdayNames:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],to12(t){ if(!t) return ''; const [h,m] = t.split(':').map(Number); const ampm = h>=12?'PM':'AM'; const hr = ((h+11)%12)+1; return `${hr}:${m.toString().padStart(2,'0')} ${ampm}`; },fmt(interval){ if(!interval) return ''; const {is_closed,by_appointment_only,start_time_1,end_time_1,start_time_2,end_time_2,notes}=interval; if(by_appointment_only) return 'By appointment'; if(is_closed) return 'Closed'; const seg = (a,b)=> (a&&b)? `${this.to12(a)} - ${this.to12(b)}`:''; const seg1 = seg(start_time_1,end_time_1); const seg2 = seg(start_time_2,end_time_2); const core = [seg1, seg2].filter(Boolean).join(', '); return core + (notes?` (${notes})`: ''); }}">
+                  <!-- Header / Address -->
                   <div class="flex flex-col gap-0.5">
                     <div class="font-semibold" x-text="(loc.practice_name || 'Practice Location') + (loc.is_primary_address ? ' (Primary)' : '')"></div>
                     <div x-text="[loc.street_address, loc.address_line_2].filter(Boolean).join(', ')"></div>
                     <div x-text="[loc.city, loc.state, loc.zip].filter(Boolean).join(', ')"></div>
                   </div>
-                  <div class="mt-2 h-40 rounded-lg overflow-hidden ring-1 ring-[#BEE3DB] relative bg-[#F8FDFC]" :id="'profile-map-' + idx">
-                    <div class="absolute inset-0 flex items-center justify-center text-[10px] text-[#555B6E]" style="letter-spacing:.5px;" x-show="!loc.lat || !loc.lng">Loading map…</div>
-                  </div>
-                  <div class="mt-1 flex gap-3 text-[10px]">
-                    <a :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([loc.street_address, loc.city, loc.state, loc.zip].filter(Boolean).join(', '))" target="_blank" rel="noopener" class="underline text-[#116466] font-semibold">Open in Maps</a>
-                    <span x-show="loc.lat && loc.lng" class="text-[#89B0AE]">Lat: <span x-text="loc.lat && loc.lat.toFixed ? loc.lat.toFixed(3) : loc.lat"></span>, Lng: <span x-text="loc.lng && loc.lng.toFixed ? loc.lng.toFixed(3) : loc.lng"></span></span>
+                  <!-- Map + Hours side by side on md+ -->
+                  <div class="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
+                    <!-- Map (expands) -->
+                    <div class="h-40 md:h-44 md:flex-1 rounded-lg overflow-hidden ring-1 ring-[#BEE3DB] relative bg-[#F8FDFC]" :id="'profile-map-' + idx">
+                      <div class="absolute inset-0 flex items-center justify-center text-[10px] text-[#555B6E]" style="letter-spacing:.5px;" x-show="!loc.lat || !loc.lng">Loading map…</div>
+                    </div>
+                    <!-- Hours + Actions (narrow, right aligned on md+) -->
+          <div class="w-full md:w-60 md:ml-auto flex flex-col">
+                      <template x-if="loc.office_hours && loc.office_hours.length">
+                        <div class="space-y-1 mb-2">
+              <div class="font-semibold text-[#116466] text-[12px] tracking-wide uppercase">Office Hours</div>
+              <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] leading-snug tracking-wide">
+                            <template x-for="oh in loc.office_hours" :key="oh.weekday">
+                              <div class="col-span-2 flex justify-between" x-show="oh">
+                                <span class="font-semibold text-[#116466]" x-text="weekdayNames[oh.weekday] || oh.weekday"></span>
+                                <span class="text-right" x-text="fmt(oh)"></span>
+                              </div>
+                            </template>
+                          </div>
+                        </div>
+                      </template>
+            <div class="mt-auto flex flex-wrap gap-3 text-[11px] pt-1">
+                        <a :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([loc.street_address, loc.city, loc.state, loc.zip].filter(Boolean).join(', '))" target="_blank" rel="noopener" class="underline text-[#116466] font-semibold">Open in Maps</a>
+                        <span x-show="loc.lat && loc.lng" class="text-[#89B0AE]">Lat: <span x-text="loc.lat && loc.lat.toFixed ? loc.lat.toFixed(3) : loc.lat"></span>, Lng: <span x-text="loc.lng && loc.lng.toFixed ? loc.lng.toFixed(3) : loc.lng"></span></span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </template>
@@ -226,28 +379,64 @@
           </section>
         </template>
         <!-- Identity & Background -->
-        <template x-if="($store.profileModal.therapist.gender || ($store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length) || ($store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length) || ($store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length) || ($store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length))">
-          <section class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-[#BEE3DB]">
+        <template x-if="$store.profileModal.currentUserId === $store.profileModal.therapist.id && ($store.profileModal.therapist.gender || ($store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length) || ($store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length) || ($store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length) || ($store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length))">
+          <section class="bg-offwhite rounded-2xl p-4 shadow-lg" style="box-shadow:0 4px 18px -4px #555B6E22;" x-cloak>
             <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-2">Identity & Background</h3>
             <div class="flex flex-col gap-1 text-xs text-[#555B6E]">
               <div x-show="$store.profileModal.therapist.gender">Gender: <span class="font-semibold" x-text="$store.profileModal.therapist.gender"></span></div>
               <div x-show="$store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length">Race / Ethnicity: <span class="font-semibold" x-text="$store.profileModal.therapist.race_ethnicities.join(', ')"></span></div>
               <div x-show="$store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length">Faith: <span class="font-semibold" x-text="$store.profileModal.therapist.faiths.join(', ')" ></span></div>
-              <div x-show="$store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length">LGBTQIA+: <span class="font-semibold" x-text="$store.profileModal.therapist.lgbtqia_identities.join(', ')"></span></div>
-              <div x-show="$store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length">Other: <span class="font-semibold" x-text="$store.profileModal.therapist.other_identities.join(', ')"></span></div>
+              <div x-show="$store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length">LGBTQIA+: <span class="font-semibold" x-text="$store.profileModal.therapist.lgbtqia_identities.join(', ')"/></div>
+              <div x-show="$store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length">Other: <span class="font-semibold" x-text="$store.profileModal.therapist.other_identities.join(', ')"/></div>
+            </div>
+          </section>
+        </template>
+        <!-- Therapy Types & Specialties -->
+        <template x-if="(($store.profileModal.therapist.therapy_types && $store.profileModal.therapist.therapy_types.length) || ($store.profileModal.therapist.specialties && $store.profileModal.therapist.specialties.length))">
+          <section class="bg-offwhite rounded-2xl p-4 shadow-lg" style="box-shadow:0 4px 18px -4px #555B6E22;">
+            <h3 class="text-base md:text-lg font-bold tracking-wide text-[#555B6E] mb-3">Therapy Types & Specialties</h3>
+            <!-- Therapy Types List -->
+            <div x-show="$store.profileModal.therapist.therapy_types && $store.profileModal.therapist.therapy_types.length" class="mb-4">
+              <div class="text-xs md:text-sm font-semibold uppercase tracking-wide text-[#555B6E] mb-1">Therapy Types</div>
+              <div class="flex flex-wrap gap-2">
+                <template x-for="t in $store.profileModal.therapist.therapy_types" :key="'tt-' + t">
+                  <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-medium shadow-sm" x-text="t"></span>
+                </template>
+              </div>
+              <div x-show="$store.profileModal.therapist.therapy_types_note" class="mt-3 text-base md:text-lg leading-relaxed font-light text-[#2e4a49] whitespace-pre-line" x-text="$store.profileModal.therapist.therapy_types_note"></div>
+            </div>
+            <!-- Specialties -->
+            <div x-show="$store.profileModal.therapist.specialties && $store.profileModal.therapist.specialties.length">
+              <div class="text-xs md:text-sm font-semibold uppercase tracking-wide text-[#555B6E] mb-1 flex items-center gap-2">
+                Specialties
+                <template x-if="$store.profileModal.therapist.top_specialties && $store.profileModal.therapist.top_specialties.length">
+                  <span class="text-[10px] font-normal text-[#89B0AE]">(<span x-text="$store.profileModal.therapist.top_specialties.length"></span> Top Highlighted)</span>
+                </template>
+              </div>
+              <div class="flex flex-wrap gap-2 mb-3">
+                <!-- Top specialties first -->
+                <template x-for="sp in ($store.profileModal.therapist.specialties || []).filter(s => s.is_top)" :key="'sp-top-' + (sp.name||sp)">
+                  <span class='px-2 py-1 rounded-full bg-[#FFDDD0] text-[#444] text-[11px] font-medium shadow-sm' x-text="sp.name || sp"></span>
+                </template>
+                <!-- Remaining specialties -->
+                <template x-for="sp in ($store.profileModal.therapist.specialties || []).filter(s => !s.is_top)" :key="'sp-rest-' + (sp.name||sp)">
+                  <span class='px-2 py-1 rounded-full bg-[#F2FAF9] text-[#444] text-[11px] font-medium shadow-sm ring-1 ring-[#BEE3DB]' x-text="sp.name || sp"></span>
+                </template>
+              </div>
+              <div x-show="$store.profileModal.therapist.specialties_note" class="text-base md:text-lg leading-relaxed font-light text-[#2e4a49] whitespace-pre-line" x-text="$store.profileModal.therapist.specialties_note"></div>
             </div>
           </section>
         </template>
         <!-- Details Grid -->
-        <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+  <section class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-2">
           <!-- Fees & Insurance -->
-          <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-[#BEE3DB]">
-            <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-2">Fees & Insurance</h3>
-            <div class="text-xs text-[#555B6E] space-y-1">
-              <div x-show="$store.profileModal.therapist.individual_session_cost">Individual: <span class="font-semibold" x-text="$store.profileModal.therapist.individual_session_cost"></span></div>
-              <div x-show="$store.profileModal.therapist.couples_session_cost">Couples: <span class="font-semibold" x-text="$store.profileModal.therapist.couples_session_cost"></span></div>
+  <div class="bg-offwhite rounded-2xl p-4 shadow-lg md:col-span-2 mb-10" style="box-shadow:0 4px 18px -4px #555B6E22;" x-data="{fmt(v){ if(v==null||v==='') return ''; const num=parseFloat((''+v).replace(/[^0-9.]/g,'')); if(isNaN(num)) return v; return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:0,maximumFractionDigits:0}).format(num);} }">
+            <h3 class="text-base md:text-lg font-bold tracking-wide text-[#555B6E] mb-2">Fees & Insurance</h3>
+            <div class="text-sm md:text-base text-[#555B6E] space-y-1">
+        <div x-show="$store.profileModal.therapist.individual_session_cost">Individual: <span class="font-semibold" x-text="fmt($store.profileModal.therapist.individual_session_cost)"></span></div>
+        <div x-show="$store.profileModal.therapist.couples_session_cost">Couples: <span class="font-semibold" x-text="fmt($store.profileModal.therapist.couples_session_cost)"></span></div>
               <div x-show="$store.profileModal.therapist.sliding_scale_pricing_available">Sliding Scale Available</div>
-              <div x-show="$store.profileModal.therapist.finance_note" x-text="$store.profileModal.therapist.finance_note"></div>
+              <div x-show="$store.profileModal.therapist.finance_note" class="mt-2 text-base md:text-lg leading-relaxed font-light text-[#2e4a49] whitespace-pre-line" x-text="$store.profileModal.therapist.finance_note"></div>
               <template x-if="$store.profileModal.therapist.insurance_details && $store.profileModal.therapist.insurance_details.length">
                 <div>
                   <div class="font-semibold mt-2">Insurance</div>
@@ -260,8 +449,8 @@
               </template>
             </div>
           </div>
-          <!-- Qualifications -->
-          <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-[#BEE3DB]">
+          <!-- Qualifications (owner only) -->
+          <div class="bg-offwhite rounded-2xl p-4 shadow-lg" style="box-shadow:0 4px 18px -4px #555B6E22;" x-show="$store.profileModal.currentUserId === $store.profileModal.therapist.id" x-cloak>
             <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-2">Qualifications</h3>
             <div class="text-xs text-[#555B6E] space-y-2">
               <div x-show="$store.profileModal.therapist.license_type || $store.profileModal.therapist.license_number">
@@ -283,8 +472,8 @@
               </template>
             </div>
           </div>
-          <!-- Contact & Web -->
-          <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-[#BEE3DB]">
+          <!-- Contact & Web (owner only) -->
+          <div class="bg-offwhite rounded-2xl p-4 shadow-lg" style="box-shadow:0 4px 18px -4px #555B6E22;" x-show="$store.profileModal.currentUserId === $store.profileModal.therapist.id" x-cloak>
             <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-2">Contact & Web</h3>
             <div class="text-xs text-[#555B6E] space-y-1">
               <div x-show="$store.profileModal.therapist.phone_number">Phone: <span x-text="$store.profileModal.therapist.phone_number"></span></div>
@@ -302,27 +491,53 @@
             </div>
           </div>
           <!-- Client Focus & Approaches -->
-          <div class="bg-white rounded-xl p-4 shadow-sm ring-1 ring-[#BEE3DB]">
-            <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-2">Client Focus & Approaches</h3>
-            <div class="text-xs text-[#555B6E] space-y-1">
-              <div x-show="$store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length">Participants: <span class="font-semibold" x-text="($store.profileModal.therapist.participant_types || []).join(', ')"></span></div>
-              <div x-show="$store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length">Age Groups: <span class="font-semibold" x-text="($store.profileModal.therapist.age_groups || []).join(', ')"></span></div>
-              <div x-show="$store.profileModal.therapist.therapy_types && $store.profileModal.therapist.therapy_types.length">Therapy Types: <span class="font-semibold" x-text="($store.profileModal.therapist.therapy_types || []).join(', ')"></span></div>
-              <div x-show="$store.profileModal.therapist.other_therapy_types && $store.profileModal.therapist.other_therapy_types.length">Other Approaches: <span class="font-semibold" x-text="($store.profileModal.therapist.other_therapy_types || []).join(', ')"></span></div>
-              <div x-show="$store.profileModal.therapist.areas_of_expertise && $store.profileModal.therapist.areas_of_expertise.length">Areas of Expertise: <span class="font-semibold" x-text="($store.profileModal.therapist.areas_of_expertise || []).join(', ')"></span></div>
+          <div class="bg-offwhite rounded-2xl p-4 shadow-lg md:col-span-2" style="box-shadow:0 4px 18px -4px #555B6E22;">
+            <h3 class="text-base md:text-lg font-bold tracking-wide text-[#555B6E] mb-2">Client Focus & Approaches</h3>
+            <div class="text-sm md:text-base text-[#555B6E] space-y-2">
+              <div x-show="$store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length">Participants: <span class="font-light text-base md:text-lg leading-relaxed text-[#2e4a49]" x-text="($store.profileModal.therapist.participant_types || []).join(', ')"></span></div>
+              <div x-show="$store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length">Age Groups: <span class="font-light text-base md:text-lg leading-relaxed text-[#2e4a49]" x-text="($store.profileModal.therapist.age_groups || []).join(', ')"></span></div>
+              <div x-show="$store.profileModal.therapist.therapy_types && $store.profileModal.therapist.therapy_types.length">Therapy Types: <span class="font-light text-base md:text-lg leading-relaxed text-[#2e4a49]" x-text="($store.profileModal.therapist.therapy_types || []).join(', ')"></span></div>
             </div>
           </div>
         </section>
-        <!-- Error State -->
+  </div><!-- end narrowed wrapper -->
+  <!-- Error State -->
         <div x-show="$store.profileModal.error" class="bg-red-100 text-red-700 text-xs rounded-md px-3 py-2">Failed to load profile: <span x-text="$store.profileModal.error"></span></div>
-        <!-- Footer Actions -->
-  <div class="pt-4 flex flex-wrap gap-4 pb-1">
+        <!-- Debug: All Fields Raw Listing -->
+  <section x-show="showAllFields && $store.profileModal.currentUserId === $store.profileModal.therapist.id" x-transition.opacity x-cloak class="border border-dashed border-[#89B0AE] rounded-xl p-4 bg-white/70 -mt-4">
+          <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-[#116466]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2"/></svg>
+            All Profile Fields (Debug View)
+          </h3>
+          <div class="grid md:grid-cols-2 gap-4 mb-4 max-h-72 overflow-auto pr-2">
+            <template x-for="field in expectedFields" :key="field">
+              <div class="text-[11px] leading-snug flex flex-col gap-0.5 p-2 rounded-lg" :class="$store.profileModal.therapist[field] === undefined ? 'bg-[#FFE8E5] border border-[#FFB3A8]' : 'bg-[#F2FAF9] border border-[#BEE3DB]'">
+                <div class="font-semibold text-[#555B6E]" x-text="field"></div>
+                <template x-if="$store.profileModal.therapist[field] !== undefined">
+                  <div class="text-[#116466] break-words" x-text="(typeof $store.profileModal.therapist[field] === 'object') ? JSON.stringify($store.profileModal.therapist[field]) : $store.profileModal.therapist[field]"></div>
+                </template>
+                <template x-if="$store.profileModal.therapist[field] === undefined">
+                  <div class="text-[#9b4d49] italic">(missing)</div>
+                </template>
+              </div>
+            </template>
+          </div>
+          <details class="mt-2">
+            <summary class="cursor-pointer text-xs font-semibold text-[#116466]">Raw Therapist JSON</summary>
+            <pre class="mt-2 p-3 bg-[#1e2727] text-[#E5F4F2] text-[10px] rounded-lg overflow-auto max-h-72" x-text="JSON.stringify($store.profileModal.therapist, null, 2)"></pre>
+          </details>
+        </section>
+        {% if not standalone %}
+        <!-- Footer Actions (modal only) -->
+        <div class="pt-6 pb-8 px-6 md:px-10 flex flex-wrap gap-4">
           <button @click="$store.profileModal && $store.profileModal.close()" class="px-5 py-2.5 rounded-lg font-semibold bg-[#116466] text-white text-sm hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition">Close</button>
           <a :href="'/users/contact/' + $store.profileModal.therapist.id + '/'" target="_blank" class="px-5 py-2.5 rounded-lg font-semibold bg-[#FF9950] text-white text-sm hover:bg-[#555B6E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition">Contact</a>
         </div>
+        {% endif %}
       </div>
   </div>
   </div> <!-- end clipping wrapper -->
+    </div> <!-- gradient content wrapper -->
   </div>
  </div>
 <!-- Fallback inline lightbox if global mediaLightbox store not available -->

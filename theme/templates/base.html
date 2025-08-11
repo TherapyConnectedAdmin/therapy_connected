@@ -109,7 +109,7 @@
             <!-- Desktop nav centered via flex (prevents overlap with ZIP control) -->
             <nav class="hidden lg:flex flex-1 justify-center items-center gap-6">
                 <a href="/" class="font-medium nav-link{% if request.path == '/' %} active-nav{% endif %}" style="color: {% if request.path == '/' %}#FF9950{% else %}#555B6E{% endif %};">Home</a>
-                <a href="/therapists/" class="font-medium nav-link{% if request.path|slice:':12' == '/therapists/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':12' == '/therapists/' %}#FF9950{% else %}#555B6E{% endif %};">Therapists</a>
+                <a href="/therapists/" class="font-medium nav-link{% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %}#FF9950{% else %}#555B6E{% endif %};">Therapists</a>
                 <a href="{% url 'blog_index' %}" class="font-medium nav-link{% if request.path|slice:':6' == '/blog/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/blog/' %}#FF9950{% else %}#555B6E{% endif %};">Blog</a>
                 <a href="/features/" class="font-medium nav-link{% if request.path|slice:':9' == '/features' %} active-nav{% endif %}" style="color: {% if request.path|slice:':9' == '/features' %}#FF9950{% else %}#555B6E{% endif %};">Features</a>
                 <a href="/pricing/" class="font-medium nav-link{% if request.path|slice:':8' == '/pricing' %} active-nav{% endif %}" style="color: {% if request.path|slice:':8' == '/pricing' %}#FF9950{% else %}#555B6E{% endif %};">Pricing</a>
@@ -158,7 +158,7 @@
                         </div>
                     </div>
                     <a href="/" class="font-medium nav-link{% if request.path == '/' %} active-nav{% endif %}" style="color: {% if request.path == '/' %}#FF9950{% else %}#555B6E{% endif %};">Home</a>
-                    <a href="/therapists/" class="font-medium nav-link{% if request.path|slice:':12' == '/therapists/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':12' == '/therapists/' %}#FF9950{% else %}#555B6E{% endif %};">Therapists</a>
+                    <a href="/therapists/" class="font-medium nav-link{% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %}#FF9950{% else %}#555B6E{% endif %};">Therapists</a>
                     <a href="{% url 'blog_index' %}" class="font-medium nav-link{% if request.path|slice:':6' == '/blog/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/blog/' %}#FF9950{% else %}#555B6E{% endif %};">Blog</a>
                     <a href="#" class="font-medium nav-link" style="color: #555B6E;">Features</a>
                     <a href="#" class="font-medium nav-link" style="color: #555B6E;">Pricing</a>

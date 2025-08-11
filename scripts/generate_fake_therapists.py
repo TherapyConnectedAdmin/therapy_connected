@@ -54,7 +54,8 @@ from users.models_profile import (
     Credential, Education, AdditionalCredential, Specialty, AreasOfExpertise,
     Location, GalleryImage, VideoGallery, ProfessionalInsurance, InsuranceDetail,
     RaceEthnicitySelection, FaithSelection, LGBTQIASelection, OtherIdentitySelection,
-    PaymentMethodSelection, TherapyTypeSelection, OtherTherapyType, AgeGroup, ParticipantType
+    PaymentMethodSelection, TherapyTypeSelection, OtherTherapyType, AgeGroup, ParticipantType,
+    OfficeHour
 )
 
 fake = Faker()
@@ -65,12 +66,19 @@ User = get_user_model()
 #############################################
 _RANDOMUSER_POOL = {('men', i) for i in range(0, 100)} | {('women', i) for i in range(0, 100)}
 _RANDOMUSER_USED = set()
+FAKE_HIGH_RES = os.environ.get('FAKE_HIGH_RES') == '1'
 
 def reserve_randomuser_portrait() -> tuple[str, str]:
-    """Reserve and return (gender_category, image_url).
-
-    gender_category is 'men' or 'women' corresponding to randomuser path segment.
+    """Return (gender_category, image_url) selecting either standard randomuser (128x128)
+    or high-res placeholder (Picsum 600x600) when FAKE_HIGH_RES=1.
     """
+    if FAKE_HIGH_RES:
+        # Keep gender category for name alignment, but source a higher-res neutral image
+        gender_cat = random.choice(['men', 'women'])
+        # Seeded picsum for uniqueness
+        seed = uuid.uuid4().hex[:16]
+        url = f"https://picsum.photos/seed/{seed}/600/600.jpg"
+        return gender_cat, url
     remaining = list(_RANDOMUSER_POOL - _RANDOMUSER_USED)
     if not remaining:
         _RANDOMUSER_USED.clear()
@@ -96,6 +104,27 @@ FAKE_RANDOM_SEED = os.environ.get('FAKE_RANDOM_SEED')
 if FAKE_RANDOM_SEED:
     random.seed(FAKE_RANDOM_SEED)
     Faker.seed(int(FAKE_RANDOM_SEED))
+
+# Optional purge logic
+FAKE_CLEAR_ALL = os.environ.get('FAKE_CLEAR_THERAPISTS') == '1'
+FAKE_CLEAR_FAKE_ONLY = os.environ.get('FAKE_CLEAR_FAKE_ONLY') == '1'
+if FAKE_CLEAR_ALL and FAKE_CLEAR_FAKE_ONLY:
+    print('WARNING: Both FAKE_CLEAR_THERAPISTS and FAKE_CLEAR_FAKE_ONLY set; defaulting to clear all.')
+if FAKE_CLEAR_ALL or FAKE_CLEAR_FAKE_ONLY:
+    from django.db import transaction
+    with transaction.atomic():
+        qs = TherapistProfile.objects.all()
+        if not FAKE_CLEAR_ALL:  # fake-only mode
+            # Heuristic: generated users have email domain example.com per script
+            qs = qs.filter(user__email__iendswith='@example.com')
+        count = qs.count()
+        print(f'Purging {count} therapist profiles (FAKE_CLEAR_{"ALL" if FAKE_CLEAR_ALL else "FAKE_ONLY"})...')
+        # Collect user ids to delete afterwards (cascade may not delete auth user depending on FK; here user is FK in profile so deleting user cascades profile or vice versa?)
+        user_ids = list(qs.values_list('user_id', flat=True))
+        # Delete users directly to ensure full cascade of related objects (profile has OneToOne field to user so deleting user removes profile)
+        from django.contrib.auth import get_user_model
+        get_user_model().objects.filter(id__in=user_ids).delete()
+        print('Purge complete.')
 
 # Pre-fetch license types for round-robin assignment to maximize coverage
 _LICENSE_TYPES = list(LicenseType.objects.order_by('name'))
@@ -349,7 +378,7 @@ def create_fake_profile(index: int):
     num_locations = random.randint(1, 3)
     for i in range(num_locations):
         loc = generate_us_location()
-        Location.objects.create(
+        loc_obj = Location.objects.create(
             therapist=profile,
             practice_name=loc.get('practice_name') or (profile.practice_name if i == 0 else fake.company()),
             street_address=loc.get('street_address') or fake.street_address(),
@@ -360,6 +389,49 @@ def create_fake_profile(index: int):
             hide_address_from_public=random.choice([True, False]),
             is_primary_address=(i == 0)
         )
+        # Office Hours: Mon-Fri standard block with slight randomization, weekends maybe closed or shorter
+        for wd in range(7):  # 0=Mon .. 6=Sun
+            # Decide closed / by appointment
+            if wd >= 5:  # Sat/Sun
+                if random.random() < 0.5:
+                    OfficeHour.objects.create(location=loc_obj, weekday=wd, is_closed=True)
+                    continue
+                if random.random() < 0.3:
+                    OfficeHour.objects.create(location=loc_obj, weekday=wd, by_appointment_only=True)
+                    continue
+                # Shorter hours weekend
+                start1 = f"{random.choice(['09','10'])}:00"
+                end1 = f"{random.choice(['12','13'])}:00"
+                OfficeHour.objects.create(location=loc_obj, weekday=wd, start_time_1=start1, end_time_1=end1)
+            else:
+                # Weekday
+                if random.random() < 0.05:
+                    # Rare fully closed weekday (e.g., admin day)
+                    OfficeHour.objects.create(location=loc_obj, weekday=wd, is_closed=True)
+                    continue
+                if random.random() < 0.08:
+                    OfficeHour.objects.create(location=loc_obj, weekday=wd, by_appointment_only=True)
+                    continue
+                start_hour = random.choice(['08','09'])
+                end_hour = random.choice(['16','17','18'])
+                # Optional split shift (e.g., lunch break) with afternoon block
+                if random.random() < 0.25:
+                    OfficeHour.objects.create(
+                        location=loc_obj,
+                        weekday=wd,
+                        start_time_1=start_hour+':00',
+                        end_time_1='12:00',
+                        start_time_2='13:00',
+                        end_time_2=end_hour+':00',
+                        notes='Lunch 12-1'
+                    )
+                else:
+                    OfficeHour.objects.create(
+                        location=loc_obj,
+                        weekday=wd,
+                        start_time_1=start_hour+':00',
+                        end_time_1=end_hour+':00'
+                    )
     # Insurance Details
     for provider in get_random_many(InsuranceProvider, random.randint(1, 3)):
         InsuranceDetail.objects.create(therapist=profile, provider=provider, out_of_network=random.choice([True, False]))

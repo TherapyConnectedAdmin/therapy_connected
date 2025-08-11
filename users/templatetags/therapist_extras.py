@@ -91,3 +91,18 @@ def image_srcset(obj, fmt_preference='webp'):
             parts.append(f"{base_dir}/{name} {width}w")
     return ', '.join(parts)
 
+@register.filter
+def to_ampm(value):
+    """Convert 'HH:MM' 24h string to 'H:MM AM/PM'. Leaves value untouched if parsing fails."""
+    if not value or not isinstance(value, str) or ':' not in value:
+        return value
+    try:
+        h_s, m_s = value.split(':', 1)
+        h = int(h_s)
+        m = int(m_s[:2])
+        ampm = 'PM' if h >= 12 else 'AM'
+        hr12 = ((h + 11) % 12) + 1
+        return f"{hr12}:{m:02d} {ampm}"
+    except Exception:
+        return value
+
