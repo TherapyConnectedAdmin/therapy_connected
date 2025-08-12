@@ -19,7 +19,8 @@
         }
         const data = {{ serialized|safe }};
         const store = Alpine.store('profileModal');
-        store.therapist = data;
+  store.therapist = data;
+  store.lightboxImage = null;
       });
     </script>
     <!-- Fallback static badges if JS disabled -->
@@ -28,7 +29,7 @@
         JavaScript is disabled; interactive sections (gallery lightbox, dynamic tabs) are not available.
       </div>
     </noscript>
-    {% include 'partials/profile_modal.html' with standalone=1 %}
+  {% include 'partials/profile_modal.html' with standalone=1 %}
   </div>
   </div>
 </div>

@@ -63,6 +63,11 @@ from users.models import TherapistProfileStats
 from django.utils import timezone
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
+from django.views.decorators.http import require_http_methods
+from django.utils.decorators import method_decorator
+from django.core.exceptions import ValidationError
+from django.db import transaction as db_transaction
+from users.utils.profile_completion import compute_profile_completion
 
 # Temporary in-memory store for tokens (use a model for production)
 confirmation_tokens = {}
@@ -146,10 +151,12 @@ def login_view(request):
                     return redirect(next_url)
                 # Redirect based on onboarding_status
                 if hasattr(user, 'onboarding_status'):
-                    if user.onboarding_status == 'payment':
+                    # Pending payment -> send to payment screen
+                    if user.onboarding_status == 'pending_payment':
                         return redirect('payment')
+                    # After payment but before profile completion -> unified edit screen
                     elif user.onboarding_status == 'pending_profile_completion':
-                        return redirect('profile_wizard')
+                        return redirect('edit_profile')
                 return redirect('dashboard')
             else:
                 messages.error(request, 'Invalid credentials or inactive account.')
@@ -198,64 +205,22 @@ def payment(request):
     import stripe
     from django.conf import settings
     stripe.api_key = settings.STRIPE_SECRET_KEY
-    if request.method == 'POST':
-        payment_method_id = request.POST.get('payment_method_id')
-        cardholder = request.POST.get('cardholder')
-        user = request.user
-        # Create Stripe customer
-        customer = stripe.Customer.create(
-            email=user.email,
-            name=cardholder
-        )
-        # Attach payment method to customer
-        stripe.PaymentMethod.attach(
-            payment_method_id,
-            customer=customer.id
-        )
-        # Save Stripe IDs to user's subscription and create Stripe subscription
-        from users.models import Subscription, SubscriptionType
-        # Always use latest selected plan/interval from session
-        selected_plan_id = request.session.get('selected_plan_id')
-        selected_plan_interval = request.session.get('selected_plan_interval', 'monthly')
-        sub = Subscription.objects.filter(user=user).last()
-        if sub and selected_plan_id:
-            from users.models import SubscriptionType
-            try:
-                plan = SubscriptionType.objects.get(id=selected_plan_id)
-                interval = selected_plan_interval
-                sub.subscription_type = plan
-                sub.interval = interval
-                sub.stripe_customer_id = customer.id
-                sub.stripe_payment_method_id = payment_method_id
-                if interval == 'monthly':
-                    price_id = plan.stripe_plan_id_monthly
-                else:
-                    price_id = plan.stripe_plan_id_annual
-                stripe_sub = stripe.Subscription.create(
-                    customer=customer.id,
-                    items=[{'price': price_id}],
-                    default_payment_method=payment_method_id,
-                    expand=["latest_invoice.payment_intent"]
-                )
-                sub.stripe_subscription_id = stripe_sub.id
-                sub.save()
-            except SubscriptionType.DoesNotExist:
-                pass
-        # Set onboarding_status to 'pending_profile_completion' after payment
-        user.onboarding_status = 'pending_profile_completion'
-        user.save()
-        # Redirect to profile wizard after payment
-        return redirect('profile_wizard')
-    # Get intended subscription plan from session
-    from users.models import SubscriptionType
+    # Advance guard: already past payment
+    if request.user.onboarding_status == 'pending_profile_completion':
+        return redirect('edit_profile')
+    if request.user.onboarding_status == 'active':
+        return redirect('dashboard')
+
+    from users.models import SubscriptionType, Subscription
     selected_plan_id = request.session.get('selected_plan_id')
     selected_plan_interval = request.session.get('selected_plan_interval', 'monthly')
-    subscription = None
     plans = SubscriptionType.objects.filter(active=True).order_by('price_monthly')
+
+    # Build selected plan summary (for display)
+    subscription = None
     if selected_plan_id:
         try:
             plan = SubscriptionType.objects.get(id=selected_plan_id)
-            # Build subscription info for template
             if selected_plan_interval == 'monthly':
                 price = plan.price_monthly
                 frequency = 'month'
@@ -266,14 +231,49 @@ def payment(request):
                 'name': plan.name,
                 'price': price,
                 'currency': 'USD',
-                'frequency': frequency
+                'frequency': frequency,
             }
         except SubscriptionType.DoesNotExist:
             pass
+
+    if request.method == 'POST':
+        payment_method_id = request.POST.get('payment_method_id')
+        cardholder = request.POST.get('cardholder') or request.user.email
+        user = request.user
+        # Create customer
+        customer = stripe.Customer.create(email=user.email, name=cardholder)
+        # Attach payment method
+        stripe.PaymentMethod.attach(payment_method_id, customer=customer.id)
+        # Update / create subscription record
+        sub = Subscription.objects.filter(user=user).last()
+        if sub and selected_plan_id:
+            try:
+                plan = SubscriptionType.objects.get(id=selected_plan_id)
+                interval = selected_plan_interval
+                sub.subscription_type = plan
+                sub.interval = interval
+                sub.stripe_customer_id = customer.id
+                sub.stripe_payment_method_id = payment_method_id
+                price_id = plan.stripe_plan_id_monthly if interval == 'monthly' else plan.stripe_plan_id_annual
+                stripe_sub = stripe.Subscription.create(
+                    customer=customer.id,
+                    items=[{'price': price_id}],
+                    default_payment_method=payment_method_id,
+                    expand=["latest_invoice.payment_intent"],
+                )
+                sub.stripe_subscription_id = stripe_sub.id
+                sub.save()
+            except SubscriptionType.DoesNotExist:
+                pass
+        # Move onboarding forward
+        user.onboarding_status = 'pending_profile_completion'
+        user.save(update_fields=['onboarding_status'])
+        return redirect('edit_profile')
+
     return render(request, 'users/payment.html', {
         'STRIPE_PUBLISHABLE_KEY': settings.STRIPE_PUBLISHABLE_KEY,
         'subscription': subscription,
-        'plans': plans
+        'plans': plans,
     })
 
 def therapist_profile(request, user_id):
@@ -327,6 +327,9 @@ def public_therapist_profile(request, slug):
     current_year = timezone.now().year
     # derive years in practice similar to api_full_profile
     candidate_years = []
+    # Explicit override if present & valid
+    if getattr(profile, 'year_started_practice', None) and profile.year_started_practice.isdigit() and len(profile.year_started_practice) == 4:
+        candidate_years.append(int(profile.year_started_practice))
     for e in profile.educations.all():
         if getattr(e, 'year_began_practice', None) and e.year_began_practice.isdigit() and len(e.year_began_practice) == 4:
             candidate_years.append(int(e.year_began_practice))
@@ -341,6 +344,7 @@ def public_therapist_profile(request, slug):
     data = {
         'id': profile.user.id,
         'first_name': profile.first_name,
+    'middle_name': profile.middle_name,
         'last_name': profile.last_name,
         'name': f"{profile.first_name} {profile.last_name}".strip(),
         'title': profile.title.name if profile.title else None,
@@ -379,6 +383,8 @@ def public_therapist_profile(request, slug):
         'license_number': profile.license_number,
         'license_expiration': profile.license_expiration,
         'license_state': profile.license_state,
+    'license_first_name': profile.license_first_name,
+    'license_last_name': profile.license_last_name,
         'gender': profile.gender.name if profile.gender else None,
     'years_in_practice': years_in_practice,
         'city': primary_location.city if primary_location else None,
@@ -477,6 +483,1079 @@ def public_therapist_profile(request, slug):
         'serialized': json.dumps(data),
     })
 
+@login_required
+def edit_profile(request):
+    """Render unified edit interface (full public profile layout in edit mode)."""
+    from users.models_profile import TherapistProfile
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    # compute completion for initial render (progress bar pre-JS)
+    completion = compute_profile_completion(profile)
+    import json
+    return render(request, 'users/therapist_profile_edit.html', {
+        'profile_obj': profile,
+        'completion_percent': completion.percent,
+        'completion_details': completion.details,
+        'initial_profile_json': json.dumps(_profile_json(profile)),
+    })
+
+EDITABLE_SIMPLE_FIELDS = {
+    'practice_name': str,
+    'therapy_delivery_method': str,
+    'intro_note': str,
+    'personal_statement_01': str,
+    'credentials_note': str,
+    'finance_note': str,  # allow rich text finance note editing
+    'no_show_policy': str,  # allow rich text no-show policy editing
+    'therapy_types_note': str,  # newly added rich text field
+    'specialties_note': str,    # newly added rich text field
+    'year_started_practice': str,  # explicit practice start year
+    # accepting_new_clients now tri-state string; allow blank for unset
+    'accepting_new_clients': str,
+    'first_name': str,
+    'last_name': str,
+    'middle_name': str,
+    'title': str,  # maps to Title.name
+    'license_type': str,  # maps to LicenseType.name
+    'license_number': str,
+    'license_state': str,
+    'license_expiration': str,
+    'license_first_name': str,
+    'license_last_name': str,
+}
+
+FIELD_ALIASES = {
+    # Support old client field names -> new canonical names
+    'intro_statement': 'intro_note',
+    'personal_statement_q1': 'personal_statement_01',
+}
+
+def _profile_json(profile):
+    """Subset JSON for edit context (can expand)."""
+    completion = compute_profile_completion(profile)
+    # Related collections
+    locations = [
+        {
+            'id': loc.id,
+            'practice_name': loc.practice_name,
+            'street_address': loc.street_address,
+            'address_line_2': loc.address_line_2,
+            'city': loc.city,
+            'state': loc.state,
+            'zip': loc.zip,
+            'is_primary_address': getattr(loc, 'is_primary_address', False),
+            'office_hours': [
+                {
+                    'weekday': oh.weekday,
+                    'is_closed': oh.is_closed,
+                    'by_appointment_only': oh.by_appointment_only,
+                    'start_time_1': oh.start_time_1,
+                    'end_time_1': oh.end_time_1,
+                    'start_time_2': oh.start_time_2,
+                    'end_time_2': oh.end_time_2,
+                    'notes': oh.notes,
+                } for oh in loc.office_hours.all()
+            ],
+        }
+        for loc in getattr(profile, 'locations', []).all()
+    ]
+    # Simple lists
+    participant_types = [pt.name for pt in getattr(profile, 'participant_types', []).all()]
+    age_groups = [ag.name for ag in getattr(profile, 'age_groups', []).all()]
+    specialties = [
+        {
+            'name': s.specialty.name if s.specialty else None,
+            'is_top': getattr(s, 'is_top_specialty', False),
+        }
+        for s in getattr(profile, 'specialties', []).all()
+    ]
+    top_specialties = [s['name'] for s in specialties if s['name'] and s['is_top']]
+    therapy_types = [sel.therapy_type.name for sel in getattr(profile, 'types_of_therapy', []).all() if getattr(sel, 'therapy_type', None)]
+    other_therapy_types = [o.therapy_type for o in getattr(profile, 'other_therapy_types', []).all()]
+    race_ethnicities = [r.race_ethnicity.name for r in getattr(profile, 'race_ethnicities', []).all() if getattr(r, 'race_ethnicity', None)]
+    faiths = [f.faith.name for f in getattr(profile, 'faiths', []).all() if getattr(f, 'faith', None)]
+    lgbtqia_identities = [l.lgbtqia.name for l in getattr(profile, 'lgbtqia_identities', []).all() if getattr(l, 'lgbtqia', None)]
+    other_identities = [o.other_identity.name for o in getattr(profile, 'other_identities', []).all() if getattr(o, 'other_identity', None)]
+    additional_credentials = [
+        {
+            'id': ac.id,
+            'type': ac.additional_credential_type,
+            'organization_name': ac.organization_name,
+            'id_number': ac.id_number,
+            'year_issued': ac.year_issued,
+        }
+        for ac in getattr(profile, 'additional_credentials', []).all()
+    ]
+    educations = [
+        {
+            'id': e.id,
+            'school': e.school,
+            'degree_diploma': e.degree_diploma,
+            'year_graduated': e.year_graduated,
+            'year_began_practice': e.year_began_practice,
+        }
+        for e in getattr(profile, 'educations', []).all()
+    ]
+    accepted_payment_methods = [sel.payment_method.name for sel in getattr(profile, 'accepted_payment_methods', []).all() if getattr(sel, 'payment_method', None)]
+    areas_of_expertise = [a.expertise for a in getattr(profile, 'areas_of_expertise', []).all()]
+    gallery_images = [
+        {
+            'id': img.id,
+            'url': getattr(img.image, 'url', None) if getattr(img, 'image', None) else None,
+            'caption': img.caption,
+            'is_primary': getattr(img, 'is_primary', False),
+        }
+        for img in getattr(profile, 'gallery_images', []).all()
+        if getattr(getattr(img, 'image', None), 'url', None)
+    ]
+    video_gallery = [
+        {
+            'video_url': getattr(v.video, 'url', None) if getattr(v, 'video', None) else None,
+            'caption': v.caption,
+        }
+        for v in getattr(profile, 'video_gallery', []).all()
+        if getattr(getattr(v, 'video', None), 'url', None)
+    ]
+    # Resolve title & options; license_type options
+    from users.models_profile import Title as TitleModel, LicenseType as LicenseTypeModel
+    try:
+        title_name = profile.title.name if getattr(profile, 'title', None) else None
+    except Exception:
+        title_name = None
+    title_options = list(TitleModel.objects.order_by('name').values_list('name', flat=True))
+    # Ensure current title present even if not in list (legacy)
+    if title_name and title_name not in title_options:
+        title_options.append(title_name)
+    # License type options
+    license_type_options = list(LicenseTypeModel.objects.order_by('sort_order','name').values_list('name', flat=True))
+    current_license = profile.license_type.name if getattr(profile, 'license_type', None) else None
+    if current_license and current_license not in license_type_options:
+        license_type_options.append(current_license)
+    # Race / Ethnicity options
+    try:
+        from users.models_profile import RaceEthnicity
+        race_ethnicity_options = list(RaceEthnicity.objects.order_by('name').values_list('name', flat=True))
+    except Exception:
+        race_ethnicity_options = []
+    # Gender options
+    try:
+        from users.models_profile import Gender
+        gender_options = list(Gender.objects.order_by('name').values_list('name', flat=True))
+    except Exception:
+        gender_options = []
+    # Faith options
+    try:
+        from users.models_profile import Faith
+        faith_options = list(Faith.objects.order_by('name').values_list('name', flat=True))
+    except Exception:
+        faith_options = []
+    # LGBTQIA options
+    try:
+        from users.models_profile import LGBTQIA
+        lgbtqia_options = list(LGBTQIA.objects.order_by('name').values_list('name', flat=True))
+    except Exception:
+        lgbtqia_options = []
+    # Other identity options
+    try:
+        from users.models_profile import OtherIdentity
+        other_identity_options = list(OtherIdentity.objects.order_by('name').values_list('name', flat=True))
+    except Exception:
+        other_identity_options = []
+    data = {
+        'id': profile.user_id,
+    'first_name': profile.first_name or getattr(profile.user, 'first_name', ''),
+    'middle_name': profile.middle_name or '',
+    'last_name': profile.last_name or getattr(profile.user, 'last_name', ''),
+    'user_first_name': getattr(profile.user, 'first_name', ''),
+    'user_last_name': getattr(profile.user, 'last_name', ''),
+    'name': (f"{profile.first_name or getattr(profile.user,'first_name','')} {profile.last_name or getattr(profile.user,'last_name','')}".strip()) or None,
+    'title': title_name,
+    'year_started_practice': getattr(profile, 'year_started_practice', ''),
+    'license_first_name': getattr(profile, 'license_first_name', '') or '',
+    'license_last_name': getattr(profile, 'license_last_name', '') or '',
+    'title_options': title_options,
+    'license_type_options': license_type_options,
+        'practice_name': profile.practice_name,
+        'therapy_delivery_method': profile.therapy_delivery_method,
+    # Expose new fields; fall back to legacy if new empty
+    'intro_note': profile.intro_note or profile.intro_statement or profile.personal_statement_q1,
+    'personal_statement_01': profile.personal_statement_01 or profile.personal_statement_q1,
+        'credentials_note': profile.credentials_note,
+        'finance_note': profile.finance_note,
+        'no_show_policy': getattr(profile, 'no_show_policy', ''),
+        'accepting_new_clients': profile.accepting_new_clients,
+        'license_type': profile.license_type.name if getattr(profile, 'license_type', None) else None,
+        'license_type_short': profile.license_type.short_description if getattr(profile, 'license_type', None) else None,
+        'license_type_description': profile.license_type.description if getattr(profile, 'license_type', None) else None,
+    'race_ethnicity_options': race_ethnicity_options,
+    'gender_options': gender_options,
+    'faith_options': faith_options,
+    'lgbtqia_options': lgbtqia_options,
+    'other_identity_options': other_identity_options,
+        'profile_photo_url': profile.profile_photo.url if profile.profile_photo else None,
+    'locations': locations,
+    'gallery_images': gallery_images,
+    'video_gallery': video_gallery,
+    'participant_types': participant_types,
+    'age_groups': age_groups,
+    'top_specialties': top_specialties,
+    'specialties': specialties,
+    'therapy_types': therapy_types,
+    'other_therapy_types': other_therapy_types,
+    'race_ethnicities': race_ethnicities,
+    'faiths': faiths,
+    'lgbtqia_identities': lgbtqia_identities,
+    'other_identities': other_identities,
+    'additional_credentials': additional_credentials,
+    'educations': educations,
+    'accepted_payment_methods': accepted_payment_methods,
+    'areas_of_expertise': areas_of_expertise,
+        # Will be appended below: insurance_details
+        'completion': {
+            'percent': completion.percent,
+            'details': completion.details,
+        }
+    }
+    # Insurance details (provider name + out_of_network flag)
+    try:
+        data['insurance_details'] = [
+            {
+                'provider': det.provider.name if getattr(det, 'provider', None) else '',
+                'out_of_network': getattr(det, 'out_of_network', False),
+            } for det in getattr(profile, 'insurance_details', []).all()
+        ]
+    except Exception:
+        data['insurance_details'] = []
+    return data
+
+@login_required
+@require_http_methods(["GET"])
+def api_profile_me(request):
+    from users.models_profile import TherapistProfile
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    return JsonResponse(_profile_json(profile))
+
+@login_required
+@require_http_methods(["PATCH","POST"])
+def api_profile_update(request):
+    import json, traceback
+    from users.models_profile import TherapistProfile
+    try:
+        try:
+            payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+        except json.JSONDecodeError:
+            return JsonResponse({'error':'Invalid JSON'}, status=400)
+        profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+        errors = {}
+        updated = False
+        from users.models_profile import Title as TitleModel
+        race_ethnicities_new = faiths_new = lgbtqia_new = other_identities_new = None
+        gender_new = None
+        insurance_details_new = None  # capture full replacement list
+        therapy_types_new = None  # list of therapy type names (full replacement)
+        specialties_new = None  # list of specialty names (full replacement)
+        top_specialties_new = None  # list of top specialty names (subset of specialties)
+        participant_types_new = None  # list of participant type names (full replacement)
+        age_groups_new = None  # list of age group names (full replacement)
+        for field, value in payload.items():
+            canonical = FIELD_ALIASES.get(field, field)
+            if canonical in ('race_ethnicities','faiths','lgbtqia_identities','other_identities'):
+                if isinstance(value, list):
+                    if canonical == 'race_ethnicities': race_ethnicities_new = value
+                    elif canonical == 'faiths': faiths_new = value
+                    elif canonical == 'lgbtqia_identities': lgbtqia_new = value
+                    elif canonical == 'other_identities': other_identities_new = value
+                continue
+            if canonical == 'gender':
+                if isinstance(value, str): gender_new = value
+                continue
+            if canonical == 'therapy_types':
+                if isinstance(value, list): therapy_types_new = value
+                continue
+            if canonical == 'specialties':
+                if isinstance(value, list): specialties_new = value
+                continue
+            if canonical == 'top_specialties':
+                if isinstance(value, list): top_specialties_new = value
+                continue
+            if canonical == 'insurance_details':
+                if isinstance(value, list):
+                    insurance_details_new = value
+                continue
+            if canonical == 'participant_types':
+                if isinstance(value, list): participant_types_new = value
+                continue
+            if canonical == 'age_groups':
+                if isinstance(value, list): age_groups_new = value
+                continue
+            if canonical not in EDITABLE_SIMPLE_FIELDS:
+                continue
+            # Validations
+            if canonical == 'practice_name' and value and len(value) > 120:
+                errors[field] = 'Too long (max 120 chars).'; continue
+            if canonical in ('first_name','last_name') and value and len(value) > 64:
+                errors[field] = 'Too long (max 64 chars).'; continue
+            if canonical in ('license_first_name','license_last_name') and value and len(value) > 64:
+                errors[field] = 'Too long (max 64 chars).'; continue
+            if canonical == 'therapy_delivery_method' and value and value.lower() not in {'in person','online','telehealth','hybrid','in person & online','in-person','in-person & online'}:
+                errors[field] = 'Unrecognized delivery method.'; continue
+            if canonical == 'personal_statement_01' and value and len(value) > 1000:
+                errors[field] = 'Too long (max 1000 chars).'; continue
+            if canonical == 'credentials_note' and value and len(value) > 600:
+                errors[field] = 'Too long (max 600 chars).'; continue
+            if canonical == 'license_state' and value:
+                val = (value or '').strip().upper()
+                if len(val) != 2 or not val.isalpha():
+                    errors[field] = 'Use 2-letter state code.'; continue
+                value = val
+            if canonical == 'license_expiration' and value:
+                import re
+                raw = value.strip().replace('-', '/').replace(' ', '')
+                # Accept M/YYYY or MM/YYYY where month 1-12; always normalize to MM/YYYY
+                m = re.match(r'^([0]?[1-9]|1[0-2])/(20\d\d)$', raw)
+                if not m:
+                    errors[field] = 'Use MM/YYYY (e.g., 08/2026)'; continue
+                month = m.group(1)
+                if len(month) == 1:
+                    month = '0' + month
+                value = f"{month}/{m.group(2)}"
+            if canonical == 'license_number' and value:
+                if len(value) > 32:
+                    errors[field] = 'Too long (max 32 chars).'; continue
+                from users.models_profile import TherapistProfile as TP
+                if TP.objects.filter(license_number=value).exclude(pk=profile.pk).exists():
+                    errors[field] = 'License number already in use.'; continue
+            if canonical == 'accepting_new_clients':
+                normalized = ''
+                if isinstance(value, bool):
+                    normalized = 'Accepting New Clients' if value else 'Not Accepting New Clients'
+                else:
+                    raw = (value or '').strip().lower()
+                    if raw in {'yes','y','accepting','accepting new clients','open','true'}: normalized='Accepting New Clients'
+                    elif raw in {'no','n','not accepting','not accepting new clients','closed','false'}: normalized='Not Accepting New Clients'
+                    elif 'wait' in raw: normalized='I Have a Waitlist'
+                    elif raw == '': normalized=''
+                    else:
+                        errors[field]='Invalid availability value.'; continue
+                value = normalized
+            if canonical == 'title':
+                if value:
+                    if len(value) > 16: errors[field]='Too long (max 16 chars).'; continue
+                    t_obj = TitleModel.objects.filter(name__iexact=value.strip()).first()
+                    if not t_obj: errors[field]='Invalid title selection.'; continue
+                    profile.title = t_obj
+                else:
+                    profile.title = None
+                updated = True; continue
+            if canonical == 'license_type':
+                if value:
+                    if len(value) > 64: errors[field]='Too long (max 64 chars).'; continue
+                    from users.models_profile import LicenseType as LicenseTypeModel
+                    lt_obj = LicenseTypeModel.objects.filter(name__iexact=value.strip()).first()
+                    if not lt_obj: errors[field]='Invalid license type selection.'; continue
+                    profile.license_type = lt_obj
+                else:
+                    profile.license_type = None
+                updated = True; continue
+            setattr(profile, canonical, value); updated = True
+        # Multi-select helpers
+        def process_multi(new_vals, rel_attr, model_cls_name, sel_cls_name, field_name, error_key):
+            """Generic full-replace handler for identity-style multi selects.
+            Accepts list of strings OR list of objects with a 'name' key.
+            Automatically creates new lookup records for unknown values instead of 400-ing.
+            Limits to 50 unique values (then truncates)."""
+            if new_vals is None or error_key in errors:
+                return
+            from users import models_profile as mp
+            try:
+                model_cls = getattr(mp, model_cls_name)
+                sel_cls = getattr(mp, sel_cls_name)
+                # Build map of existing names
+                existing_map = {r.name.lower(): r for r in model_cls.objects.all()}
+                cleaned=[]; seen=set()
+                for item in new_vals:
+                    if isinstance(item, dict):
+                        val = (item.get('name') or '').strip()
+                    else:
+                        val = (str(item) if isinstance(item, str) else '').strip()
+                    if not val:
+                        continue
+                    key = val.lower()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    # Enforce length constraint defensively
+                    if len(val) > 64:
+                        val = val[:64]
+                    # Create lookup if missing (dynamic extend)
+                    obj = existing_map.get(key)
+                    if not obj:
+                        obj = model_cls.objects.create(name=val)
+                        existing_map[key] = obj
+                    cleaned.append(obj)
+                    if len(cleaned) >= 50:
+                        break
+                # Replace selections
+                from django.db import transaction as _tx
+                with _tx.atomic():
+                    getattr(profile, rel_attr).all().delete()
+                    for obj in cleaned[:12]:  # preserve previous 12-item cap
+                        sel_cls.objects.create(therapist=profile, **{field_name: obj})
+                nonlocal updated
+                updated = True
+            except Exception:
+                errors[error_key] = f"Failed to update {field_name.replace('_', ' ')}"
+        process_multi(race_ethnicities_new,'race_ethnicities','RaceEthnicity','RaceEthnicitySelection','race_ethnicity','race_ethnicities')
+        process_multi(faiths_new,'faiths','Faith','FaithSelection','faith','faiths')
+        process_multi(lgbtqia_new,'lgbtqia_identities','LGBTQIA','LGBTQIASelection','lgbtqia','lgbtqia_identities')
+        process_multi(other_identities_new,'other_identities','OtherIdentity','OtherIdentitySelection','other_identity','other_identities')
+        # Gender single
+        if gender_new is not None and 'gender' not in errors:
+            try:
+                from users.models_profile import Gender
+                if gender_new.strip()==''[0:]:
+                    profile.gender=None; updated=True
+                else:
+                    g = Gender.objects.filter(name__iexact=gender_new.strip()).first()
+                    if not g: errors['gender']='Unknown gender selection'
+                    else: profile.gender=g; updated=True
+            except Exception:
+                errors['gender']='Failed to update gender'
+    # Insurance details full replace (list of {provider, out_of_network})
+        if insurance_details_new is not None and 'insurance_details' not in errors:
+            try:
+                from users.models_profile import InsuranceProvider, InsuranceDetail
+                # Normalize entries
+                cleaned = []
+                seen = set()
+                for item in insurance_details_new:
+                    if not isinstance(item, dict):
+                        continue
+                    name = (item.get('provider') or '').strip()
+                    if not name:
+                        continue
+                    key = name.lower()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    if len(name) > 256:
+                        name = name[:256]
+                    oon = bool(item.get('out_of_network'))
+                    cleaned.append({'name': name, 'out_of_network': oon})
+                if len(cleaned) > 40:
+                    errors['insurance_details'] = 'Too many providers (max 40).'
+                if 'insurance_details' not in errors:
+                    # Fetch existing providers map (case-insensitive)
+                    existing = {p.name.lower(): p for p in InsuranceProvider.objects.all()}
+                    provider_objs = []
+                    for it in cleaned:
+                        p = existing.get(it['name'].lower())
+                        if not p:
+                            # Create new provider
+                            p = InsuranceProvider.objects.create(name=it['name'])
+                            existing[p.name.lower()] = p
+                        provider_objs.append((p, it['out_of_network']))
+                    # Replace InsuranceDetail set
+                    from django.db import transaction
+                    with transaction.atomic():
+                        profile.insurance_details.all().delete()
+                        for prov, oon in provider_objs:
+                            InsuranceDetail.objects.create(therapist=profile, provider=prov, out_of_network=oon)
+                    updated = True
+            except Exception as ex:
+                errors['insurance_details'] = 'Failed to update insurance details'
+        # Therapy Types full replacement
+        if therapy_types_new is not None and 'therapy_types' not in errors:
+            try:
+                from users.models_profile import TherapyType, TherapyTypeSelection
+                cleaned=[]; seen=set()
+                for name in therapy_types_new:
+                    if not isinstance(name, str): continue
+                    nm=name.strip()
+                    if not nm: continue
+                    key=nm.lower()
+                    if key in seen: continue
+                    seen.add(key)
+                    if len(nm)>64: nm=nm[:64]
+                    cleaned.append(nm)
+                if len(cleaned) > 60:
+                    errors['therapy_types'] = 'Too many therapy types (max 60).'
+                if 'therapy_types' not in errors:
+                    existing = {t.name.lower(): t for t in TherapyType.objects.all()}
+                    objs=[]
+                    for nm in cleaned:
+                        obj = existing.get(nm.lower())
+                        if not obj:
+                            obj = TherapyType.objects.create(name=nm)
+                            existing[obj.name.lower()] = obj
+                        objs.append(obj)
+                    from django.db import transaction as _tx
+                    with _tx.atomic():
+                        profile.types_of_therapy.all().delete()
+                        for obj in objs:
+                            TherapyTypeSelection.objects.create(therapist=profile, therapy_type=obj)
+                    updated = True
+            except Exception:
+                errors['therapy_types'] = 'Failed to update therapy types'
+        # Specialties full replacement (with top specialties subset)
+        if (specialties_new is not None or top_specialties_new is not None) and 'specialties' not in errors and 'top_specialties' not in errors:
+            try:
+                from users.models_profile import SpecialtyLookup, Specialty
+                # If only updating tops, keep current specialties list
+                current_list = [s.specialty.name for s in profile.specialties.select_related('specialty').all() if s.specialty]
+                spec_source = specialties_new if specialties_new is not None else current_list
+                top_source = top_specialties_new if top_specialties_new is not None else [s.specialty.name for s in profile.specialties.filter(is_top_specialty=True).select_related('specialty').all() if s.specialty]
+                cleaned=[]; seen=set()
+                for name in spec_source or []:
+                    if not isinstance(name, str): continue
+                    nm=name.strip()
+                    if not nm: continue
+                    key=nm.lower();
+                    if key in seen: continue
+                    seen.add(key)
+                    if len(nm)>64: nm=nm[:64]
+                    cleaned.append(nm)
+                top_cleaned=[]; top_seen=set()
+                for name in top_source or []:
+                    if not isinstance(name, str): continue
+                    nm=name.strip()
+                    if not nm: continue
+                    key=nm.lower();
+                    if key in top_seen: continue
+                    top_seen.add(key)
+                    if len(nm)>64: nm=nm[:64]
+                    top_cleaned.append(nm)
+                if any(t.lower() not in {c.lower() for c in cleaned} for t in top_cleaned):
+                    errors['top_specialties'] = 'Top specialties must be in specialties list.'
+                if len(top_cleaned) > 5:
+                    errors['top_specialties'] = 'You can only mark up to 5 top specialties.'
+                if 'specialties' not in errors and 'top_specialties' not in errors:
+                    # create lookups as needed
+                    existing = {s.name.lower(): s for s in SpecialtyLookup.objects.all()}
+                    lookups=[]
+                    for nm in cleaned:
+                        obj = existing.get(nm.lower())
+                        if not obj:
+                            obj = SpecialtyLookup.objects.create(name=nm)
+                            existing[obj.name.lower()] = obj
+                        lookups.append(obj)
+                    top_set = {t.lower() for t in top_cleaned}
+                    from django.db import transaction as _tx
+                    with _tx.atomic():
+                        profile.specialties.all().delete()
+                        for obj in lookups:
+                            profile.specialties.create(specialty=obj, is_top_specialty=(obj.name.lower() in top_set))
+                    updated = True
+            except Exception:
+                errors['specialties'] = 'Failed to update specialties'
+        # Participant Types full replacement (direct M2M)
+        if participant_types_new is not None and 'participant_types' not in errors:
+            try:
+                from users.models_profile import ParticipantType
+                cleaned=[]; seen=set()
+                for name in participant_types_new:
+                    if not isinstance(name, str): continue
+                    nm=name.strip()
+                    if not nm: continue
+                    key=nm.lower()
+                    if key in seen: continue
+                    seen.add(key)
+                    if len(nm)>32: nm=nm[:32]
+                    cleaned.append(nm)
+                if len(cleaned) > 40:
+                    errors['participant_types'] = 'Too many participant types (max 40).'
+                if 'participant_types' not in errors:
+                    existing = {p.name.lower(): p for p in ParticipantType.objects.all()}
+                    objs=[]
+                    for nm in cleaned:
+                        obj = existing.get(nm.lower())
+                        if not obj:
+                            obj = ParticipantType.objects.create(name=nm)
+                            existing[obj.name.lower()] = obj
+                        objs.append(obj)
+                    profile.participant_types.set(objs)
+                    updated = True
+            except Exception:
+                errors['participant_types'] = 'Failed to update participant types'
+        # Age Groups full replacement (direct M2M)
+        if age_groups_new is not None and 'age_groups' not in errors:
+            try:
+                from users.models_profile import AgeGroup
+                cleaned=[]; seen=set()
+                for name in age_groups_new:
+                    if not isinstance(name, str): continue
+                    nm=name.strip()
+                    if not nm: continue
+                    key=nm.lower()
+                    if key in seen: continue
+                    seen.add(key)
+                    if len(nm)>32: nm=nm[:32]
+                    cleaned.append(nm)
+                if len(cleaned) > 40:
+                    errors['age_groups'] = 'Too many age groups (max 40).'
+                if 'age_groups' not in errors:
+                    existing = {a.name.lower(): a for a in AgeGroup.objects.all()}
+                    objs=[]
+                    for nm in cleaned:
+                        obj = existing.get(nm.lower())
+                        if not obj:
+                            obj = AgeGroup.objects.create(name=nm)
+                            existing[obj.name.lower()] = obj
+                        objs.append(obj)
+                    profile.age_groups.set(objs)
+                    updated = True
+            except Exception:
+                errors['age_groups'] = 'Failed to update age groups'
+        if errors:
+            # Helpful debug echo of attempted fields (excluding potential large text) for frontend troubleshooting
+            debug_fields = list(payload.keys())[:40]
+            return JsonResponse({'errors': errors, 'attempted_fields': debug_fields}, status=400)
+        if updated:
+            # Use db_transaction alias to avoid any accidental shadowing
+            with db_transaction.atomic():
+                profile.save()
+        return JsonResponse(_profile_json(profile))
+    except Exception as ex:
+        traceback.print_exc()
+        return JsonResponse({'error':'Server error','detail':str(ex)}, status=500)
+
+@login_required
+@require_http_methods(["GET"])
+def api_insurance_providers(request):
+    """Lookup insurance providers with optional fuzzy name search (?q=...).
+    Returns list of {id,name}. Limits to 20 results."""
+    from users.models_profile import InsuranceProvider
+    q = (request.GET.get('q') or '').strip()
+    qs = InsuranceProvider.objects.all().order_by('sort_order','name')
+    if q:
+        qs = qs.filter(name__icontains=q)
+    data = [{'id': p.id, 'name': p.name} for p in qs[:20]]
+    return JsonResponse({'results': data})
+
+@login_required
+@require_http_methods(["GET"])
+def api_therapy_types(request):
+    """Lookup therapy types (?q=) limit 20."""
+    from users.models_profile import TherapyType
+    q = (request.GET.get('q') or '').strip()
+    qs = TherapyType.objects.all().order_by('sort_order','name')
+    if q:
+        qs = qs.filter(name__icontains=q)
+    data = [{'id': t.id, 'name': t.name} for t in qs[:20]]
+    return JsonResponse({'results': data})
+
+@login_required
+@require_http_methods(["GET"])
+def api_specialties_lookup(request):
+    """Lookup specialties (?q=) limit 20."""
+    from users.models_profile import SpecialtyLookup
+    q = (request.GET.get('q') or '').strip()
+    qs = SpecialtyLookup.objects.all().order_by('sort_order','name')
+    if q:
+        qs = qs.filter(name__icontains=q)
+    data = [{'id': s.id, 'name': s.name} for s in qs[:20]]
+    return JsonResponse({'results': data})
+
+@login_required
+@require_http_methods(["GET"])
+def api_participant_types(request):
+    """Lookup participant types (?q=) limit 20."""
+    from users.models_profile import ParticipantType
+    q = (request.GET.get('q') or '').strip()
+    qs = ParticipantType.objects.all().order_by('name')
+    if q:
+        qs = qs.filter(name__icontains=q)
+    data = [{'id': p.id, 'name': p.name} for p in qs[:20]]
+    return JsonResponse({'results': data})
+
+@login_required
+@require_http_methods(["GET"])
+def api_age_groups(request):
+    """Lookup age groups (?q=) limit 20."""
+    from users.models_profile import AgeGroup
+    q = (request.GET.get('q') or '').strip()
+    qs = AgeGroup.objects.all().order_by('name')
+    if q:
+        qs = qs.filter(name__icontains=q)
+    data = [{'id': a.id, 'name': a.name} for a in qs[:20]]
+    return JsonResponse({'results': data})
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def api_profile_upload_photo(request):
+    from users.models_profile import TherapistProfile
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    if request.method == 'DELETE':
+        # Clear existing photo
+        try:
+            if profile.profile_photo:
+                # Delete file from storage but ignore errors silently
+                try:
+                    profile.profile_photo.delete(save=False)
+                except Exception:
+                    pass
+            profile.profile_photo = None
+            profile.save()
+        except Exception:
+            return JsonResponse({'error': 'Unable to remove photo'}, status=500)
+        return JsonResponse(_profile_json(profile))
+    # POST (upload)
+    file = request.FILES.get('file')
+    if not file:
+        return JsonResponse({'error': 'No file uploaded'}, status=400)
+    if file.size > 5 * 1024 * 1024:
+        return JsonResponse({'error': 'File too large (max 5MB).'}, status=400)
+    if not file.content_type.lower().startswith(('image/')):
+        return JsonResponse({'error': 'Unsupported file type'}, status=400)
+    profile.profile_photo = file
+    profile.save()
+    return JsonResponse(_profile_json(profile))
+
+@login_required
+@require_http_methods(["POST"])
+def api_education_create(request):
+    """Create a new education record. JSON body: {school, degree_diploma, year_graduated, year_began_practice?}"""
+    import json
+    from users.models_profile import TherapistProfile, Education
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({'error':'Invalid JSON'}, status=400)
+    school = (payload.get('school') or '').strip()[:64]
+    degree = (payload.get('degree_diploma') or '').strip()[:32]
+    year_grad = (payload.get('year_graduated') or '').strip()[:4]
+    year_begin = (payload.get('year_began_practice') or '').strip()[:4]
+    if not school or not degree or not year_grad:
+        return JsonResponse({'error':'school, degree_diploma, year_graduated required'}, status=400)
+    try:
+        Education.objects.create(therapist=profile, school=school, degree_diploma=degree, year_graduated=year_grad, year_began_practice=year_begin)
+    except Exception as ex:
+        return JsonResponse({'error':'Create failed','detail':str(ex)}, status=500)
+    return JsonResponse(_profile_json(profile))
+
+@login_required
+@require_http_methods(["PATCH","DELETE"])
+def api_education_item(request, education_id):
+    """Update or delete an education record."""
+    import json
+    from users.models_profile import TherapistProfile, Education
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    edu = Education.objects.filter(id=education_id, therapist=profile).first()
+    if not edu:
+        return JsonResponse({'error':'Education not found'}, status=404)
+    if request.method == 'DELETE':
+        try:
+            edu.delete()
+        except Exception:
+            return JsonResponse({'error':'Delete failed'}, status=500)
+        return JsonResponse(_profile_json(profile))
+    # PATCH
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({'error':'Invalid JSON'}, status=400)
+    changed=False
+    if 'school' in payload:
+        edu.school = (payload.get('school') or '').strip()[:64]; changed=True
+    if 'degree_diploma' in payload:
+        edu.degree_diploma = (payload.get('degree_diploma') or '').strip()[:32]; changed=True
+    if 'year_graduated' in payload:
+        edu.year_graduated = (payload.get('year_graduated') or '').strip()[:4]; changed=True
+    if 'year_began_practice' in payload:
+        edu.year_began_practice = (payload.get('year_began_practice') or '').strip()[:4]; changed=True
+    if changed:
+        try:
+            edu.save()
+        except Exception as ex:
+            return JsonResponse({'error':'Update failed','detail':str(ex)}, status=500)
+    return JsonResponse(_profile_json(profile))
+
+@login_required
+@require_http_methods(["POST"])
+def api_additional_credential_create(request):
+    """Create an additional credential. JSON: {type, organization_name, id_number?, year_issued}"""
+    import json
+    from users.models_profile import TherapistProfile, AdditionalCredential
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({'error':'Invalid JSON'}, status=400)
+    ctype = (payload.get('type') or '').strip()[:16]
+    org = (payload.get('organization_name') or '').strip()[:64]
+    idnum = (payload.get('id_number') or '').strip()[:32]
+    year = (payload.get('year_issued') or '').strip()[:4]
+    if not org or not year:
+        return JsonResponse({'error':'organization_name and year_issued required'}, status=400)
+    try:
+        AdditionalCredential.objects.create(therapist=profile, additional_credential_type=ctype, organization_name=org, id_number=idnum, year_issued=year)
+    except Exception as ex:
+        return JsonResponse({'error':'Create failed','detail':str(ex)}, status=500)
+    return JsonResponse(_profile_json(profile))
+
+@login_required
+@require_http_methods(["PATCH","DELETE"])
+def api_additional_credential_item(request, credential_id):
+    """Update or delete an additional credential."""
+    import json
+    from users.models_profile import TherapistProfile, AdditionalCredential
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    cred = AdditionalCredential.objects.filter(id=credential_id, therapist=profile).first()
+    if not cred:
+        return JsonResponse({'error':'Credential not found'}, status=404)
+    if request.method == 'DELETE':
+        try:
+            cred.delete()
+        except Exception:
+            return JsonResponse({'error':'Delete failed'}, status=500)
+        return JsonResponse(_profile_json(profile))
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({'error':'Invalid JSON'}, status=400)
+    changed=False
+    if 'type' in payload:
+        cred.additional_credential_type = (payload.get('type') or '').strip()[:16]; changed=True
+    if 'organization_name' in payload:
+        cred.organization_name = (payload.get('organization_name') or '').strip()[:64]; changed=True
+    if 'id_number' in payload:
+        cred.id_number = (payload.get('id_number') or '').strip()[:32]; changed=True
+    if 'year_issued' in payload:
+        cred.year_issued = (payload.get('year_issued') or '').strip()[:4]; changed=True
+    if changed:
+        try:
+            cred.save()
+        except Exception as ex:
+            return JsonResponse({'error':'Update failed','detail':str(ex)}, status=500)
+    return JsonResponse(_profile_json(profile))
+
+@login_required
+@require_http_methods(["POST"])
+def api_profile_gallery_upload(request):
+    """Upload a gallery image (multipart form: file, optional caption, optional is_primary)."""
+    from users.models_profile import TherapistProfile, GalleryImage
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    file = request.FILES.get('file')
+    if not file:
+        return JsonResponse({'error': 'No file uploaded'}, status=400)
+    if file.size > 5 * 1024 * 1024:
+        return JsonResponse({'error': 'File too large (max 5MB).'}, status=400)
+    if not file.content_type.lower().startswith(('image/')):
+        return JsonResponse({'error': 'Unsupported file type'}, status=400)
+    caption = request.POST.get('caption','')[:128]
+    is_primary = request.POST.get('is_primary','').lower() in {'1','true','yes','on'}
+    try:
+        gi = GalleryImage.objects.create(therapist=profile, image=file, caption=caption, is_primary=is_primary)
+        if is_primary:
+            # ensure others set to false
+            GalleryImage.objects.filter(therapist=profile).exclude(id=gi.id).update(is_primary=False)
+    except Exception as ex:
+        return JsonResponse({'error':'Upload failed','detail':str(ex)}, status=500)
+    return JsonResponse(_profile_json(profile))
+
+@login_required
+@require_http_methods(["PATCH","DELETE"])
+def api_profile_gallery_item(request, image_id):
+    """Update caption / primary flag (PATCH) or delete image (DELETE)."""
+    import json
+    from users.models_profile import TherapistProfile, GalleryImage
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    gi = GalleryImage.objects.filter(id=image_id, therapist=profile).first()
+    if not gi:
+        return JsonResponse({'error':'Image not found'}, status=404)
+    if request.method == 'DELETE':
+        try:
+            gi.delete()
+        except Exception:
+            return JsonResponse({'error':'Unable to delete image'}, status=500)
+        return JsonResponse(_profile_json(profile))
+    # PATCH
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({'error':'Invalid JSON'}, status=400)
+    changed = False
+    if 'caption' in payload:
+        cap = (payload.get('caption') or '')[:128]
+        gi.caption = cap; changed=True
+    if 'is_primary' in payload:
+        val = bool(payload.get('is_primary'))
+        gi.is_primary = val; changed=True
+        if val:
+            from users.models_profile import GalleryImage as GI
+            GI.objects.filter(therapist=profile).exclude(id=gi.id).update(is_primary=False)
+    if changed:
+        gi.save()
+    return JsonResponse(_profile_json(profile))
+
+@login_required
+@require_http_methods(["POST","PATCH","DELETE"])
+def api_profile_video(request):
+    """Manage single therapist intro video.
+    POST: multipart upload (file, optional caption) replaces any existing video.
+    PATCH: JSON {caption:"..."} updates caption.
+    DELETE: removes existing video.
+
+    Size limit: 60MB. Accepts content_type starting with 'video/'.
+    """
+    from users.models_profile import TherapistProfile, VideoGallery
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    existing = VideoGallery.objects.filter(therapist=profile).first()
+    if request.method == 'DELETE':
+        if existing:
+            try:
+                existing.delete()
+            except Exception:
+                return JsonResponse({'error':'Unable to delete video'}, status=500)
+        return JsonResponse(_profile_json(profile))
+    if request.method == 'PATCH':
+        import json
+        if not existing:
+            return JsonResponse({'error':'No video to update'}, status=404)
+        try:
+            payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+        except json.JSONDecodeError:
+            return JsonResponse({'error':'Invalid JSON'}, status=400)
+        if 'caption' in payload:
+            existing.caption = (payload.get('caption') or '')[:128]
+            existing.save()
+        return JsonResponse(_profile_json(profile))
+    # POST (upload/replace)
+    file = request.FILES.get('file')
+    if not file:
+        return JsonResponse({'error':'No file uploaded'}, status=400)
+    if file.size > 60 * 1024 * 1024:
+        return JsonResponse({'error':'File too large (max 60MB).'}, status=400)
+    if not file.content_type.lower().startswith('video/'):
+        return JsonResponse({'error':'Unsupported file type'}, status=400)
+    caption = (request.POST.get('caption','')[:128])
+    # Replace existing
+    if existing:
+        try:
+            existing.delete()
+        except Exception:
+            pass
+    try:
+        VideoGallery.objects.create(therapist=profile, video=file, caption=caption)
+    except Exception as ex:
+        return JsonResponse({'error':'Upload failed','detail':str(ex)}, status=500)
+    return JsonResponse(_profile_json(profile))
+
+@login_required
+@require_http_methods(["POST"])
+def api_location_create(request):
+    from users.models_profile import TherapistProfile, Location
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    practice_name = (request.POST.get('practice_name','') or '')[:128]
+    city = (request.POST.get('city','') or '')[:64]
+    state = (request.POST.get('state','') or '')[:32]
+    street_address = (request.POST.get('street_address','') or '')[:128]
+    address_line_2 = (request.POST.get('address_line_2','') or '')[:128]
+    zip_code = (request.POST.get('zip','') or '')[:16]
+    is_primary = request.POST.get('is_primary_address','').lower() in {'1','true','yes','on'}
+    try:
+        loc = Location.objects.create(
+            therapist=profile,
+            practice_name=practice_name,
+            city=city,
+            state=state,
+            street_address=street_address,
+            address_line_2=address_line_2,
+            zip=zip_code,
+            is_primary_address=is_primary,
+        )
+        if is_primary:
+            Location.objects.filter(therapist=profile).exclude(id=loc.id).update(is_primary_address=False)
+    except Exception as ex:
+        return JsonResponse({'error':'Create failed','detail':str(ex)}, status=500)
+    return JsonResponse(_profile_json(profile))
+
+@login_required
+@require_http_methods(["PATCH","DELETE"])
+def api_location_item(request, location_id):
+    import json
+    from users.models_profile import TherapistProfile, Location
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    loc = Location.objects.filter(id=location_id, therapist=profile).first()
+    if not loc:
+        return JsonResponse({'error':'Location not found'}, status=404)
+    if request.method == 'DELETE':
+        try:
+            loc.delete()
+        except Exception:
+            return JsonResponse({'error':'Unable to delete'}, status=500)
+        return JsonResponse(_profile_json(profile))
+    # PATCH
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({'error':'Invalid JSON'}, status=400)
+    fields = ['practice_name','street_address','address_line_2','city','state','zip']
+    for f in fields:
+        if f in payload:
+            val = (payload.get(f) or '')
+            setattr(loc, f if f!='zip' else 'zip', val[:128])
+    if 'is_primary_address' in payload:
+        val = bool(payload.get('is_primary_address'))
+        loc.is_primary_address = val
+    try:
+        loc.save()
+        if loc.is_primary_address:
+            Location.objects.filter(therapist=profile).exclude(id=loc.id).update(is_primary_address=False)
+    except Exception as ex:
+        return JsonResponse({'error':'Update failed','detail':str(ex)}, status=500)
+    return JsonResponse(_profile_json(profile))
+
+@login_required
+@require_http_methods(["PATCH"])
+def api_location_office_hours(request, location_id):
+    """Upsert all office hours rows (0-6) for a location.
+    Expects JSON: {"office_hours": [{weekday:int, is_closed:bool, by_appointment_only:bool, start_time_1, end_time_1, start_time_2, end_time_2, notes}]}
+    Missing weekdays are left unchanged (client should normally send all 0..6)."""
+    import json, re
+    from users.models_profile import TherapistProfile, Location, OfficeHour
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    loc = Location.objects.filter(id=location_id, therapist=profile).first()
+    if not loc:
+        return JsonResponse({'error':'Location not found'}, status=404)
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({'error':'Invalid JSON'}, status=400)
+    items = payload.get('office_hours', []) or []
+    # Index by weekday for quick access
+    by_day = {int(it.get('weekday')): it for it in items if 'weekday' in it}
+    time_re = re.compile(r'^\d{2}:\d{2}$')
+    for wd in sorted(by_day.keys()):
+        if wd < 0 or wd > 6:
+            return JsonResponse({'error': f'Invalid weekday {wd}'}, status=400)
+        data = by_day[wd]
+        is_closed = bool(data.get('is_closed'))
+        by_appt = bool(data.get('by_appointment_only'))
+        def clean_time(val):
+            if not val:
+                return ''
+            val = str(val)[:5]
+            return val if time_re.match(val) else ''
+        start_time_1 = clean_time(data.get('start_time_1')) if not (is_closed or by_appt) else ''
+        end_time_1 = clean_time(data.get('end_time_1')) if not (is_closed or by_appt) else ''
+        start_time_2 = clean_time(data.get('start_time_2')) if not (is_closed or by_appt) else ''
+        end_time_2 = clean_time(data.get('end_time_2')) if not (is_closed or by_appt) else ''
+        notes = (data.get('notes') or '')[:64]
+        oh, _ = OfficeHour.objects.get_or_create(location=loc, weekday=wd)
+        oh.is_closed = is_closed
+        oh.by_appointment_only = by_appt
+        oh.start_time_1 = start_time_1
+        oh.end_time_1 = end_time_1
+        oh.start_time_2 = start_time_2
+        oh.end_time_2 = end_time_2
+        oh.notes = notes
+        try:
+            oh.save()
+        except Exception as ex:
+            return JsonResponse({'error':'Save failed','detail':str(ex),'weekday':wd}, status=500)
+    return JsonResponse(_profile_json(profile))
+
 def contact_therapist(request, user_id):
     from users.models_profile import TherapistProfile
     from users.models import TherapistProfileStats
@@ -509,6 +1588,7 @@ def api_full_profile(request, user_id):
         AdditionalCredential,
         Location,
         OfficeHour,
+    Title as TitleModel,
     )
     from django.utils import timezone
     profile = get_object_or_404(
@@ -526,6 +1606,8 @@ def api_full_profile(request, user_id):
     # Years in practice (derive from earliest education.year_began_practice or year_graduated)
     current_year = timezone.now().year
     candidate_years = []
+    if getattr(profile, 'year_started_practice', None) and profile.year_started_practice.isdigit() and len(profile.year_started_practice) == 4:
+        candidate_years.append(int(profile.year_started_practice))
     for e in profile.educations.all():
         if e.year_began_practice and e.year_began_practice.isdigit() and len(e.year_began_practice) == 4:
             candidate_years.append(int(e.year_began_practice))
@@ -561,8 +1643,10 @@ def api_full_profile(request, user_id):
         'couples_session_cost': profile.couples_session_cost,
         'sliding_scale_pricing_available': profile.sliding_scale_pricing_available,
         'finance_note': profile.finance_note,
+        'no_show_policy': getattr(profile, 'no_show_policy', ''),
         'credentials_note': profile.credentials_note,
-        'profile_photo_url': img_url(profile.profile_photo),
+        'profile_photo_url': profile.profile_photo.url if profile.profile_photo else None,
+    'title_options': list(TitleModel.objects.order_by('name').values_list('name', flat=True)),
         'practice_website_url': profile.practice_website_url,
         'facebook_url': profile.facebook_url,
         'instagram_url': profile.instagram_url,
@@ -578,8 +1662,11 @@ def api_full_profile(request, user_id):
         'license_number': profile.license_number,
         'license_expiration': profile.license_expiration,
         'license_state': profile.license_state,
+    'license_first_name': profile.license_first_name,
+    'license_last_name': profile.license_last_name,
         'gender': profile.gender.name if profile.gender else None,
-        'years_in_practice': years_in_practice,
+    'years_in_practice': years_in_practice,
+    'year_started_practice': getattr(profile, 'year_started_practice', ''),
         'city': primary_location.city if primary_location else None,
         'state': primary_location.state if primary_location else None,
         'primary_location': {
@@ -619,7 +1706,12 @@ def api_full_profile(request, user_id):
         'race_ethnicities': [r.race_ethnicity.name for r in profile.race_ethnicities.select_related('race_ethnicity').all()],
         'faiths': [f.faith.name for f in profile.faiths.select_related('faith').all()],
         'lgbtqia_identities': [l.lgbtqia.name for l in profile.lgbtqia_identities.select_related('lgbtqia').all()],
-        'other_identities': [o.other_identity.name for o in profile.other_identities.select_related('other_identity').all()],
+    'other_identities': [o.other_identity.name for o in profile.other_identities.select_related('other_identity').all()],
+    # Option lists (identity) for potential client-side editors
+    'gender_options': [],
+    'faith_options': [],
+    'lgbtqia_options': [],
+    'other_identity_options': [],
         'specialties': [
             {
                 'name': s.specialty.name if s.specialty else None,
@@ -669,5 +1761,14 @@ def api_full_profile(request, user_id):
             } for ac in profile.additional_credentials.all()
         ],
     }
+    # Populate identity option lists (avoid large duplication if not needed)
+    try:
+        from users.models_profile import Gender, Faith, LGBTQIA, OtherIdentity
+        data['gender_options'] = list(Gender.objects.order_by('name').values_list('name', flat=True))
+        data['faith_options'] = list(Faith.objects.order_by('name').values_list('name', flat=True))
+        data['lgbtqia_options'] = list(LGBTQIA.objects.order_by('name').values_list('name', flat=True))
+        data['other_identity_options'] = list(OtherIdentity.objects.order_by('name').values_list('name', flat=True))
+    except Exception:
+        pass
     return JsonResponse(data, safe=False)
 

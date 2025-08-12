@@ -1,0 +1,1011 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Edit Profile{% endblock %}
+{% block content %}
+<script>
+  window.__initialProfile = JSON.parse("{{ initial_profile_json|escapejs }}");
+  // CSRF helper (Django)
+  function tcGetCookie(name){ const v=document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith(name+'=')); return v?decodeURIComponent(v.split('=')[1]):null; }
+  const TC_CSRF = tcGetCookie('csrftoken') || '{{ csrf_token }}';
+  document.addEventListener('alpine:init', () => {
+    Alpine.store('profileModal', Alpine.store('profileModal') || {
+      show:true,
+      contentVisible:true,
+      loading:false,
+      therapist: window.__initialProfile || {},
+      ids:[],
+      currentIndex:0,
+      lightboxImage:null,
+      next() {},
+      prev() {},
+      close() {}
+    });
+    Alpine.data('profileEdit', () => ({
+      saving:false,
+      toast:{show:false,message:''},
+      completion: (window.__initialProfile && window.__initialProfile.completion) ? window.__initialProfile.completion : {percent: {{ completion_percent|default:0 }}, details: {{ completion_details|safe }} },
+      sectionDefs: [
+        { key:'photo', label:'Photo', fields:['profile_photo','profile_photo_url'] },
+        { key:'name', label:'Name', fields:['first_name','last_name'] },
+        { key:'practice', label:'Practice', fields:['practice_name','therapy_delivery_method'] },
+        { key:'availability', label:'Availability', fields:['accepting_new_clients'] },
+        { key:'license', label:'License', fields:['license_type'] },
+  { key:'intro', label:'Intro', fields:['intro_note'] },
+        { key:'identity', label:'Identity', fields:['race_ethnicities'] },
+      ],
+      init(){ window.__profileEdit = this; this.fetchProfile(); },
+      fetchProfile(){ fetch('/users/api/profile/me/').then(r=>r.json()).then(d=>{ this.applyData(d); }).catch(()=>this.notify('Failed to load profile')); },
+  applyData(d){ const s=Alpine.store('profileModal'); s.therapist = {...(s.therapist||{}), ...d}; this.completion = d.completion || this.completion; document.dispatchEvent(new CustomEvent('tc-profile-updated',{detail:{fields:Object.keys(d||{})}})); },
+      sectionStatus(){
+        const det = this.completion.details || {}; const out = {};
+        for(const def of this.sectionDefs){
+          // A section is filled if ALL its fields are truthy in completion details (or at least one for photo due to alternate key)
+          if(def.key === 'photo'){
+            out[def.key] = def.fields.some(f=> det[f]);
+          } else {
+            out[def.key] = def.fields.every(f=> det[f]);
+          }
+        }
+        return out;
+      },
+  label(key){ const map={ first_name:'First Name', last_name:'Last Name', profile_photo:'Profile Photo', profile_photo_url:'Profile Photo', practice_name:'Practice Name', therapy_delivery_method:'Delivery Method', license_type:'License Type', accepting_new_clients:'Availability', intro_note:'Intro Statement', personal_statement_01:'About Me', race_ethnicities:'Race/Ethnicity' }; return map[key] || key.replace(/_/g,' ').replace(/\b[a-z]/g,c=>c.toUpperCase()); },
+      saveField(field, value){
+        this.saving=true;
+        const s = Alpine.store('profileModal');
+        const body={}; body[field]=value;
+        // Optimistic update
+        const prev = s.therapist ? s.therapist[field] : undefined;
+        if(s.therapist){ s.therapist = {...s.therapist, [field]: value}; }
+        fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken': TC_CSRF}, body:JSON.stringify(body)})
+          .then(async r=>{ const data= await r.json(); if(!r.ok){ if(s.therapist){ s.therapist[field]=prev; } this.fieldError(field, data.errors && data.errors[field]); return; } this.applyData(data); this.notify('Saved'); })
+          .catch(()=>{ if(s.therapist){ s.therapist[field]=prev; } this.fieldError(field,'Network error'); })
+          .finally(()=>{ this.saving=false; });
+      },
+      fieldError(field,msg){ if(msg){ this.notify(msg,true); const el=document.querySelector('[data-field="'+field+'"]')?.closest('[data-edit-wrapper]'); if(el){ el.classList.add('ring-2','ring-red-400'); setTimeout(()=>el.classList.remove('ring-red-400'),4000); } } },
+      notify(message,error=false){ this.toast.message=message; this.toast.show=true; setTimeout(()=> this.toast.show=false, 2600); },
+      saveFields(payload){
+        // Multi-field optimistic PATCH (e.g., first_name + last_name)
+        this.saving = true;
+        const s = Alpine.store('profileModal');
+        const prev = {};
+        if(s.therapist){
+          for(const k in payload){ prev[k] = s.therapist[k]; }
+          s.therapist = {...s.therapist, ...payload};
+        }
+        fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken': TC_CSRF}, body: JSON.stringify(payload)})
+          .then(async r => { const data = await r.json(); if(!r.ok){ if(s.therapist){ for(const k in payload){ s.therapist[k] = prev[k]; } } const firstErrKey = data.errors && Object.keys(data.errors)[0]; if(firstErrKey){ this.fieldError(firstErrKey, data.errors[firstErrKey]); } return; } this.applyData(data); this.notify('Saved'); })
+          .catch(()=> { if(s.therapist){ for(const k in payload){ s.therapist[k] = prev[k]; } } this.notify('Network error', true); })
+          .finally(()=> { this.saving=false; });
+      }
+    }));
+    // Helper accessible globally to invoke saveField from external listeners
+    window.__tcSaveProfileField = function(field, value){
+      if(window.__profileEdit && typeof window.__profileEdit.saveField === 'function'){
+        window.__profileEdit.saveField(field, value);
+      }
+    };
+  });
+  // Gallery manager available before partial include so x-data can resolve
+  function galleryManager(){
+    const csrf = TC_CSRF;
+    return {
+      images: (window.__initialProfile && window.__initialProfile.gallery_images) ? window.__initialProfile.gallery_images.slice() : [],
+      file:null, caption:'', is_primary:false, uploading:false, progress:0, error:'', drag:false,
+      onFile(e){ this.file = e.target.files[0]; },
+      onDrop(ev){ this.drag=false; const f=ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0]; if(f){ this.file=f; } },
+      reset(){ this.file=null; this.caption=''; this.is_primary=false; this.progress=0; this.error=''; if(this.$refs.file) this.$refs.file.value=''; },
+      upload(){ if(!this.file) return; if(this.images.length>=12){ this.error='Maximum 12 images.'; return; } this.error=''; this.uploading=true; const form=new FormData(); form.append('file', this.file); if(this.caption) form.append('caption', this.caption); if(this.is_primary) form.append('is_primary','1'); fetch('/users/api/profile/gallery/upload/', { method:'POST', headers:{'X-CSRFToken':csrf}, body:form }).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Upload failed'; return; } this.images=d.gallery_images||[]; const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.gallery_images=this.images; } this.reset(); }).catch(()=> this.error='Network error').finally(()=> this.uploading=false);
+      },
+      saveMeta(img){ fetch('/users/api/profile/gallery/'+img.id+'/', { method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify({ caption: img.caption })}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Save failed'; return; } this.images=d.gallery_images||[]; const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.gallery_images=this.images; } }).catch(()=> this.error='Network error'); },
+      setPrimary(img){ if(img.is_primary) return; fetch('/users/api/profile/gallery/'+img.id+'/', { method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify({ is_primary:true })}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Update failed'; return; } this.images=d.gallery_images||[]; const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.gallery_images=this.images; } }).catch(()=> this.error='Network error'); },
+      remove(img){ if(!confirm('Delete this image?')) return; fetch('/users/api/profile/gallery/'+img.id+'/', { method:'DELETE', headers:{'X-CSRFToken':csrf} }).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Delete failed'; return; } this.images=d.gallery_images||[]; const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.gallery_images=this.images; } }).catch(()=> this.error='Network error'); }
+    };
+  }
+  // Single video manager (one intro video)
+  function videoManager(){
+    const csrf = TC_CSRF;
+    return {
+  video: (window.__initialProfile && window.__initialProfile.video_gallery && window.__initialProfile.video_gallery[0]) ? window.__initialProfile.video_gallery[0] : null,
+  file:null, caption:'', uploading:false, progress:0, error:'', recording:false, mediaRecorder:null, chunks:[], stream:null, drag:false,
+      reset(){ this.file=null; this.caption=''; this.error=''; this.progress=0; if(this.$refs.file) this.$refs.file.value=''; },
+      onFile(e){ this.file = e.target.files[0]; },
+      startRecording(){ if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ this.error='Recording not supported'; return; } this.error=''; navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(str=>{ this.stream=str; this.mediaRecorder=new MediaRecorder(str); this.chunks=[]; this.mediaRecorder.ondataavailable=ev=>{ if(ev.data.size>0) this.chunks.push(ev.data); }; this.mediaRecorder.onstop=()=>{ const blob=new Blob(this.chunks,{type:'video/webm'}); this.file = new File([blob], 'recording.webm', {type:'video/webm'}); this.stopStream(); }; this.mediaRecorder.start(); this.recording=true; }).catch(()=> this.error='Permission denied'); },
+      stopRecording(){ if(this.mediaRecorder && this.recording){ this.mediaRecorder.stop(); this.recording=false; } },
+      stopStream(){ if(this.stream){ this.stream.getTracks().forEach(t=>t.stop()); this.stream=null; } },
+      upload(){ if(!this.file){ this.error='No video selected'; return; } this.error=''; this.uploading=true; const form=new FormData(); form.append('file', this.file); if(this.caption) form.append('caption', this.caption); fetch('/users/api/profile/video/', {method:'POST', headers:{'X-CSRFToken':csrf}, body:form}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Upload failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.video_gallery=d.video_gallery||[]; } this.video = (d.video_gallery && d.video_gallery[0]) ? d.video_gallery[0] : null; this.reset(); }).catch(()=> this.error='Network error').finally(()=> this.uploading=false); },
+      updateCaption(){ if(!this.video) return; fetch('/users/api/profile/video/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify({caption:this.video.caption||''})}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Save failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.video_gallery=d.video_gallery||[]; } this.video = (d.video_gallery && d.video_gallery[0]) ? d.video_gallery[0] : null; }).catch(()=> this.error='Network error'); },
+      remove(){ if(!confirm('Delete video?')) return; fetch('/users/api/profile/video/', {method:'DELETE', headers:{'X-CSRFToken':csrf}}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Delete failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.video_gallery=d.video_gallery||[]; } this.video=null; }).catch(()=> this.error='Network error'); }
+    };
+  }
+  // Location manager (simple CRUD)
+  function locationManager(){
+    const csrf = TC_CSRF;
+    return {
+      form:{show:false, mode:'add', id:null, practice_name:'', street_address:'', address_line_2:'', city:'', state:'', zip:'', is_primary_address:false},
+      saving:false, error:'',
+      hoursEdit:{ openFor:null, rows:[], saving:false, error:'' },
+  weekdayNames:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+  confirmDelete:{show:false, targetId:null, targetName:''},
+      states: [
+        {code:'', name:'Select State'},
+        {code:'AL', name:'Alabama'}, {code:'AK', name:'Alaska'}, {code:'AZ', name:'Arizona'}, {code:'AR', name:'Arkansas'},
+        {code:'CA', name:'California'}, {code:'CO', name:'Colorado'}, {code:'CT', name:'Connecticut'}, {code:'DE', name:'Delaware'},
+        {code:'DC', name:'District of Columbia'}, {code:'FL', name:'Florida'}, {code:'GA', name:'Georgia'}, {code:'HI', name:'Hawaii'},
+        {code:'ID', name:'Idaho'}, {code:'IL', name:'Illinois'}, {code:'IN', name:'Indiana'}, {code:'IA', name:'Iowa'},
+        {code:'KS', name:'Kansas'}, {code:'KY', name:'Kentucky'}, {code:'LA', name:'Louisiana'}, {code:'ME', name:'Maine'},
+        {code:'MD', name:'Maryland'}, {code:'MA', name:'Massachusetts'}, {code:'MI', name:'Michigan'}, {code:'MN', name:'Minnesota'},
+        {code:'MS', name:'Mississippi'}, {code:'MO', name:'Missouri'}, {code:'MT', name:'Montana'}, {code:'NE', name:'Nebraska'},
+        {code:'NV', name:'Nevada'}, {code:'NH', name:'New Hampshire'}, {code:'NJ', name:'New Jersey'}, {code:'NM', name:'New Mexico'},
+        {code:'NY', name:'New York'}, {code:'NC', name:'North Carolina'}, {code:'ND', name:'North Dakota'}, {code:'OH', name:'Ohio'},
+        {code:'OK', name:'Oklahoma'}, {code:'OR', name:'Oregon'}, {code:'PA', name:'Pennsylvania'}, {code:'RI', name:'Rhode Island'},
+        {code:'SC', name:'South Carolina'}, {code:'SD', name:'South Dakota'}, {code:'TN', name:'Tennessee'}, {code:'TX', name:'Texas'},
+        {code:'UT', name:'Utah'}, {code:'VT', name:'Vermont'}, {code:'VA', name:'Virginia'}, {code:'WA', name:'Washington'},
+        {code:'WV', name:'West Virginia'}, {code:'WI', name:'Wisconsin'}, {code:'WY', name:'Wyoming'}
+      ],
+      startAdd(){ this.error=''; this.form={show:true, mode:'add', id:null, practice_name:'', street_address:'', address_line_2:'', city:'', state:'', zip:'', is_primary_address: false}; },
+      edit(loc){ this.error=''; this.form={show:true, mode:'edit', id:loc.id, practice_name:loc.practice_name||'', street_address:loc.street_address||'', address_line_2:loc.address_line_2||'', city:loc.city||'', state:loc.state||'', zip:loc.zip||'', is_primary_address: !!loc.is_primary_address}; },
+      cancel(){ this.form.show=false; },
+      openHours(loc){
+        if(this.hoursEdit.saving) return;
+        this.hoursEdit.openFor = loc.id;
+        const base = [];
+        const existing = (loc.office_hours||[]).reduce((m,r)=>{ m[r.weekday]=r; return m; },{});
+        for(let d=0; d<7; d++){
+          const r = existing[d] || {weekday:d,is_closed:false,by_appointment_only:false,start_time_1:'',end_time_1:'',start_time_2:'',end_time_2:'',notes:''};
+          base.push(JSON.parse(JSON.stringify(r)));
+        }
+        this.hoursEdit.rows = base;
+        this.hoursEdit.error='';
+      },
+      closeHours(){ if(this.hoursEdit.saving) return; this.hoursEdit.openFor=null; },
+      toggleClosed(row){ row.is_closed = !row.is_closed; if(row.is_closed){ row.by_appointment_only=false; row.start_time_1=row.end_time_1=row.start_time_2=row.end_time_2=''; } },
+      toggleAppt(row){ row.by_appointment_only = !row.by_appointment_only; if(row.by_appointment_only){ row.is_closed=false; row.start_time_1=row.end_time_1=row.start_time_2=row.end_time_2=''; } },
+      saveHours(){
+        if(this.hoursEdit.saving || this.hoursEdit.openFor==null) return;
+        this.hoursEdit.saving=true; this.hoursEdit.error='';
+        const payload = { office_hours: this.hoursEdit.rows.map(r=> ({
+          weekday:r.weekday,
+          is_closed: !!r.is_closed,
+          by_appointment_only: !!r.by_appointment_only,
+          start_time_1:r.start_time_1||'', end_time_1:r.end_time_1||'', start_time_2:r.start_time_2||'', end_time_2:r.end_time_2||'', notes:(r.notes||'').slice(0,64)
+        }))};
+        fetch('/users/api/profile/locations/'+this.hoursEdit.openFor+'/office_hours/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload)})
+          .then(r=>r.json().then(d=>[r,d]))
+          .then(([r,d])=>{ if(!r.ok){ this.hoursEdit.error=d.error||'Save failed'; return; } this.apply(d); const s=Alpine.store('profileModal'); const updated = s.therapist.locations.find(l=> l.id===this.hoursEdit.openFor); if(updated){ this.openHours(updated); } })
+          .catch(()=> this.hoursEdit.error='Network error')
+          .finally(()=> this.hoursEdit.saving=false);
+      },
+      save(){ if(this.saving) return; this.error=''; this.saving=true; if(this.form.mode==='add'){ const fd=new FormData(); ['practice_name','street_address','address_line_2','city','state','zip'].forEach(k=> fd.append(k,this.form[k]||'')); if(this.form.is_primary_address) fd.append('is_primary_address','1'); const prevIds = (Alpine.store('profileModal')?.therapist?.locations||[]).map(l=>l.id); fetch('/users/api/profile/locations/create/', {method:'POST', headers:{'X-CSRFToken':csrf}, body:fd}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Save failed'; return; } this.apply(d); this.form.show=false; // auto-open hours for new location
+        const s=Alpine.store('profileModal'); const newLoc = (s?.therapist?.locations||[]).find(l=> !prevIds.includes(l.id)); if(newLoc){ this.openHours(newLoc); } }).catch(()=> this.error='Network error').finally(()=> this.saving=false); } else { const payload={ practice_name:this.form.practice_name, street_address:this.form.street_address, address_line_2:this.form.address_line_2, city:this.form.city, state:this.form.state, zip:this.form.zip, is_primary_address:this.form.is_primary_address}; fetch('/users/api/profile/locations/'+this.form.id+'/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload)}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Update failed'; return; } this.apply(d); this.form.show=false; }).catch(()=> this.error='Network error').finally(()=> this.saving=false); } },
+  remove(){ if(!this.form.id) return; this.openDelete({id:this.form.id, practice_name:this.form.practice_name}); },
+  openDelete(loc){ if(!loc) return; this.confirmDelete={show:true, targetId:loc.id, targetName: loc.practice_name || 'Location'}; },
+  cancelDelete(){ this.confirmDelete={show:false, targetId:null, targetName:''}; },
+  confirmDeleteAction(){ const id=this.confirmDelete.targetId; if(!id) return; this.confirmDelete.show=false; fetch('/users/api/profile/locations/'+id+'/', {method:'DELETE', headers:{'X-CSRFToken':csrf}}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Delete failed'; return; } if(this.hoursEdit.openFor===id){ this.closeHours(); } if(this.form.id===id){ this.form.show=false; } this.apply(d); }).catch(()=> this.error='Network error'); },
+  removeLoc(loc){ if(!loc || !loc.id) return; this.openDelete(loc); },
+      apply(data){ const s = Alpine.store('profileModal'); if(s && s.therapist){ s.therapist.locations = data.locations || []; } }
+    };
+  }
+  // Fees & Insurance manager
+  function feesInsuranceManager(){
+    const csrf = TC_CSRF;
+    return {
+      editable: true,
+      fees:{ individual:'', couples:'' },
+      insuranceForm:{ provider:'' },
+      insError:'',
+      providerQuery:'', providerResults:[], providerLoading:false, providerOpen:false, providerSelectedIndex:-1, providerDebounce:null,
+      insuranceSaveTimer:null,
+      init(){ const s=Alpine.store('profileModal'); if(s && s.therapist){ this.fees.individual = s.therapist.individual_session_cost || ''; this.fees.couples = s.therapist.couples_session_cost || ''; } },
+      fmt(v){ if(v==null||v==='') return ''; const num=parseFloat((''+v).replace(/[^0-9.]/g,'')); if(isNaN(num)) return v; return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:0,maximumFractionDigits:0}).format(num); },
+      normalizeCurrency(raw){ if(!raw) return ''; const digits=(''+raw).replace(/[^0-9.]/g,''); if(!digits) return ''; const num=parseFloat(digits); if(isNaN(num)) return ''; return Math.round(num); },
+      formatFeeInput(field){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return ''; const v=s.therapist[field]; if(!v && v!==0) return ''; const num=this.normalizeCurrency(v); return num? ('$'+num):''; },
+      onFeeBlur(field, val){ const norm=this.normalizeCurrency(val); if(norm!==''){ this.fees[field.includes('couples')?'couples':'individual'] = '$'+norm; } },
+      saveFee(field, val){ const s=Alpine.store('profileModal'); const norm=this.normalizeCurrency(val); window.__tcSaveProfileField(field, norm? norm : ''); if(s && s.therapist){ s.therapist[field] = norm? norm : ''; } },
+      toggleSliding(){ const s=Alpine.store('profileModal'); const next = !s.therapist.sliding_scale_pricing_available; window.__tcSaveProfileField('sliding_scale_pricing_available', next); if(s && s.therapist){ s.therapist.sliding_scale_pricing_available = next; } },
+      setSliding(val){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; if(s.therapist.sliding_scale_pricing_available === val) return; window.__tcSaveProfileField('sliding_scale_pricing_available', val); s.therapist.sliding_scale_pricing_available = val; },
+      // Insurance logic
+      addInsurance(){
+        const raw=(this.insuranceForm.provider||'').trim();
+        if(!raw){ this.insError='Provider required'; return; }
+        this.insError='';
+        const s=Alpine.store('profileModal');
+        const list=(s.therapist.insurance_details||[]).slice();
+        if(list.some(i=> (i.provider||'').toLowerCase()===raw.toLowerCase())){ this.insuranceForm.provider=''; this.providerResults=[]; this.providerOpen=false; return; }
+        list.push({ provider: raw, out_of_network:false });
+        s.therapist.insurance_details=list;
+        this.insuranceForm.provider=''; this.providerResults=[]; this.providerOpen=false; this.providerSelectedIndex=-1;
+        this.scheduleInsuranceSave();
+      },
+      removeInsurance(idx){ const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); list.splice(idx,1); s.therapist.insurance_details=list; this.scheduleInsuranceSave(); },
+      toggleOON(idx){ const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); if(list[idx]){ list[idx].out_of_network=!list[idx].out_of_network; } s.therapist.insurance_details=list; this.scheduleInsuranceSave(); },
+      saveInsurance(){ const s=Alpine.store('profileModal'); const payload=(s.therapist.insurance_details||[]).map(i=>({provider:i.provider, out_of_network:!!i.out_of_network})); window.__tcSaveProfileField('insurance_details', payload); },
+      scheduleInsuranceSave(){ if(this.insuranceSaveTimer) clearTimeout(this.insuranceSaveTimer); this.insuranceSaveTimer=setTimeout(()=> this.saveInsurance(), 600); },
+      // Provider search
+      onProviderInput(){ this.providerQuery = this.insuranceForm.provider; this.providerSelectedIndex=-1; if(this.providerDebounce) clearTimeout(this.providerDebounce); if(!this.providerQuery){ this.providerResults=[]; this.providerOpen=false; return; } this.providerDebounce=setTimeout(()=> this.fetchProviders(), 220); },
+      onProviderFocus(){
+        // Show alphabetical default list (first page) when focusing with empty query
+        if(this.insuranceForm.provider && this.insuranceForm.provider.trim()){ this.onProviderInput(); return; }
+        // If we already have results just open them, else fetch with empty q which returns first sorted set
+        if(this.providerResults.length){ this.providerOpen=true; return; }
+        this.providerLoading=true;
+        fetch('/users/api/lookups/insurance_providers/?q=')
+          .then(r=>r.json()).then(d=>{ this.providerResults=(d.results||[]); this.providerOpen=true; })
+          .catch(()=>{ this.providerResults=[]; this.providerOpen=false; })
+          .finally(()=> this.providerLoading=false);
+      },
+      fetchProviders(){ this.providerLoading=true; fetch('/users/api/lookups/insurance_providers/?q='+encodeURIComponent(this.providerQuery))
+          .then(r=>r.json()).then(d=>{ this.providerResults=(d.results||[]); this.providerOpen=true; })
+          .catch(()=>{ this.providerResults=[]; this.providerOpen=false; })
+          .finally(()=> this.providerLoading=false); },
+  selectProvider(idx){ const item=this.providerResults[idx]; if(!item) return; this.insuranceForm.provider=item.name; this.providerOpen=false; this.providerResults=[]; this.addInsurance(); },
+      providerKeydown(e){
+        if(!this.providerOpen){
+          if(e.key==='ArrowDown' && this.providerResults.length){ this.providerOpen=true; e.preventDefault(); }
+          else if(e.key==='Enter'){ if(this.insuranceForm.provider.trim()){ e.preventDefault(); this.addInsurance(); } }
+          return;
+        }
+        if(e.key==='ArrowDown'){ e.preventDefault(); this.providerSelectedIndex=(this.providerSelectedIndex+1)%this.providerResults.length; }
+        else if(e.key==='ArrowUp'){ e.preventDefault(); this.providerSelectedIndex=(this.providerSelectedIndex-1+this.providerResults.length)%this.providerResults.length; }
+        else if(e.key==='Enter'){
+          e.preventDefault();
+          if(this.providerSelectedIndex>-1){ this.selectProvider(this.providerSelectedIndex); }
+          if(this.insuranceForm.provider.trim()){ this.addInsurance(); }
+        }
+        else if(e.key==='Escape'){ this.providerOpen=false; }
+      },
+      clickAway(){ this.providerOpen=false; },
+    };
+  }
+  // Therapy Types & Specialties manager
+  function therapySpecialtiesManager(opts){
+    const csrf = TC_CSRF;
+    return {
+      editable: opts && typeof opts.editable !== 'undefined' ? !!opts.editable : false,
+      // Therapy Types state
+      therapyQuery:'', therapyResults:[], therapyOpen:false, therapyLoading:false, therapySelectedIndex:-1, therapyDebounce:null,
+      // Specialties state
+      specialtyQuery:'', specialtyResults:[], specialtyOpen:false, specialtyLoading:false, specialtySelectedIndex:-1, specialtyDebounce:null,
+      // Save debounce
+      saveTimer:null, saving:false, error:'',
+      init(){ if(!this.editable) return; },
+      // Shared helpers
+      normalizeName(v){ return (v||'').trim(); },
+      caseEq(a,b){ return (a||'').toLowerCase() === (b||'').toLowerCase(); },
+      inList(list, name){ return list.some(x => this.caseEq((x.name||x), name)); },
+      // Therapy Types logic
+      onTherapyInput(){ if(this.therapyDebounce) clearTimeout(this.therapyDebounce); this.therapySelectedIndex=-1; if(!this.therapyQuery){ // don't close if already open from focus; just keep existing list
+          if(!this.therapyOpen || !this.therapyResults.length){ this.fetchTherapyTypes(/*force*/true); }
+          return; }
+        this.therapyDebounce=setTimeout(()=> this.fetchTherapyTypes(), 220); },
+      onTherapyFocus(){ // show alphabetical list when focusing with empty query
+        if(this.therapyQuery) { this.onTherapyInput(); return; }
+        if(!this.therapyResults.length){ this.fetchTherapyTypes(/*force*/true); } else { this.therapyOpen=true; }
+      },
+      fetchTherapyTypes(){ this.therapyLoading=true; fetch('/users/api/lookups/therapy_types/?q='+encodeURIComponent(this.therapyQuery))
+        .then(r=>r.json()).then(d=>{ this.therapyResults=d.results||[]; this.therapyOpen=true; })
+        .catch(()=>{ this.therapyResults=[]; this.therapyOpen=false; })
+        .finally(()=> this.therapyLoading=false); },
+      selectTherapy(idx){ const item=this.therapyResults[idx]; if(!item) return; this.therapyQuery=item.name; this.therapyOpen=false; this.therapyResults=[]; this.addTherapyType(); },
+      therapyKeydown(e){ if(!this.therapyOpen){ if(e.key==='ArrowDown' && this.therapyResults.length){ this.therapyOpen=true; e.preventDefault(); } else if(e.key==='Enter'){ if(this.therapyQuery.trim()){ e.preventDefault(); this.addTherapyType(); } } return; }
+        if(e.key==='ArrowDown'){ e.preventDefault(); this.therapySelectedIndex=(this.therapySelectedIndex+1)%this.therapyResults.length; }
+        else if(e.key==='ArrowUp'){ e.preventDefault(); this.therapySelectedIndex=(this.therapySelectedIndex-1+this.therapyResults.length)%this.therapyResults.length; }
+        else if(e.key==='Enter'){ e.preventDefault(); if(this.therapySelectedIndex>-1){ this.selectTherapy(this.therapySelectedIndex); } if(this.therapyQuery.trim()){ this.addTherapyType(); } }
+        else if(e.key==='Escape'){ this.therapyOpen=false; }
+      },
+      addTherapyType(){ const name=this.normalizeName(this.therapyQuery); if(!name){ return; } const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const list = (s.therapist.therapy_types||[]).slice(); if(this.inList(list, name)){ this.therapyQuery=''; this.therapyOpen=false; this.therapyResults=[]; return; } list.push(name); list.sort((a,b)=> a.localeCompare(b)); s.therapist.therapy_types=list; this.therapyQuery=''; this.therapyOpen=false; this.therapyResults=[]; this.scheduleSave(); },
+      removeTherapyType(name){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; s.therapist.therapy_types=(s.therapist.therapy_types||[]).filter(t=> !this.caseEq(t,name)); this.scheduleSave(); },
+      // Specialties logic
+  onSpecialtyInput(){ if(this.specialtyDebounce) clearTimeout(this.specialtyDebounce); this.specialtySelectedIndex=-1; if(!this.specialtyQuery){ if(!this.specialtyOpen || !this.specialtyResults.length){ this.fetchSpecialties(/*force*/true); } return; } this.specialtyDebounce=setTimeout(()=> this.fetchSpecialties(), 220); },
+  onSpecialtyFocus(){ if(this.specialtyQuery){ this.onSpecialtyInput(); return; } if(!this.specialtyResults.length){ this.fetchSpecialties(/*force*/true); } else { this.specialtyOpen=true; } },
+      fetchSpecialties(){ this.specialtyLoading=true; fetch('/users/api/lookups/specialties/?q='+encodeURIComponent(this.specialtyQuery))
+        .then(r=>r.json()).then(d=>{ this.specialtyResults=d.results||[]; this.specialtyOpen=true; })
+        .catch(()=>{ this.specialtyResults=[]; this.specialtyOpen=false; })
+        .finally(()=> this.specialtyLoading=false); },
+      selectSpecialty(idx){ const item=this.specialtyResults[idx]; if(!item) return; this.specialtyQuery=item.name; this.specialtyOpen=false; this.specialtyResults=[]; this.addSpecialty(); },
+      specialtyKeydown(e){ if(!this.specialtyOpen){ if(e.key==='ArrowDown' && this.specialtyResults.length){ this.specialtyOpen=true; e.preventDefault(); } else if(e.key==='Enter'){ if(this.specialtyQuery.trim()){ e.preventDefault(); this.addSpecialty(); } } return; }
+        if(e.key==='ArrowDown'){ e.preventDefault(); this.specialtySelectedIndex=(this.specialtySelectedIndex+1)%this.specialtyResults.length; }
+        else if(e.key==='ArrowUp'){ e.preventDefault(); this.specialtySelectedIndex=(this.specialtySelectedIndex-1+this.specialtyResults.length)%this.specialtyResults.length; }
+        else if(e.key==='Enter'){ e.preventDefault(); if(this.specialtySelectedIndex>-1){ this.selectSpecialty(this.specialtySelectedIndex); } if(this.specialtyQuery.trim()){ this.addSpecialty(); } }
+        else if(e.key==='Escape'){ this.specialtyOpen=false; }
+      },
+      addSpecialty(){ const name=this.normalizeName(this.specialtyQuery); if(!name) return; const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const list=(s.therapist.specialties||[]).slice(); if(this.inList(list, name)){ this.specialtyQuery=''; this.specialtyOpen=false; this.specialtyResults=[]; return; } list.push({name:name, is_top:false}); list.sort((a,b)=> (a.name||'').localeCompare(b.name||'')); s.therapist.specialties=list; this.specialtyQuery=''; this.specialtyOpen=false; this.specialtyResults=[]; this.syncTopList(); this.scheduleSave(); },
+      removeSpecialty(name){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; s.therapist.specialties=(s.therapist.specialties||[]).filter(sp=> !this.caseEq(sp.name||sp,name)); // remove also from tops implicitly
+        s.therapist.top_specialties = (s.therapist.top_specialties||[]).filter(t=> !this.caseEq(t,name)); this.scheduleSave(); },
+      toggleTop(name){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const specs=(s.therapist.specialties||[]).slice(); const idx=specs.findIndex(sp=> this.caseEq(sp.name||sp,name)); if(idx===-1) return; const sp=specs[idx]; const currentlyTop=!!sp.is_top; if(!currentlyTop){ // adding
+          const topCount=specs.filter(x=> x.is_top).length; if(topCount>=5){ if(window.__profileEdit){ window.__profileEdit.notify('Max 5 top specialties', true); } return; }
+        }
+        sp.is_top = !currentlyTop; specs[idx]=sp; s.therapist.specialties=specs; this.syncTopList(); this.scheduleSave(); },
+      syncTopList(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const tops=(s.therapist.specialties||[]).filter(sp=> sp.is_top).map(sp=> sp.name).slice(0,5); s.therapist.top_specialties=tops; },
+      // Saving
+      scheduleSave(){ if(this.saveTimer) clearTimeout(this.saveTimer); this.saveTimer=setTimeout(()=> this.saveAll(), 650); },
+      saveAll(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; this.saving=true; const therapy=(s.therapist.therapy_types||[]).map(t=> typeof t==='string'? t : (t.name||'')); const specs=(s.therapist.specialties||[]).map(sp=> sp.name || sp); const tops=(s.therapist.top_specialties||[]).slice(0,5); const payload={ therapy_types: therapy, specialties: specs, top_specialties: tops }; fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)})
+        .then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && (d.errors.therapy_types||d.errors.specialties||d.errors.top_specialties)) || d.error || 'Save failed'; if(window.__profileEdit){ window.__profileEdit.notify(this.error,true); } return; } // apply server canonical state
+          const s2=Alpine.store('profileModal'); if(s2&&s2.therapist){ s2.therapist.therapy_types = d.therapy_types||therapy; s2.therapist.specialties = d.specialties|| (s2.therapist.specialties||[]); s2.therapist.top_specialties = d.top_specialties || (s2.therapist.top_specialties||[]); }
+          if(window.__profileEdit){ window.__profileEdit.applyData(d); window.__profileEdit.notify('Saved'); }
+        })
+        .catch(()=>{ this.error='Network error'; if(window.__profileEdit){ window.__profileEdit.notify(this.error,true); } })
+        .finally(()=> this.saving=false); },
+      clickAwayTherapy(){ this.therapyOpen=false; },
+      clickAwaySpecialty(){ this.specialtyOpen=false; },
+    };
+  }
+  // Contact & Web manager
+  function contactWebManager(){
+    const csrf = TC_CSRF;
+    return {
+      editing:false, saving:false, success:false, error:'',
+      socialFields:[
+        {key:'facebook_url', label:'Facebook URL', placeholder:'https://facebook.com/...', type:'url'},
+        {key:'instagram_url', label:'Instagram URL', placeholder:'https://instagram.com/...', type:'url'},
+        {key:'linkedin_url', label:'LinkedIn URL', placeholder:'https://linkedin.com/in/...', type:'url'},
+        {key:'twitter_url', label:'Twitter URL', placeholder:'https://x.com/...', type:'url'},
+        {key:'tiktok_url', label:'TikTok URL', placeholder:'https://tiktok.com/@...', type:'url'},
+        {key:'youtube_url', label:'YouTube URL', placeholder:'https://youtube.com/@...', type:'url'}
+      ],
+      form:{ phone_number:'', phone_extension:'', mobile_number:'', practice_email:'', office_email:'', practice_website_url:'',
+             receive_calls_from_client:false, receive_texts_from_clients:false, receive_emails_from_clients:false, receive_emails_when_client_calls:false,
+             facebook_url:'', instagram_url:'', linkedin_url:'', twitter_url:'', tiktok_url:'', youtube_url:'' },
+      init(){ this.load(); },
+      load(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const t=s.therapist; for(const k in this.form){ this.form[k] = (t[k]!==undefined && t[k]!==null) ? t[k] : (typeof this.form[k]==='boolean'? false : ''); } },
+      startEdit(){ this.load(); this.editing=true; this.success=false; this.error=''; },
+      cancel(){ if(this.saving) return; this.editing=false; this.error=''; },
+      socialList(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return []; const map=[['facebook_url','Facebook'],['instagram_url','Instagram'],['linkedin_url','LinkedIn'],['twitter_url','Twitter'],['tiktok_url','TikTok'],['youtube_url','YouTube']]; return map.filter(([k])=> s.therapist[k]).map(([k,l])=> ({key:k,label:l,url:s.therapist[k]})); },
+      validate(){ // basic URL/email pattern checks (lightweight)
+        const urlFields=['practice_website_url','facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url'];
+        const urlRe=/^https?:\/\//i; for(const f of urlFields){ const v=this.form[f]; if(v && !urlRe.test(v)){ this.error=f.replace(/_/g,' ')+' must start with http'; return false; } }
+        return true;
+      },
+      buildPayload(){ const p={}; for(const k in this.form){ p[k]=this.form[k]; } return p; },
+      save(){ if(this.saving) return; this.error=''; if(!this.validate()) return; this.saving=true; const payload=this.buildPayload(); const s=Alpine.store('profileModal'); const prev={}; if(s&&s.therapist){ for(const k in payload){ prev[k]=s.therapist[k]; s.therapist[k]=payload[k]; } }
+        fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload)})
+          .then(r=>r.json().then(d=>[r,d]))
+          .then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && Object.values(d.errors)[0]) || d.error || 'Save failed'; if(s&&s.therapist){ for(const k in prev){ s.therapist[k]=prev[k]; } } return; if(window.__profileEdit){ window.__profileEdit.notify(this.error,true); } }
+            if(s&&s.therapist){ for(const k in d){ if(k in this.form) s.therapist[k]=d[k]; } }
+            if(window.__profileEdit){ window.__profileEdit.applyData(d); window.__profileEdit.notify('Saved'); }
+            this.success=true; this.editing=false; setTimeout(()=> this.success=false,1800);
+          })
+          .catch(()=>{ this.error='Network error'; if(s&&s.therapist){ for(const k in prev){ s.therapist[k]=prev[k]; } } })
+          .finally(()=> this.saving=false);
+      }
+    };
+  }
+  // Qualifications manager (educations & credentials)
+  function qualificationsManager(){
+    const csrf = TC_CSRF;
+    return {
+      addingEducation:false, addingCredential:false, saving:false, error:'',
+      eduForm:{ id:null, school:'', degree_diploma:'', year_graduated:'', year_began_practice:'' },
+      credForm:{ id:null, type:'', organization_name:'', id_number:'', year_issued:'' },
+      init(){ /* no-op */ },
+      startAddEducation(){ this.resetEdu(); this.addingEducation=true; this.addingCredential=false; },
+      startAddCredential(){ this.resetCred(); this.addingCredential=true; this.addingEducation=false; },
+      editEducation(e){ if(!e) return; this.eduForm={ id:e.id, school:e.school, degree_diploma:e.degree_diploma, year_graduated:e.year_graduated, year_began_practice:e.year_began_practice||'' }; this.addingEducation=true; this.addingCredential=false; },
+      editCredential(c){ if(!c) return; this.credForm={ id:c.id, type:c.type, organization_name:c.organization_name, id_number:c.id_number||'', year_issued:c.year_issued }; this.addingCredential=true; this.addingEducation=false; },
+      cancelEducation(){ this.addingEducation=false; this.error=''; },
+      cancelCredential(){ this.addingCredential=false; this.error=''; },
+      resetEdu(){ this.eduForm={ id:null, school:'', degree_diploma:'', year_graduated:'', year_began_practice:'' }; },
+      resetCred(){ this.credForm={ id:null, type:'', organization_name:'', id_number:'', year_issued:'' }; },
+      deleteEducation(e){ if(!e||!e.id) return; if(!confirm('Delete education?')) return; fetch(`/users/api/profile/educations/${e.id}/`, {method:'DELETE', headers:{'X-CSRFToken':csrf}}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Delete failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.educations=d.educations; } }).catch(()=> this.error='Network error'); },
+      deleteCredential(c){ if(!c||!c.id) return; if(!confirm('Delete credential?')) return; fetch(`/users/api/profile/credentials/${c.id}/`, {method:'DELETE', headers:{'X-CSRFToken':csrf}}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Delete failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.additional_credentials=d.additional_credentials; } }).catch(()=> this.error='Network error'); },
+      saveEducation(){ if(this.saving) return; this.error=''; const f=this.eduForm; if(!f.school||!f.degree_diploma||!f.year_graduated){ this.error='All required fields'; return; } this.saving=true; const payload={ school:f.school, degree_diploma:f.degree_diploma, year_graduated:f.year_graduated, year_began_practice:f.year_began_practice }; const url = f.id? `/users/api/profile/educations/${f.id}/` : '/users/api/profile/educations/create/'; const method = f.id? 'PATCH':'POST'; fetch(url,{method, headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Save failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.educations=d.educations; } this.addingEducation=false; this.resetEdu(); if(window.__profileEdit){ window.__profileEdit.applyData(d); window.__profileEdit.notify('Saved'); } }).catch(()=> this.error='Network error').finally(()=> this.saving=false); },
+      saveCredential(){ if(this.saving) return; this.error=''; const f=this.credForm; if(!f.organization_name||!f.year_issued){ this.error='Org & Year required'; return; } this.saving=true; const payload={ type:f.type, organization_name:f.organization_name, id_number:f.id_number, year_issued:f.year_issued }; const url = f.id? `/users/api/profile/credentials/${f.id}/` : '/users/api/profile/credentials/create/'; const method = f.id? 'PATCH':'POST'; fetch(url,{method, headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Save failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.additional_credentials=d.additional_credentials; } this.addingCredential=false; this.resetCred(); if(window.__profileEdit){ window.__profileEdit.applyData(d); window.__profileEdit.notify('Saved'); } }).catch(()=> this.error='Network error').finally(()=> this.saving=false); }
+    };
+  }
+</script>
+<div x-data="profileEdit" x-init="init()" class="relative py-6 bg-[#ECEBE8] min-h-screen">
+  <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#E3E2DF] via-[#F5F4F3] to-[#E0DFDC]"></div>
+  <div class="relative max-w-7xl mx-auto px-4">
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-[#555B6E]">Profile Setup</h1>
+      <p class="mt-1 text-xs text-[#555B6E]/70 hidden lg:block">Progress now appears in the right sidebar.</p>
+      <div class="mt-3 lg:hidden">
+        <div class="w-full h-2 bg-white rounded-full ring-1 ring-[#BEE3DB] overflow-hidden">
+          <div class="h-full bg-[#116466] transition-all" :style="'width:' + completion.percent + '%'"></div>
+        </div>
+        <div class="mt-1 text-[11px] text-[#555B6E]"><span x-text="completion.percent"></span>% Complete</div>
+      </div>
+    </div>
+    <!-- Editable profile partial reuse (always rendered) -->
+    <div>
+  {% include 'partials/profile_modal.html' with standalone=1 editable=1 hide_contact=1 %}
+    </div>
+  <!-- Toast -->
+  <div x-show="toast.show" x-transition class="fixed bottom-4 right-4 bg-[#116466] text-white text-sm px-4 py-2 rounded shadow-lg" x-text="toast.message"></div>
+  </div>
+<script>
+  // Inline edit (simple prompt for free-text fields)
+  document.addEventListener('edit-field', e => {
+    const {field,current} = e.detail; const nv = prompt('Update value:', current||''); if(nv===null) return; window.__tcSaveProfileField(field,nv);
+  });
+
+  // Dropdown / select style edits
+  document.addEventListener('edit-select', e => {
+    const {field,value,el} = e.detail;
+  if(!['therapy_delivery_method','accepting_new_clients','license_type'].includes(field)) return;
+    // Remove any open popovers
+    document.querySelectorAll('.tc-popover-select').forEach(p=>p.remove());
+    let opts;
+    if(field === 'therapy_delivery_method'){
+      opts = [
+        {label:'In Person Only', value:'In Person'},
+        {label:'Online Only', value:'Online'},
+        {label:'In Person & Online', value:'Hybrid'}
+      ];
+    } else if(field === 'accepting_new_clients') {
+      opts = [
+        {label:'Accepting New Clients', value:'Accepting New Clients'},
+        {label:'Not Accepting New Clients', value:'Not Accepting New Clients'},
+        {label:'I Have a Waitlist', value:'I Have a Waitlist'},
+      ];
+    } else if(field === 'license_type') {
+      const s = Alpine.store('profileModal');
+      opts = (s.therapist?.license_type_options || []).map(n => ({label:n, value:n}));
+    }
+    const anchor = el || e.target;
+    const pop = document.createElement('div');
+  pop.className = 'tc-popover-select absolute z-[4000] bg-white rounded-xl shadow-2xl ring-1 ring-[#BEE3DB] overflow-hidden text-sm min-w-[220px]';
+    const reposition = () => {
+      const r = anchor.getBoundingClientRect();
+      pop.style.top = (window.scrollY + r.bottom + 8) + 'px';
+      pop.style.left = (window.scrollX + Math.min(r.left, window.innerWidth - 240)) + 'px';
+    };
+    reposition();
+  const canClear = ['therapy_delivery_method','accepting_new_clients','license_type'].includes(field);
+  pop.innerHTML = '<div class="py-1">' + opts.map(o => {
+      const active = (''+value).toLowerCase() === (''+o.value).toLowerCase();
+      return `\n<button type=\"button\" data-val=\"${o.value}\" class=\"w-full text-left px-4 py-2 hover:bg-[#E5F4F2] ${ active ? 'bg-[#F8FBFA] font-semibold text-[#116466]' : 'text-[#555B6E]' }\">${o.label}</button>`;
+  }).join('') + (canClear ? '\n<button type="button" data-val="" class="w-full text-left px-4 py-2 text-[#9b4d49] hover:bg-[#FFE8E5]">Clear</button>' : '') + '\n</div>';
+    document.body.appendChild(pop);
+  const close = () => { pop.remove(); window.removeEventListener('click', onDoc, true); window.removeEventListener('scroll', reposition, true); window.removeEventListener('resize', reposition, true); };
+    const onDoc = (ev) => { if(!pop.contains(ev.target)) close(); };
+    pop.addEventListener('click', ev => {
+      const btn = ev.target.closest('button[data-val]'); if(!btn) return; let nv = btn.getAttribute('data-val');
+  // availability is string tri-state; keep as-is
+      close(); if(nv==value) return; window.__tcSaveProfileField(field,nv); });
+  setTimeout(()=> { window.addEventListener('click', onDoc, true); window.addEventListener('scroll', reposition, true); window.addEventListener('resize', reposition, true); }, 0);
+  });
+
+  // Race/Ethnicities multi-select editor
+  document.addEventListener('edit-race-ethnicities', e => {
+    const { current=[], el } = e.detail || {};
+    const s = Alpine.store('profileModal');
+    const opts = (s.therapist?.race_ethnicity_options || []).slice();
+    // Build popover
+    document.querySelectorAll('.tc-popover-race').forEach(p=>p.remove());
+    const pop = document.createElement('div');
+  pop.className = 'tc-popover-race absolute z-[5000] bg-white rounded-2xl shadow-2xl ring-1 ring-[#BEE3DB] p-4 w-[360px] max-w-[95vw] flex flex-col gap-3';
+    // Position near anchor if provided, else fallback to center
+    let top = window.scrollY + 120;
+    let left = (window.innerWidth/2 - 180);
+    if(el && el.getBoundingClientRect){
+      const r = el.getBoundingClientRect();
+      top = r.bottom + window.scrollY + 8; // below button
+      left = r.left + window.scrollX; // align left edges
+      // Keep inside viewport horizontally
+      if(left + 380 > window.scrollX + window.innerWidth){
+        left = window.scrollX + window.innerWidth - 380;
+      }
+      if(left < 8) left = 8;
+      // If not enough space below, place above
+      const estimatedHeight = 340; // approx height
+      if(top + estimatedHeight > window.scrollY + window.innerHeight){
+        top = r.top + window.scrollY - estimatedHeight - 8;
+      }
+      if(top < window.scrollY + 10){
+        top = window.scrollY + 10; // minimal top margin
+      }
+    }
+    const repositionRace = () => {
+      if(el && el.getBoundingClientRect){
+        const r = el.getBoundingClientRect();
+        let t = r.bottom + window.scrollY + 8;
+        let l = r.left + window.scrollX;
+        if(l + 380 > window.scrollX + window.innerWidth) l = window.scrollX + window.innerWidth - 380;
+        if(l < 8) l = 8;
+        const estH = 340; if(t + estH > window.scrollY + window.innerHeight) t = r.top + window.scrollY - estH - 8;
+        if(t < window.scrollY + 10) t = window.scrollY + 10;
+        top = t; left = l;
+      }
+      pop.style.top = top + 'px';
+      pop.style.left = left + 'px';
+    };
+    repositionRace();
+    pop.innerHTML = `
+      <div class="flex items-start justify-between gap-2">
+        <h3 class="text-sm font-semibold text-[#555B6E]">Select Race / Ethnicities</h3>
+        <button type="button" data-action="close" class="text-[#9b4d49] text-xs font-medium hover:underline">Close</button>
+      </div>
+      <div class="relative max-h-56 overflow-y-auto pr-1 space-y-1">
+        ${opts.map(o=>{
+          const id='re_'+btoa(o).replace(/[^a-z0-9]/ig,'');
+          const checked = current.map(c=>c.toLowerCase()).includes(o.toLowerCase());
+          return `<label for="${id}" class="flex items-center gap-2 text-xs px-2 py-1 rounded hover:bg-[#F5F4F3] cursor-pointer">
+            <input id="${id}" type="checkbox" value="${o.replace(/"/g,'&quot;')}" ${checked?'checked':''} class="accent-[#116466]" />
+            <span>${o}</span>
+          </label>`;
+        }).join('')}
+      </div>
+      <div class="flex items-center justify-between pt-2 border-t border-[#BEE3DB]">
+        <button type="button" data-action="clear" class="text-[11px] text-[#9b4d49] hover:underline">Clear</button>
+        <div class="flex gap-2">
+          <button type="button" data-action="cancel" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#555B6E] text-[11px] font-medium hover:bg-[#E5F4F2]">Cancel</button>
+          <button type="button" data-action="save" class="px-4 py-1.5 rounded-full bg-[#116466] text-white text-[11px] font-semibold hover:bg-[#0d4c4d]">Save</button>
+        </div>
+      </div>`;
+    document.body.appendChild(pop);
+  const close=()=>{ pop.remove(); window.removeEventListener('keydown', onKey,true); window.removeEventListener('scroll', repositionRace, true); window.removeEventListener('resize', repositionRace, true); };
+    const onKey=(ev)=>{ if(ev.key==='Escape'){ close(); } };
+    setTimeout(()=> window.addEventListener('keydown', onKey,true),0);
+  window.addEventListener('scroll', repositionRace, true); window.addEventListener('resize', repositionRace, true);
+    pop.addEventListener('click', ev => {
+      const btn = ev.target.closest('button[data-action]'); if(!btn) return;
+      const act = btn.getAttribute('data-action');
+      if(act==='close' || act==='cancel'){ close(); return; }
+      if(act==='clear'){ pop.querySelectorAll('input[type="checkbox"]').forEach(cb=> cb.checked=false); return; }
+      if(act==='save'){
+        const values=[...pop.querySelectorAll('input[type="checkbox"]:checked')].map(cb=>cb.value).slice(0,12);
+        window.__tcSaveProfileField('race_ethnicities', values);
+        close();
+      }
+    });
+  });
+
+  // Generic multi-select builder (faiths, lgbtqia, other identities)
+  function buildMultiSelectIdentity(eventName, optionKey, fieldName, titleText){
+    document.addEventListener(eventName, e => {
+      const { current=[], el } = e.detail || {};
+      const s = Alpine.store('profileModal');
+      const opts = (s.therapist?.[optionKey] || []).slice();
+      document.querySelectorAll('.tc-popover-'+fieldName).forEach(p=>p.remove());
+      const pop = document.createElement('div');
+  pop.className = 'tc-popover-'+fieldName+' absolute z-[5000] bg-white rounded-2xl shadow-2xl ring-1 ring-[#BEE3DB] p-4 w-[340px] max-w-[95vw] flex flex-col gap-3';
+      let top = window.scrollY + 120, left = (window.innerWidth/2 - 170);
+      const repositionMulti = () => {
+        if(el && el.getBoundingClientRect){
+          const r = el.getBoundingClientRect();
+          top = r.bottom + window.scrollY + 8; left = r.left + window.scrollX;
+          if(left + 360 > window.scrollX + window.innerWidth) left = window.scrollX + window.innerWidth - 360;
+          if(left < 8) left = 8;
+          const estH = 320; if(top + estH > window.scrollY + window.innerHeight) top = r.top + window.scrollY - estH - 8;
+          if(top < window.scrollY + 8) top = window.scrollY + 8;
+        }
+        pop.style.top = top+'px'; pop.style.left = left+'px';
+      };
+      repositionMulti();
+      pop.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <h3 class="text-sm font-semibold text-[#555B6E]">${titleText}</h3>
+          <button type="button" data-action="close" class="text-[#9b4d49] text-xs font-medium hover:underline">Close</button>
+        </div>
+        <div class="relative max-h-56 overflow-y-auto pr-1 space-y-1">
+          ${opts.map(o=>{
+            const id = fieldName+'_'+btoa(o).replace(/[^a-z0-9]/ig,'');
+            const checked = current.map(c=>c.toLowerCase()).includes(o.toLowerCase());
+            return `<label for="${id}" class="flex items-center gap-2 text-xs px-2 py-1 rounded hover:bg-[#F5F4F3] cursor-pointer">
+              <input id="${id}" type="checkbox" value="${o.replace(/"/g,'&quot;')}" ${checked?'checked':''} class="accent-[#116466]" />
+              <span>${o}</span>
+            </label>`;
+          }).join('')}
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-[#BEE3DB]">
+          <button type="button" data-action="clear" class="text-[11px] text-[#9b4d49] hover:underline">Clear</button>
+          <div class="flex gap-2">
+            <button type="button" data-action="cancel" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#555B6E] text-[11px] font-medium hover:bg-[#E5F4F2]">Cancel</button>
+            <button type="button" data-action="save" class="px-4 py-1.5 rounded-full bg-[#116466] text-white text-[11px] font-semibold hover:bg-[#0d4c4d]">Save</button>
+          </div>
+        </div>`;
+      document.body.appendChild(pop);
+      const close=()=>{ pop.remove(); window.removeEventListener('keydown', onKey,true); window.removeEventListener('scroll', repositionMulti, true); window.removeEventListener('resize', repositionMulti, true); };
+      const onKey=(ev)=>{ if(ev.key==='Escape'){ close(); } };
+      setTimeout(()=> window.addEventListener('keydown', onKey,true),0);
+      window.addEventListener('scroll', repositionMulti, true); window.addEventListener('resize', repositionMulti, true);
+      pop.addEventListener('click', ev => {
+        const btn = ev.target.closest('button[data-action]'); if(!btn) return;
+        const act = btn.getAttribute('data-action');
+        if(act==='close' || act==='cancel'){ close(); return; }
+        if(act==='clear'){ pop.querySelectorAll('input[type="checkbox"]').forEach(cb=> cb.checked=false); return; }
+        if(act==='save'){
+          const values=[...pop.querySelectorAll('input[type="checkbox"]:checked')].map(cb=>cb.value).slice(0,12);
+          window.__tcSaveProfileField(fieldName, values);
+          close();
+        }
+      });
+    });
+  }
+  buildMultiSelectIdentity('edit-faiths','faith_options','faiths','Select Faiths');
+  buildMultiSelectIdentity('edit-lgbtqia','lgbtqia_options','lgbtqia_identities','Select LGBTQIA+ Identities');
+  buildMultiSelectIdentity('edit-other-identities','other_identity_options','other_identities','Select Other Identities');
+
+  // Participant Types popover multi-select (lookup + client list) similar to race
+  document.addEventListener('edit-participant-types', e => {
+    const { current = [], el } = e.detail || {};
+    document.querySelectorAll('.tc-popover-pt').forEach(p=>p.remove());
+    const pop = document.createElement('div');
+    pop.className = 'tc-popover-pt absolute z-[5000] bg-white rounded-2xl shadow-2xl ring-1 ring-[#BEE3DB] p-4 w-[360px] max-w-[95vw] flex flex-col gap-3';
+    const position = () => {
+      let top = window.scrollY + 120, left = (window.innerWidth/2 - 180);
+      if(el && el.getBoundingClientRect){
+        const r = el.getBoundingClientRect();
+        top = r.bottom + window.scrollY + 8; left = r.left + window.scrollX;
+        if(left + 380 > window.scrollX + window.innerWidth) left = window.scrollX + window.innerWidth - 380;
+        if(left < 8) left = 8;
+        const estH = 340; if(top + estH > window.scrollY + window.innerHeight) top = r.top + window.scrollY - estH - 8;
+        if(top < window.scrollY + 10) top = window.scrollY + 10;
+      }
+      pop.style.top = top + 'px'; pop.style.left = left + 'px';
+    };
+    position();
+    pop.innerHTML = `
+      <div class="flex items-start justify-between gap-2">
+        <h3 class="text-sm font-semibold text-[#555B6E]">Select Participant Types</h3>
+        <button type="button" data-action="close" class="text-[#9b4d49] text-xs font-medium hover:underline">Close</button>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="text" data-role="search" placeholder="Search types..." class="flex-1 px-2 py-1.5 rounded-md border border-[#BEE3DB] focus:border-[#116466] focus:ring-[#116466] text-xs bg-white" />
+        <button type="button" data-action="add-manual" class="px-2 py-1.5 rounded-full bg-[#116466] text-white text-[10px] font-semibold hover:bg-[#0d4c4d]">Add</button>
+      </div>
+      <div class="relative">
+        <div data-role="results" class="max-h-40 overflow-y-auto space-y-1 pr-1"></div>
+        <div data-role="loading" class="hidden absolute inset-0 bg-white/70 flex items-center justify-center">
+          <div class="h-5 w-5 animate-spin rounded-full border-2 border-[#89B0AE] border-t-transparent"></div>
+        </div>
+      </div>
+      <div class="border-t border-[#BEE3DB] pt-2 flex flex-col gap-2">
+        <div class="flex flex-wrap gap-2" data-role="selected"></div>
+        <div class="flex items-center justify-between">
+          <button type="button" data-action="clear" class="text-[11px] text-[#9b4d49] hover:underline">Clear</button>
+          <div class="flex gap-2">
+            <button type="button" data-action="cancel" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#555B6E] text-[11px] font-medium hover:bg-[#E5F4F2]">Cancel</button>
+            <button type="button" data-action="save" class="px-4 py-1.5 rounded-full bg-[#116466] text-white text-[11px] font-semibold hover:bg-[#0d4c4d]">Save</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(pop);
+    const search = pop.querySelector('[data-role="search"]');
+    const resultsEl = pop.querySelector('[data-role="results"]');
+    const loadingEl = pop.querySelector('[data-role="loading"]');
+    const selectedEl = pop.querySelector('[data-role="selected"]');
+    let sel = current.slice();
+    let debounce = null;
+    function renderSelected(){
+      selectedEl.innerHTML = sel.map(v=>`<span class="group flex items-center gap-1 px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] text-[10px] font-medium">${v}<button data-remove="${v.replace(/"/g,'&quot;')}" class="opacity-60 group-hover:opacity-100 hover:text-[#9b4d49]">✕</button></span>`).join('');
+    }
+    function fetchResults(q){
+      loadingEl.classList.remove('hidden');
+      fetch('/users/api/lookups/participant_types/?q=' + encodeURIComponent(q||''))
+        .then(r=>r.json()).then(d=>{
+          const data = (d.results||[]).map(r=>r.name);
+          resultsEl.innerHTML = data.filter(n=> !sel.map(s=>s.toLowerCase()).includes(n.toLowerCase()))
+            .map(n=>`<button type="button" data-add="${n.replace(/"/g,'&quot;')}" class="w-full text-left px-2 py-1 rounded text-xs hover:bg-[#F5F4F3]">${n}</button>`).join('') || '<p class="text-[11px] text-[#89B0AE] px-1 py-1">No matches</p>';
+        })
+        .catch(()=>{ resultsEl.innerHTML='<p class="text-[11px] text-[#9b4d49] px-1 py-1">Error loading</p>'; })
+        .finally(()=> loadingEl.classList.add('hidden'));
+    }
+    renderSelected(); fetchResults('');
+    search.addEventListener('input', ()=> { if(debounce) clearTimeout(debounce); debounce=setTimeout(()=> fetchResults(search.value.trim()), 220); });
+    pop.addEventListener('click', ev => {
+      const addBtn = ev.target.closest('[data-add]');
+      const remBtn = ev.target.closest('[data-remove]');
+      const actBtn = ev.target.closest('button[data-action]');
+      if(addBtn){ const val = addBtn.getAttribute('data-add'); if(!sel.map(s=>s.toLowerCase()).includes(val.toLowerCase())) sel.push(val); sel.sort((a,b)=> a.localeCompare(b)); renderSelected(); fetchResults(search.value.trim()); }
+      else if(remBtn){ const v=remBtn.getAttribute('data-remove'); sel = sel.filter(s=> s!==v); renderSelected(); fetchResults(search.value.trim()); }
+      else if(actBtn){ const act = actBtn.getAttribute('data-action'); if(act==='close'||act==='cancel'){ pop.remove(); return; } if(act==='clear'){ sel=[]; renderSelected(); fetchResults(search.value.trim()); return; } if(act==='add-manual'){ const raw=(search.value||'').trim(); if(raw && !sel.map(s=>s.toLowerCase()).includes(raw.toLowerCase())){ sel.push(raw); sel.sort((a,b)=> a.localeCompare(b)); renderSelected(); search.value=''; fetchResults(''); } return; } if(act==='save'){ window.__tcSaveProfileField('participant_types', sel.slice(0,20)); pop.remove(); return; } }
+    });
+    const closeEsc = ev => { if(ev.key==='Escape'){ pop.remove(); } };
+    window.addEventListener('keydown', closeEsc, true);
+    const onScroll = () => position();
+    window.addEventListener('scroll', onScroll, true); window.addEventListener('resize', onScroll, true);
+    const origRemove = pop.remove.bind(pop); pop.remove = ()=> { window.removeEventListener('keydown', closeEsc, true); window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', onScroll, true); origRemove(); };
+  });
+
+  // Age Groups popover multi-select
+  document.addEventListener('edit-age-groups', e => {
+    const { current = [], el } = e.detail || {};
+    document.querySelectorAll('.tc-popover-ag').forEach(p=>p.remove());
+    const pop = document.createElement('div');
+    pop.className = 'tc-popover-ag absolute z-[5000] bg-white rounded-2xl shadow-2xl ring-1 ring-[#BEE3DB] p-4 w-[360px] max-w-[95vw] flex flex-col gap-3';
+    const position = () => {
+      let top = window.scrollY + 120, left = (window.innerWidth/2 - 180);
+      if(el && el.getBoundingClientRect){
+        const r = el.getBoundingClientRect();
+        top = r.bottom + window.scrollY + 8; left = r.left + window.scrollX;
+        if(left + 380 > window.scrollX + window.innerWidth) left = window.scrollX + window.innerWidth - 380;
+        if(left < 8) left = 8;
+        const estH = 340; if(top + estH > window.scrollY + window.innerHeight) top = r.top + window.scrollY - estH - 8;
+        if(top < window.scrollY + 10) top = window.scrollY + 10;
+      }
+      pop.style.top = top + 'px'; pop.style.left = left + 'px';
+    };
+    position();
+    pop.innerHTML = `
+      <div class="flex items-start justify-between gap-2">
+        <h3 class="text-sm font-semibold text-[#555B6E]">Select Age Groups</h3>
+        <button type="button" data-action="close" class="text-[#9b4d49] text-xs font-medium hover:underline">Close</button>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="text" data-role="search" placeholder="Search age groups..." class="flex-1 px-2 py-1.5 rounded-md border border-[#BEE3DB] focus:border-[#116466] focus:ring-[#116466] text-xs bg-white" />
+        <button type="button" data-action="add-manual" class="px-2 py-1.5 rounded-full bg-[#116466] text-white text-[10px] font-semibold hover:bg-[#0d4c4d]">Add</button>
+      </div>
+      <div class="relative">
+        <div data-role="results" class="max-h-40 overflow-y-auto space-y-1 pr-1"></div>
+        <div data-role="loading" class="hidden absolute inset-0 bg-white/70 flex items-center justify-center">
+          <div class="h-5 w-5 animate-spin rounded-full border-2 border-[#89B0AE] border-t-transparent"></div>
+        </div>
+      </div>
+      <div class="border-t border-[#BEE3DB] pt-2 flex flex-col gap-2">
+        <div class="flex flex-wrap gap-2" data-role="selected"></div>
+        <div class="flex items-center justify-between">
+          <button type="button" data-action="clear" class="text-[11px] text-[#9b4d49] hover:underline">Clear</button>
+          <div class="flex gap-2">
+            <button type="button" data-action="cancel" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#555B6E] text-[11px] font-medium hover:bg-[#E5F4F2]">Cancel</button>
+            <button type="button" data-action="save" class="px-4 py-1.5 rounded-full bg-[#116466] text-white text-[11px] font-semibold hover:bg-[#0d4c4d]">Save</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(pop);
+    const search = pop.querySelector('[data-role="search"]');
+    const resultsEl = pop.querySelector('[data-role="results"]');
+    const loadingEl = pop.querySelector('[data-role="loading"]');
+    const selectedEl = pop.querySelector('[data-role="selected"]');
+    let sel = current.slice();
+    let debounce = null;
+    function renderSelected(){
+      selectedEl.innerHTML = sel.map(v=>`<span class=\"group flex items-center gap-1 px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] text-[10px] font-medium\">${v}<button data-remove=\"${v.replace(/"/g,'&quot;')}\" class=\"opacity-60 group-hover:opacity-100 hover:text-[#9b4d49]\">✕</button></span>`).join('');
+    }
+    function fetchResults(q){
+      loadingEl.classList.remove('hidden');
+      fetch('/users/api/lookups/age_groups/?q=' + encodeURIComponent(q||''))
+        .then(r=>r.json()).then(d=>{
+          const data = (d.results||[]).map(r=>r.name);
+          resultsEl.innerHTML = data.filter(n=> !sel.map(s=>s.toLowerCase()).includes(n.toLowerCase()))
+            .map(n=>`<button type=\"button\" data-add=\"${n.replace(/"/g,'&quot;')}\" class=\"w-full text-left px-2 py-1 rounded text-xs hover:bg-[#F5F4F3]\">${n}</button>`).join('') || '<p class="text-[11px] text-[#89B0AE] px-1 py-1">No matches</p>';
+        })
+        .catch(()=>{ resultsEl.innerHTML='<p class="text-[11px] text-[#9b4d49] px-1 py-1">Error loading</p>'; })
+        .finally(()=> loadingEl.classList.add('hidden'));
+    }
+    renderSelected(); fetchResults('');
+    search.addEventListener('input', ()=> { if(debounce) clearTimeout(debounce); debounce=setTimeout(()=> fetchResults(search.value.trim()), 220); });
+    pop.addEventListener('click', ev => {
+      const addBtn = ev.target.closest('[data-add]');
+      const remBtn = ev.target.closest('[data-remove]');
+      const actBtn = ev.target.closest('button[data-action]');
+      if(addBtn){ const val = addBtn.getAttribute('data-add'); if(!sel.map(s=>s.toLowerCase()).includes(val.toLowerCase())) sel.push(val); sel.sort((a,b)=> a.localeCompare(b)); renderSelected(); fetchResults(search.value.trim()); }
+      else if(remBtn){ const v=remBtn.getAttribute('data-remove'); sel = sel.filter(s=> s!==v); renderSelected(); fetchResults(search.value.trim()); }
+      else if(actBtn){ const act = actBtn.getAttribute('data-action'); if(act==='close'||act==='cancel'){ pop.remove(); return; } if(act==='clear'){ sel=[]; renderSelected(); fetchResults(search.value.trim()); return; } if(act==='add-manual'){ const raw=(search.value||'').trim(); if(raw && !sel.map(s=>s.toLowerCase()).includes(raw.toLowerCase())){ sel.push(raw); sel.sort((a,b)=> a.localeCompare(b)); renderSelected(); search.value=''; fetchResults(''); } return; } if(act==='save'){ window.__tcSaveProfileField('age_groups', sel.slice(0,20)); pop.remove(); return; } }
+    });
+    const closeEsc = ev => { if(ev.key==='Escape'){ pop.remove(); } };
+    window.addEventListener('keydown', closeEsc, true);
+    const onScroll = () => position();
+    window.addEventListener('scroll', onScroll, true); window.addEventListener('resize', onScroll, true);
+    const origRemove = pop.remove.bind(pop); pop.remove = ()=> { window.removeEventListener('keydown', closeEsc, true); window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', onScroll, true); origRemove(); };
+  });
+
+  // Gender single-select editor
+  document.addEventListener('edit-gender', e => {
+    const { current='', el } = e.detail || {};
+    const s = Alpine.store('profileModal');
+    const opts = (s.therapist?.gender_options || []).slice();
+    document.querySelectorAll('.tc-popover-gender').forEach(p=>p.remove());
+    const pop = document.createElement('div');
+  pop.className = 'tc-popover-gender absolute z-[5000] bg-white rounded-2xl shadow-2xl ring-1 ring-[#BEE3DB] p-3 w-[240px] flex flex-col gap-1';
+    let top = window.scrollY + 120, left = (window.innerWidth/2 - 120);
+    if(el && el.getBoundingClientRect){
+      const r=el.getBoundingClientRect();
+      top = r.bottom + window.scrollY + 6; left = r.left + window.scrollX;
+      if(left + 250 > window.scrollX + window.innerWidth) left = window.scrollX + window.innerWidth - 250;
+      if(left < 8) left = 8;
+      const estH = 260; if(top + estH > window.scrollY + window.innerHeight) top = r.top + window.scrollY - estH - 6;
+      if(top < window.scrollY + 8) top = window.scrollY + 8;
+    }
+    const repositionGender = () => {
+      if(el && el.getBoundingClientRect){
+        const r=el.getBoundingClientRect();
+        let t = r.bottom + window.scrollY + 6; let l = r.left + window.scrollX;
+        if(l + 250 > window.scrollX + window.innerWidth) l = window.scrollX + window.innerWidth - 250;
+        if(l < 8) l = 8;
+        const estH = 260; if(t + estH > window.scrollY + window.innerHeight) t = r.top + window.scrollY - estH - 6;
+        if(t < window.scrollY + 8) t = window.scrollY + 8;
+        top = t; left = l;
+      }
+      pop.style.top = top+'px'; pop.style.left = left+'px';
+    };
+    repositionGender();
+    pop.innerHTML = `
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="text-xs font-semibold text-[#555B6E]">Select Gender</h3>
+        <button type="button" data-action="close" class="text-[10px] text-[#9b4d49] hover:underline">Close</button>
+      </div>
+      <div class="flex flex-col max-h-48 overflow-y-auto">
+        ${opts.map(o=>{
+          const active = o.toLowerCase() === (current||'').toLowerCase();
+          return `<button type="button" data-val="${o.replace(/"/g,'&quot;')}" class="text-left px-2 py-1 rounded text-[12px] hover:bg-[#E5F4F2] ${active?'bg-[#F5F4F3] font-semibold text-[#116466]':'text-[#555B6E]'}">${o}</button>`;
+        }).join('')}
+        <button type="button" data-val="" class="text-left px-2 py-1 rounded text-[12px] hover:bg-[#FFE8E5] text-[#9b4d49]">Clear</button>
+      </div>`;
+    document.body.appendChild(pop);
+  const close = ()=>{ pop.remove(); window.removeEventListener('click', onDoc,true); window.removeEventListener('scroll', repositionGender, true); window.removeEventListener('resize', repositionGender, true); };
+    const onDoc=(ev)=>{ if(!pop.contains(ev.target)) close(); };
+  setTimeout(()=> { window.addEventListener('click', onDoc,true); window.addEventListener('scroll', repositionGender, true); window.addEventListener('resize', repositionGender, true); },0);
+    pop.addEventListener('click', ev => {
+      const btn = ev.target.closest('button[data-val],button[data-action]'); if(!btn) return;
+      if(btn.getAttribute('data-action')==='close'){ close(); return; }
+      const val = btn.getAttribute('data-val');
+      if(val !== null){ window.__tcSaveProfileField('gender', val); close(); }
+    });
+  });
+
+  // Composite name edit popover (extended with Title & Middle Name)
+  document.addEventListener('edit-name', e => {
+    // Remove any existing name editor
+    document.querySelectorAll('.tc-popover-name').forEach(p=>p.remove());
+    const anchor = e.detail && e.detail.el ? e.detail.el : e.target;
+    const rect = anchor.getBoundingClientRect();
+    const s = Alpine.store('profileModal');
+  const currentTitle = s.therapist?.title || '';
+  const currentFirst = s.therapist?.first_name || '';
+  const currentMiddle = s.therapist?.middle_name || '';
+  const currentLast = s.therapist?.last_name || '';
+    const pop = document.createElement('div');
+  pop.className = 'tc-popover-name absolute z-[4000] bg-white rounded-2xl shadow-2xl ring-1 ring-[#BEE3DB] p-4 w-[320px] space-y-3';
+    const repositionName = () => {
+      const r = anchor.getBoundingClientRect();
+      pop.style.top = (r.bottom + window.scrollY + 10) + 'px';
+      pop.style.left = (window.scrollX + Math.min(r.left, window.innerWidth - 340)) + 'px';
+    };
+    repositionName();
+    pop.innerHTML = `
+      <div class="flex items-start justify-between gap-2">
+        <h3 class="text-sm font-semibold text-[#555B6E]">Edit Name</h3>
+        <button type="button" class="text-[#9b4d49] text-xs font-medium hover:underline" data-action="close">Close</button>
+      </div>
+      <div class="flex flex-col gap-3">
+        <label class="flex flex-col gap-1 text-xs font-medium text-[#555B6E]">
+          <span>Title <span class='text-[#89B0AE] font-normal'>(Optional)</span></span>
+          <div class="relative">
+            <select data-field="title" class="w-full rounded-md border border-[#BEE3DB] focus:border-[#116466] focus:ring-[#116466] text-sm pl-2 pr-8 py-1.5 bg-white appearance-none transition-colors">
+              <option value="">-- None --</option>
+              ${(s.therapist?.title_options || []).map(t=>`<option value="${t.replace(/"/g,'&quot;')}" ${t.toLowerCase()===currentTitle.toLowerCase()?'selected':''}>${t}</option>`).join('')}
+            </select>
+            <span class="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[#116466]">
+              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 6 5-6" /></svg>
+            </span>
+          </div>
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-medium text-[#555B6E]">
+          <span>First Name</span>
+          <input type="text" data-field="first_name" value="${currentFirst.replace(/"/g,'&quot;')}" maxlength="64" class="w-full rounded-md border border-[#BEE3DB] focus:border-[#116466] focus:ring-[#116466] text-sm px-2 py-1.5 bg-white" placeholder="First Name" />
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-medium text-[#555B6E]">
+          <span>Middle Name <span class='text-[#89B0AE] font-normal'>(Optional)</span></span>
+          <input type="text" data-field="middle_name" value="${currentMiddle.replace(/"/g,'&quot;')}" maxlength="64" class="w-full rounded-md border border-[#BEE3DB] focus:border-[#116466] focus:ring-[#116466] text-sm px-2 py-1.5 bg-white" placeholder="Middle Name" />
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-medium text-[#555B6E]">
+          <span>Last Name</span>
+          <input type="text" data-field="last_name" value="${currentLast.replace(/"/g,'&quot;')}" maxlength="64" class="w-full rounded-md border border-[#BEE3DB] focus:border-[#116466] focus:ring-[#116466] text-sm px-2 py-1.5 bg-white" placeholder="Last Name" />
+        </label>
+      </div>
+      <div class="flex items-center justify-between pt-1">
+        <button type="button" data-action="clear" class="text-xs text-[#9b4d49] hover:underline">Clear</button>
+        <div class="flex gap-2">
+          <button type="button" data-action="cancel" class="px-3 py-1.5 rounded-full bg-[#E5F4F2] text-[#116466] text-xs font-semibold hover:bg-[#D2E7E4]">Cancel</button>
+          <button type="button" data-action="save" class="px-4 py-1.5 rounded-full bg-[#116466] text-white text-xs font-semibold hover:bg-[#0d4c4d]">Save</button>
+        </div>
+      </div>`;
+    document.body.appendChild(pop);
+    const firstInput = pop.querySelector('input[data-field="first_name"]');
+    setTimeout(()=> firstInput && firstInput.focus(), 50);
+  const close = ()=> { pop.remove(); window.removeEventListener('click', onDoc, true); window.removeEventListener('scroll', repositionName, true); window.removeEventListener('resize', repositionName, true); };
+    const onDoc = (ev)=> { if(!pop.contains(ev.target) && ev.target !== anchor) close(); };
+  setTimeout(()=> { window.addEventListener('click', onDoc, true); window.addEventListener('scroll', repositionName, true); window.addEventListener('resize', repositionName, true); }, 0);
+    pop.addEventListener('click', ev => {
+      const actionBtn = ev.target.closest('[data-action]'); if(!actionBtn) return;
+      const action = actionBtn.getAttribute('data-action');
+      if(action === 'close' || action === 'cancel'){ close(); return; }
+      if(action === 'clear'){
+        ['title','first_name','middle_name','last_name'].forEach(f=>{ const inp=pop.querySelector(`input[data-field="${f}"]`); if(inp) inp.value=''; });
+        return;
+      }
+      if(action === 'save'){
+        const fn = pop.querySelector('input[data-field="first_name"]').value.trim();
+        const mn = pop.querySelector('input[data-field="middle_name"]').value.trim();
+        const ln = pop.querySelector('input[data-field="last_name"]').value.trim();
+  const ttSel = pop.querySelector('[data-field="title"]');
+  const tt = ttSel ? ttSel.value.trim() : '';
+        // Lightweight front-end validation
+        if(fn.length > 64 || ln.length > 64 || mn.length > 64){
+          pop.querySelector('h3').textContent = 'Name too long (max 64)';
+          pop.querySelector('h3').classList.add('text-[#9b4d49]');
+          return;
+        }
+        const payload = {first_name: fn, middle_name: mn, last_name: ln, title: tt};
+        if(window.__profileEdit && typeof window.__profileEdit.saveFields === 'function'){
+          window.__profileEdit.saveFields(payload);
+        } else if(window.__tcSaveProfileField){ Object.entries(payload).forEach(([k,v])=> window.__tcSaveProfileField(k,v)); }
+        close();
+      }
+    });
+  });
+
+  // Rich text editor popover (intro_note & personal_statement_01) with dynamic scroll/resize reposition
+  document.addEventListener('edit-rich-text', e => {
+    const { field, current, el } = e.detail || {}; if(!field) return;
+    document.querySelectorAll('.tc-popover-richtext').forEach(p=>p.remove());
+    let anchor = el || (e.target && e.target.ownerDocument ? e.target : null);
+    if(!anchor || !anchor.getBoundingClientRect){
+      anchor = { getBoundingClientRect(){ return { left: window.innerWidth/2 - 150, top: window.innerHeight/2 - 100, bottom: window.innerHeight/2 - 100 }; } };
+    }
+    const pop = document.createElement('div');
+    pop.className = 'tc-popover-richtext absolute z-[5000] bg-white rounded-2xl shadow-2xl ring-1 ring-[#BEE3DB] w-[560px] max-w-[95vw] flex flex-col';
+    const repositionRT = () => {
+      const r = anchor.getBoundingClientRect();
+      let top = window.scrollY + r.bottom + 8;
+      let left = window.scrollX + Math.min(r.left, window.innerWidth - 580);
+      pop.style.top = top + 'px';
+      pop.style.left = left + 'px';
+    };
+    repositionRT();
+    pop.innerHTML = `
+      <div class="flex items-center justify-between px-4 py-3 border-b border-[#BEE3DB] bg-[#F5F4F3] rounded-t-2xl">
+        <h3 class="text-sm font-semibold text-[#555B6E]">${field==='personal_statement_01' ? 'Edit About Me' : (field==='intro_note' ? 'Edit Introduction' : 'Edit Text')}</h3>
+        <div class="flex items-center gap-2 text-xs">
+          <button type="button" data-action="bold" class="px-2 py-1 rounded bg-white ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2] font-semibold">B</button>
+          <button type="button" data-action="italic" class="px-2 py-1 rounded bg-white ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2] italic">I</button>
+          <button type="button" data-action="ul" class="px-2 py-1 rounded bg-white ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2]">• List</button>
+          <button type="button" data-action="clear" class="px-2 py-1 rounded bg-white ring-1 ring-[#BEE3DB] hover:bg-[#FFE8E5] text-[#9b4d49]">Clear</button>
+          <button type="button" data-action="close" class="ml-4 text-[#9b4d49] hover:underline">Close</button>
+        </div>
+      </div>
+      <div class="p-4 overflow-y-auto max-h-[300px] bg-white">
+        <div class="border border-[#BEE3DB] rounded-lg p-3 bg-white min-h-[150px] text-sm leading-relaxed focus:outline-none prose prose-sm max-w-none" contenteditable="true" data-editor></div>
+        <p class="mt-2 text-[10px] text-[#555B6E]">Formatting allowed: bold, italic, unordered lists. Other formatting will be stripped.</p>
+      </div>
+      <div class="flex items-center justify-between px-4 py-3 border-t border-[#BEE3DB] bg-[#F5F4F3] rounded-b-2xl">
+        <button type="button" data-action="cancel" class="px-4 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#555B6E] text-xs font-medium hover:bg-[#E5F4F2]">Cancel</button>
+        <button type="button" data-action="save" class="px-5 py-1.5 rounded-full bg-[#116466] text-white text-xs font-semibold hover:bg-[#0d4c4d]">Save</button>
+      </div>`;
+    document.body.appendChild(pop);
+    // Final viewport-aware adjustment after content renders
+    requestAnimationFrame(()=>{
+      const r = anchor.getBoundingClientRect();
+      const ph = pop.offsetHeight || 400;
+      const pw = pop.offsetWidth || 560;
+      let top = window.scrollY + r.bottom + 8;
+      if(top + ph > window.scrollY + window.innerHeight - 12){
+        const above = window.scrollY + r.top - ph - 8; if(above > window.scrollY + 12) top = above;
+      }
+      if(top < window.scrollY + 8) top = window.scrollY + 8;
+      let left = window.scrollX + r.left;
+      if(left + pw > window.scrollX + window.innerWidth - 8) left = window.scrollX + window.innerWidth - pw - 8;
+      if(left < window.scrollX + 8) left = window.scrollX + 8;
+      pop.style.top = top + 'px'; pop.style.left = left + 'px';
+      const vb = window.scrollY + window.innerHeight; const vt = window.scrollY;
+      if(top < vt + 40 || (top + ph) > vb - 40){ window.scrollTo({ top: Math.max(top - 80, 0), behavior: 'smooth' }); }
+    });
+    const editor = pop.querySelector('[data-editor]');
+    const sanitize = (html) => {
+      const wrapper = document.createElement('div'); wrapper.innerHTML = html;
+      const ALLOW = new Set(['B','STRONG','I','EM','UL','LI','P','BR']);
+      const walk = (node) => { [...node.children].forEach(ch => { if(!ALLOW.has(ch.tagName)){ while(ch.firstChild) ch.parentNode.insertBefore(ch.firstChild, ch); ch.remove(); } else { [...ch.attributes].forEach(a => ch.removeAttribute(a.name)); walk(ch); } }); };
+      walk(wrapper);
+      wrapper.childNodes.forEach(n => { if(n.nodeType === 3 && n.textContent.trim()){ const p=document.createElement('p'); p.textContent = n.textContent; n.replaceWith(p);} });
+      return wrapper.innerHTML.replace(/<p>\s*<\/p>/g,'').trim();
+    };
+    if(current){ if(/<\w+/.test(current)) editor.innerHTML=current; else editor.innerHTML='<p>'+current.replace(/\n+/g,'</p><p>')+'</p>'; } else { editor.innerHTML=''; }
+    const exec = (cmd) => { editor.focus(); document.execCommand(cmd,false,null); };
+    pop.addEventListener('click', ev => {
+      const btn = ev.target.closest('button[data-action]'); if(!btn) return; const act = btn.getAttribute('data-action');
+      if(act==='close' || act==='cancel'){ pop.remove(); return; }
+      if(act==='bold'){ exec('bold'); return; }
+      if(act==='italic'){ exec('italic'); return; }
+      if(act==='ul'){ exec('insertUnorderedList'); return; }
+      if(act==='clear'){ editor.innerHTML=''; return; }
+      if(act==='save'){ const cleaned = sanitize(editor.innerHTML); window.__tcSaveProfileField(field, cleaned); pop.remove(); }
+    });
+    const closeOnEsc = (ev) => { if(ev.key==='Escape'){ pop.remove(); window.removeEventListener('keydown', closeOnEsc, true);} };
+    setTimeout(()=> window.addEventListener('keydown', closeOnEsc, true), 0);
+    window.addEventListener('scroll', repositionRT, true); window.addEventListener('resize', repositionRT, true);
+    const origRemove = pop.remove.bind(pop);
+    pop.remove = () => { window.removeEventListener('scroll', repositionRT, true); window.removeEventListener('resize', repositionRT, true); origRemove(); };
+  });
+</script>
+{% endblock %}
