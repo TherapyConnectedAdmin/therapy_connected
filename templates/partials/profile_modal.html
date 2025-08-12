@@ -1329,10 +1329,6 @@ if(typeof window.therapySpecialtiesManager !== 'function'){
           <div id="section-qualifications" class="tc-section p-4 md:p-5 md:col-span-2 mb-6 md:mb-8" x-data="qualificationsManager()" x-init="init()" x-cloak>
             <div class="flex items-start justify-between mb-4">
               <h3 class="text-2xl md:text-[25px] font-semibold tracking-tight text-[#555B6E]">Qualifications &amp; Education</h3>
-              <div class="flex items-center gap-2" x-show="!addingEducation && !addingCredential">
-                <button type="button" @click="startAddEducation()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-semibold text-[#116466] hover:bg-[#E5F4F2]">Add Education</button>
-                <button type="button" @click="startAddCredential()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-semibold text-[#116466] hover:bg-[#E5F4F2]">Add Credential</button>
-              </div>
             </div>
             <div class="text-sm text-[#555B6E] space-y-8">
               <!-- License (detailed editable) -->
@@ -1418,6 +1414,9 @@ if(typeof window.therapySpecialtiesManager !== 'function'){
               <div>
                 <div class="flex items-center justify-between mb-2">
                   <div class="font-semibold text-[#116466]">Additional Credentials</div>
+                  <div class="flex items-center gap-2" x-show="!addingCredential && !addingEducation">
+                    <button type="button" @click="startAddCredential()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-semibold text-[#116466] hover:bg-[#E5F4F2]">Add Credential</button>
+                  </div>
                 </div>
                 <template x-if="!($store.profileModal.therapist.additional_credentials && $store.profileModal.therapist.additional_credentials.length)">
                   <p class="text-xs italic text-[#89B0AE]">No credentials added.</p>
@@ -1467,6 +1466,9 @@ if(typeof window.therapySpecialtiesManager !== 'function'){
               <div>
                 <div class="flex items-center justify-between mb-2">
                   <div class="font-semibold text-[#116466]">Education</div>
+                  <div class="flex items-center gap-2" x-show="!addingEducation && !addingCredential">
+                    <button type="button" @click="startAddEducation()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-semibold text-[#116466] hover:bg-[#E5F4F2]">Add Education</button>
+                  </div>
                 </div>
                 <template x-if="!($store.profileModal.therapist.educations && $store.profileModal.therapist.educations.length)">
                   <p class="text-xs italic text-[#89B0AE]">No education records added.</p>
