@@ -1567,7 +1567,7 @@ if(typeof window.therapySpecialtiesManager !== 'function'){
         </section>
         {% if standalone and editable %}
         <!-- Right Sidebar after content -->
-  <aside x-data="progressTracker()" x-init="init()" class="hidden lg:flex flex-col w-64 fixed top-28 right-6 xl:right-10 z-40 h-max" aria-label="Profile Progress">
+  <aside x-data="profileProgressTracker()" x-init="init()" class="hidden lg:flex flex-col w-64 fixed top-28 right-6 xl:right-10 z-40 h-max" aria-label="Profile Progress">
           <div class="rounded-2xl bg-white/70 ring-1 ring-[#BEE3DB] p-4 shadow-lg flex flex-col gap-4">
             <div>
               <h4 class="text-sm font-semibold text-[#116466] tracking-wide mb-1">Profile Progress</h4>
@@ -1590,34 +1590,7 @@ if(typeof window.therapySpecialtiesManager !== 'function'){
             </div>
           </div>
         </aside>
-        <script>
-          function progressTracker(){
-            return {
-              sections: [
-                { id:'section-general', label:'General', fields:['first_name','last_name','license_type','license_number','license_state','intro_statement','profile_photo_url'] },
-                { id:'section-identity', label:'My Identity', fields:['gender','race_ethnicities','faiths','lgbtqia_identities','other_identities'] },
-                { id:'section-about', label:'About Me', fields:['personal_statement_01','personal_statement_q2','personal_statement_q3','intro_note'] },
-                { id:'section-locations', label:'Locations', fields:['locations','city','state'] },
-                { id:'section-therapy', label:'Therapy & Specialties', fields:['therapy_types','specialties','therapy_types_note','top_specialties'] },
-                { id:'section-fees', label:'Fees & Insurance', fields:['individual_session_cost','couples_session_cost','insurance_details','finance_note','accepted_payment_methods','sliding_scale_pricing_available'] },
-                { id:'section-client-focus', label:'Client Focus', fields:['participant_types','age_groups'] },
-                { id:'section-contact', label:'Contact & Web', fields:['phone_number','practice_email','practice_website_url','facebook_url','instagram_url','linkedin_url'] },
-                { id:'section-qualifications', label:'Qualifications', fields:['license_type','license_number','license_state','educations','additional_credentials','year_started_practice'] }
-              ].map(s => ({...s, percent:0, active:false})),
-              overall:{completedSections:0,totalSections:0,completedFields:0,totalFields:0,percent:0},
-              observer:null,
-              mobileInjected:false,
-              injectMobile(){ if(this.mobileInjected) return; const targets=['#mobile-menu','.mobile-menu','#site-mobile-menu']; let container=null; for(const sel of targets){ const el=document.querySelector(sel); if(el){ container=el; break; } } if(!container){ setTimeout(()=> this.injectMobile(), 1200); return; } const wrap=document.createElement('div'); wrap.className='mt-4 px-4 py-3 border-t border-[#BEE3DB]/50'; wrap.innerHTML='<div class="text-xs font-semibold text-[#116466] mb-2">Profile Progress</div>' + '<ul class="space-y-1 text-[11px]" data-mobile-progress></ul>'; container.appendChild(wrap); this.mobileInjected=true; this.renderMobile(); },
-              renderMobile(){ if(!this.mobileInjected) return; const list=document.querySelector('[data-mobile-progress]'); if(!list) return; list.innerHTML=''; this.sections.forEach(sec=>{ const li=document.createElement('li'); const done = (sec.completed||0)===(sec.total||0) && sec.total>0; li.innerHTML = `<button type=\"button\" data-goto=\"${sec.id}\" class=\"w-full flex items-center justify-between gap-2 px-2 py-1 rounded ${done?'bg-[#E5F4F2] text-[#116466]':'bg-white text-[#555B6E]'} ring-1 ring-[#BEE3DB] text-left\"> <span class=\"truncate\">${sec.label}</span> <span class=\"text-[10px] tabular-nums\">${(sec.completed||0)}/${(sec.total||0)}</span></button>`; list.appendChild(li); }); list.querySelectorAll('button[data-goto]').forEach(btn=> btn.addEventListener('click', e=>{ const id=e.currentTarget.getAttribute('data-goto'); this.scrollTo(id); (window.closeMobileMenu && window.closeMobileMenu()); })); },
-              compute(){ const t = (window.Alpine && Alpine.store('profileModal') && Alpine.store('profileModal').therapist) || {}; let completedSections=0,totalSections=0, totalFields=0, completedFields=0; this.sections.forEach(sec=>{ let filled=0; const need=sec.fields.length; sec.fields.forEach(f=>{ const v=t[f]; if(Array.isArray(v)) { if(v.length) filled++; } else if(typeof v==='string') { if(v.trim().length) filled++; } else if(v) { filled++; } }); sec.completed = filled; sec.total = need; sec.percent = need ? Math.round((filled/need)*100) : 0; if(filled===need && need>0) completedSections++; totalSections++; totalFields += need; completedFields += filled; }); const percent = totalFields ? (completedFields/totalFields)*100 : 0; this.overall={completedSections,totalSections,completedFields,totalFields,percent}; this.renderMobile(); },
-              scrollTo(id){ const el=document.getElementById(id); if(!el) return; window.scrollTo({top: el.getBoundingClientRect().top + window.scrollY - 80, behavior:'smooth'}); },
-              focusFirstIncomplete(){ const target=this.sections.find(s=>s.percent<100); if(target) this.scrollTo(target.id); },
-              watchData(){ const handler=()=>{ this.compute(); }; document.addEventListener('tc-profile-updated', handler); this.compute(); },
-              init(){ this.compute(); this.watchData(); this.setupSpy(); if(window.innerWidth < 1024){ setTimeout(()=> this.injectMobile(), 600); } },
-              setupSpy(){ const opts={root:null, rootMargin:'-40% 0px -50% 0px', threshold:[0,0.25,0.5,0.75,1]}; this.observer=new IntersectionObserver((entries)=>{ entries.forEach(e=>{ const id=e.target.id; const s=this.sections.find(x=>x.id===id); if(s){ if(e.isIntersecting){ this.sections.forEach(x=> x.active = (x.id===id)); } } }); }, opts); this.sections.forEach(s=>{ const el=document.getElementById(s.id); if(el) this.observer.observe(el); }); }
-            };
-          }
-        </script>
+  <script src="{% static 'profile_helpers.js' %}"></script>
         {% endif %}
   </div><!-- end lower sections group -->
   </div><!-- Unified Sections Wrapper END -->
