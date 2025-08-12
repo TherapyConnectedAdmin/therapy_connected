@@ -225,6 +225,17 @@
           {% if standalone %}
             {% include 'partials/profile/sections/_qualifications.html' %}
           {% endif %}
+        {% if editable %}
+        <section id="section-locations" class="tc-section relative px-4 md:px-5 py-5" x-data="locationManager()">
+          <div class="flex items-start justify-between mb-5">
+            <h2 class="text-2xl md:text-[25px] font-semibold tracking-tight text-[#555B6E]">Locations</h2>
+            <button type="button" @click="startAdd()" class="text-[11px] px-3 py-1.5 rounded-full bg-[#116466] text-white font-semibold shadow hover:bg-[#0d4c4d] transition" x-show="!form.show">Add</button>
+          </div>
+          <!-- Delete Confirmation Modal -->
+          <template x-if="confirmDelete.show">
+            <div class="fixed inset-0 z-[6000] flex items-center justify-center">
+              <div class="absolute inset-0 bg-[#2e4a49]/50 backdrop-blur-sm" @click="cancelDelete()"></div>
+              <div class="relative w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl ring-1 ring-[#BEE3DB] p-5 flex flex-col gap-4 animate-[fadeIn_.25s_ease]">
                 <div class="flex items-start gap-3">
                   <div class="w-10 h-10 rounded-full bg-[#FFE8E5] flex items-center justify-center text-[#9b4d49]">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M5.07 19h13.86A2 2 0 0 0 21 17.07L12.93 3.64a2 2 0 0 0-3.86 0L3 17.07A2 2 0 0 0 5.07 19Z"/></svg>
