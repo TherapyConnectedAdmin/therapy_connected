@@ -1,9 +1,13 @@
-{# Qualifications & Education section (edit page only) #}
-<div id="section-qualifications" class="tc-section p-4 md:p-5 md:col-span-2 mb-6 md:mb-8" x-data="qualificationsManager()" x-init="init()" x-cloak>
-  <div class="flex items-start justify-between mb-4">
-    <h3 class="text-2xl md:text-[25px] font-semibold tracking-tight text-[#555B6E]">Qualifications &amp; Education</h3>
-  </div>
-  <div class="text-sm text-[#555B6E] space-y-8">
+{# Qualifications & Education Section Partial - standardized wrapper (standalone edit page only) #}
+<div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
+  <section id="section-qualifications" class="tc-section relative p-5 md:p-7 mt-4 md:mt-6 mb-6 md:mb-8 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg" style="box-shadow:0 6px 28px -10px #25454433;" x-data="qualificationsManager()" x-init="init()" x-cloak>
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <h2 class="text-xl md:text-[22px] font-semibold tracking-tight text-[#555B6E] mb-1">Qualifications &amp; Education</h2>
+        <p class="text-[10px] text-[#89B0AE] leading-snug max-w-2xl">Document your professional license, credentials, and education history. This section is only visible while editing.</p>
+      </div>
+    </div>
+    <div class="text-sm text-[#555B6E] space-y-8">
     {# License Editor #}
     <div x-data="{ editing:false, showLicenseNameOverride:false, form:{ license_type:'', license_number:'', license_state:'', license_expiration:'', license_first_name:'', license_last_name:'' }, states:['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'], init(){ this.sync(); }, sync(){ const t=$store.profileModal.therapist||{}; this.form.license_type=t.license_type||''; this.form.license_number=t.license_number||''; this.form.license_state=t.license_state||''; this.form.license_expiration=t.license_expiration||''; this.form.license_first_name=t.license_first_name||''; this.form.license_last_name=t.license_last_name||''; this.showLicenseNameOverride = !!(this.form.license_first_name || this.form.license_last_name); }, save(){ if(this.saving) return; this.error=''; const payload={}; for(const k in this.form){ if(this.form[k]!==($store.profileModal.therapist[k]||'')) payload[k]=this.form[k]; } if(!this.showLicenseNameOverride){ if(this.form.license_first_name || this.form.license_last_name){ this.form.license_first_name=''; this.form.license_last_name=''; payload.license_first_name=''; payload.license_last_name=''; } } if(Object.keys(payload).length===0){ this.editing=false; return; } this.saving=true; fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken': TC_CSRF}, body: JSON.stringify(payload)}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && Object.values(d.errors)[0]) || d.error || 'Save failed'; return; } if(window.__profileEdit){ window.__profileEdit.applyData(d); window.__profileEdit.notify('Saved'); } this.editing=false; this.sync(); }).catch(()=> this.error='Network error').finally(()=> this.saving=false); }, cancel(){ this.editing=false; this.sync(); }, editing:false, error:'', saving:false, differentName(){ const t=$store.profileModal.therapist||{}; return this.showLicenseNameOverride || ( (t.first_name||'').trim() !== (t.license_first_name||'').trim() ) || ( (t.last_name||'').trim() !== (t.license_last_name||'').trim() ); } }" class="space-y-2">
       <div class="flex items-center justify-between">
@@ -90,8 +94,8 @@
       <template x-if="!($store.profileModal.therapist.additional_credentials && $store.profileModal.therapist.additional_credentials.length)">
         <p class="text-xs italic text-[#89B0AE]">No credentials added.</p>
       </template>
-      <ul class="space-y-1 text-sm" x-show="$store.profileModal.therapist.additional_credentials && $store.profileModal.therapist.additional_credentials.length">
-        <template x-for="c in $store.profileModal.therapist.additional_credentials" :key="c.id">
+      <ul class="space-y-1 text-sm" x-show="($store.profileModal.therapist.additional_credentials||[]).length">
+        <template x-for="(c, idx) in ($store.profileModal.therapist.additional_credentials||[])" :key="c.id || ('cred-'+idx)">
           <li class="group flex flex-wrap items-center gap-1 px-2 py-1 rounded-md hover:bg-[#F5F4F3]">
             <span class="font-medium" x-text="c.type || 'Credential'"></span>
             <span class="opacity-70">—</span>
@@ -142,8 +146,8 @@
       <template x-if="!($store.profileModal.therapist.educations && $store.profileModal.therapist.educations.length)">
         <p class="text-xs italic text-[#89B0AE]">No education records added.</p>
       </template>
-      <ul class="space-y-1 text-sm" x-show="$store.profileModal.therapist.educations && $store.profileModal.therapist.educations.length">
-        <template x-for="e in $store.profileModal.therapist.educations" :key="e.id">
+      <ul class="space-y-1 text-sm" x-show="($store.profileModal.therapist.educations||[]).length">
+        <template x-for="(e, idx) in ($store.profileModal.therapist.educations||[])" :key="e.id || ('edu-'+idx)">
           <li class="group flex flex-wrap items-center gap-1 px-2 py-1 rounded-md hover:bg-[#F5F4F3]">
             <span class="font-medium" x-text="e.degree_diploma"></span>
             <span class="opacity-70">—</span>
@@ -219,5 +223,35 @@
       <div class="font-semibold text-[#116466] mb-1">Years in Practice</div>
       <p class="text-[#2e4a49] text-sm"><span x-text="$store.profileModal.therapist.years_in_practice"></span></p>
     </div>
-  </div>
+    </div>
+  </section>
 </div>
+
+{# Lightweight fallback manager (in case main bundle not loaded) #}
+<script>
+  window.__tcQualsFallbackInit = window.__tcQualsFallbackInit || (function(){
+    if(typeof window.qualificationsManager === 'function') return; // already provided
+    window.qualificationsManager = function(){
+      return {
+        init(){},
+        // Stubs so template bindings don't error; real logic lives in primary edit bundle
+        startAddCredential(){ this.addingCredential = true; },
+        cancelCredential(){ this.addingCredential = false; this.credForm = {}; },
+        saveCredential(){ /* noop fallback */ this.addingCredential=false; },
+        editCredential(c){ this.credForm = Object.assign({}, c); this.addingCredential=true; },
+        deleteCredential(c){ /* noop */ },
+        startAddEducation(){ this.addingEducation = true; },
+        cancelEducation(){ this.addingEducation=false; this.eduForm={}; },
+        saveEducation(){ this.addingEducation=false; },
+        editEducation(e){ this.eduForm = Object.assign({}, e); this.addingEducation=true; },
+        deleteEducation(e){ /* noop */ },
+  addingCredential:false,
+  addingEducation:false,
+  credForm:{},
+  eduForm:{},
+  saving:false,
+  error:'',
+      };
+    };
+  })();
+</script>

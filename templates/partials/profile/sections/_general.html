@@ -1,0 +1,241 @@
+{# General (top) section with adaptive styling for modal vs standalone #}
+{% if not standalone %}
+<div class="mx-auto w-full max-w-[1200px] px-4 md:px-6 mt-4 md:mt-6 mb-6 md:mb-8"
+     x-data="{ editable: {{ editable|default:0|yesno:'true,false' }} }"
+     x-show="editable || $store.profileModal.therapist.profile_photo_url || $store.profileModal.therapist.title || $store.profileModal.therapist.first_name || $store.profileModal.therapist.last_name || $store.profileModal.therapist.license_type || $store.profileModal.therapist.intro_note || $store.profileModal.therapist.intro_statement || ($store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length) || ($store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length) || ($store.profileModal.therapist.top_specialties && $store.profileModal.therapist.top_specialties.length) || ($store.profileModal.therapist.locations && $store.profileModal.therapist.locations.length) || $store.profileModal.therapist.city || $store.profileModal.therapist.state"
+     x-cloak>
+  <div class="rounded-2xl bg-white/90 ring-1 ring-[#BEE3DB] shadow relative overflow-hidden" style="box-shadow:0 8px 32px -8px #555B6E33;">
+    <div class="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_30%_20%,#E5F4F2,transparent_60%),radial-gradient(circle_at_80%_70%,#FFDDD0,transparent_65%)]"></div>
+    <div class="relative flex-1 flex flex-col gap-4 min-w-0 z-10 p-4 md:p-6">
+{% endif %}
+<div class="flex-1 flex flex-col gap-4 min-w-0 relative z-10">
+            {% if standalone and editable %}
+            <div class="flex flex-col gap-3 md:gap-4">
+              <div class="flex flex-col gap-1">
+                <h1 class="text-2xl md:text-3xl font-extrabold leading-tight text-[#555B6E] flex flex-wrap items-center gap-2 flex-wrap" data-edit-wrapper>
+                  <span class="inline-flex items-center gap-2 group/name relative cursor-pointer rounded-md" @click.stop="$dispatch('edit-name',{el:$el})"
+                        x-data="{}" x-bind:class="(!$store.profileModal.therapist.first_name && !$store.profileModal.therapist.last_name) ? 'ring-1 ring-[#FF9950] bg-[#FFF5F0]/70 animate-pulse' : 'hover:bg-[#E5F4F2]/70 transition'"
+                        aria-label="Edit name and title" role="button" tabindex="0">
+                    <template x-if="!$store.profileModal.therapist.first_name && !$store.profileModal.therapist.last_name && !$store.profileModal.therapist.title">
+                      <span class="text-[#89B0AE] italic">Therapist Name &amp; Title</span>
+                    </template>
+                    <template x-if="$store.profileModal.therapist.title">
+                      <span class="text-[#116466] font-semibold" x-text="$store.profileModal.therapist.title"></span>
+                    </template>
+                    <template x-if="$store.profileModal.therapist.first_name">
+                      <span x-text="$store.profileModal.therapist.first_name"></span>
+                    </template>
+                    <template x-if="$store.profileModal.therapist.middle_name">
+                      <span x-text="$store.profileModal.therapist.middle_name" class="text-[#555B6E]"></span>
+                    </template>
+                    <template x-if="$store.profileModal.therapist.last_name">
+                      <span x-text="$store.profileModal.therapist.last_name"></span>
+                    </template>
+                    <span class="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold ml-1 opacity-0 group-hover/name:opacity-100 transition"
+                          x-data="{}"
+                          x-bind:class="(!$store.profileModal.therapist.first_name && !$store.profileModal.therapist.last_name) ? 'opacity-100 animate-pulse' : ''">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5"><path d="M13.586 2.586a2 2 0 0 1 2.828 2.828l-.793.793-2.828-2.828.793-.793Z"/><path d="M11.379 4.793 3 13.172V16h2.828l8.38-8.379-2.83-2.828Z"/></svg>
+                      <span>Edit</span>
+                    </span>
+                  </span>
+                  <span data-edit-wrapper data-field="license_type" x-data="{can_edit:true }" @click.prevent.stop="can_edit && $dispatch('edit-select',{field:'license_type',value:$store.profileModal.therapist.license_type || '', el: $el})" class="inline-flex items-center gap-1 ml-8" :class="[!$store.profileModal.therapist.license_type ? 'cursor-pointer text-[#89B0AE] italic animate-pulse' : 'cursor-pointer hover:bg-[#E5F4F2]/60 rounded-md px-1 -mx-1 transition']">
+                    <template x-if="$store.profileModal.therapist.license_type">
+                      <span class="text-base md:text-lg font-semibold text-[#116466]" x-text="$store.profileModal.therapist.license_type + ($store.profileModal.therapist.license_type_short ? ', ' + $store.profileModal.therapist.license_type_short : '')"></span>
+                    </template>
+                    <template x-if="!$store.profileModal.therapist.license_type">
+                      <span>Set License Type</span>
+                    </template>
+                  </span>
+                </h1>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+{# General Section: Hero panel, photo, name chips, intro/certifications, top specialties, participant & age groups #}
+<!-- Hero Panel: Photo + Key Facts / Chips -->
+<div class="flex flex-col md:flex-row gap-8 md:items-start relative isolate mt-6 md:mt-8">
+  {% if not show_photo_in_header %}
+  <!-- Profile Photo Component (hidden because header already shows it when show_photo_in_header) -->
+  <div class="relative w-40 h-56 sm:w-48 sm:h-64 md:w-56 md:h-72 flex-shrink-0 rounded-2xl shadow-lg self-start z-0 group/photo overflow-hidden"
+    {% if editable %}
+    x-data="{ dragOver:false, uploading:false, error:'', success:false, trigger(){ this.$refs.file && this.$refs.file.click(); }, onFiles(e){ const files=(e.target.files||[]); if(!files.length) return; this.upload(files[0]); }, onDrop(e){ this.dragOver=false; const files=(e.dataTransfer.files||[]); if(!files.length) return; this.upload(files[0]); }, remove(){ const t=this.$store.profileModal?.therapist||{}; if(!t.profile_photo_url) return; fetch('/users/api/profile/update/', { method:'PATCH', headers:{'X-CSRFToken': (window.TC_CSRF||'') , 'Content-Type':'application/json'}, body: JSON.stringify({ profile_photo:'' }) }).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(r.ok && window.__profileEdit){ window.__profileEdit.applyData(d); this.success=true; setTimeout(()=> this.success=false, 2000); } else { this.error = (d && (d.error||d.message)) || 'Remove failed'; } }).catch(()=> this.error='Network error'); }, upload(file){ this.error=''; this.success=false; if(!file) return; if(file.size > 5*1024*1024){ this.error='File too large (max 5MB)'; return; } const form=new FormData(); form.append('profile_photo', file); this.uploading=true; fetch('/users/api/profile/update/', { method:'POST', headers:{'X-CSRFToken': (window.TC_CSRF||'')}, body: form }).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(r.ok && window.__profileEdit){ window.__profileEdit.applyData(d); this.success=true; setTimeout(()=> this.success=false, 2500); } else { this.error=(d && (d.error||d.message)) || 'Upload failed'; } }).catch(()=> this.error='Network error').finally(()=> this.uploading=false); } }"
+    :class="dragOver ? 'ring-2 ring-[#116466] ring-offset-2' : ''" @dragover.prevent="dragOver=true" @dragleave.prevent="dragOver=false" @drop="onDrop($event)"
+    {% endif %}
+    style="box-shadow:0 8px 32px -6px #555B6E55;">
+    <!-- Distance Overlay (modal / standalone when photo shown) -->
+    <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.distance">
+      <span class="absolute top-3 left-3 bg-[#F5E2D6] text-[#555B6E] px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-[#FF9950]/30" style="box-shadow:0 2px 4px rgba(0,0,0,0.1);">Approx. <span x-text="$store.profileModal.therapist.distance"></span> miles</span>
+    </template>
+    {% if not editable and profile_obj and profile_obj.profile_photo %}
+      <!-- Server-rendered fallback image (removed after Alpine hydrates) -->
+      <img src="{{ profile_obj.profile_photo.url }}" alt="{{ profile_obj.first_name }} {{ profile_obj.last_name }} profile photo" class="w-full h-full object-cover object-center" data-server-fallback>
+    {% endif %}
+    <!-- Existing photo -->
+    <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.profile_photo_url">
+      <img :src="$store.profileModal.therapist.profile_photo_url" :alt="$store.profileModal.therapist.name || 'Profile photo'" class="w-full h-full object-cover object-center" />
+    </template>
+    <!-- Placeholder (branded) -->
+    <template x-if="!$store.profileModal.loading && !$store.profileModal.therapist.profile_photo_url">
+      <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#E5F4F2] via-[#F5F4F3] to-[#ECEBE8] text-center p-4">
+        <div class="w-20 h-20 rounded-full bg-[#FFFFFF]/70 ring-2 ring-[#BEE3DB] flex items-center justify-center shadow-inner relative">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#116466" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-10 h-10"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4Z"/><path d="M4.8 20c1.02-3.21 3.92-5.5 7.2-5.5s6.18 2.29 7.2 5.5"/></svg>
+          <span class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#116466] text-white flex items-center justify-center text-[11px] font-bold shadow">+</span>
+        </div>
+        <div class="flex flex-col gap-1">
+          <p class="text-[11px] font-semibold tracking-wide text-[#555B6E] uppercase">Add Profile Photo</p>
+          <p class="text-[10px] leading-snug text-[#555B6E]/80">Clear head & shoulders, good lighting.</p>
+        </div>
+      </div>
+    </template>
+    {% if editable %}
+    <!-- Overlay actions -->
+    <div class="absolute inset-0 flex flex-col items-center justify-end p-2 bg-gradient-to-t from-[#1f3636]/70 via-transparent to-transparent opacity-0 group-hover/photo:opacity-100 transition">
+      <div class="w-full flex flex-col gap-1">
+        <button type="button" @click.prevent="trigger()" class="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#116466] text-white text-xs font-semibold shadow hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-[#89B0AE]">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          <span x-text="$store.profileModal.therapist.profile_photo_url ? 'Change Photo' : 'Upload Photo'"></span>
+        </button>
+        <template x-if="$store.profileModal.therapist.profile_photo_url">
+          <button type="button" @click.prevent="remove()" class="w-full inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-[#FFE8E5] text-[#9b4d49] text-[11px] font-semibold shadow hover:bg-[#FFD5CF] focus:outline-none focus:ring-2 focus:ring-[#FF9950]">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M3 6h18"/><path d="M8 6v12c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V6"/><path d="M10 6V4h4v2"/></svg>
+            <span>Remove Photo</span>
+          </button>
+        </template>
+        <div class="text-[9px] text-[#E5F4F2] leading-tight px-1">
+          <span class="font-medium">Requirements:</span> JPG or PNG, max 5MB. Recommended ≥ 400px tall. No filters.
+        </div>
+        <template x-if="error"><div class="text-[10px] text-[#FFDDD0] font-semibold" x-text="error"></div></template>
+        <template x-if="success"><div class="text-[10px] text-[#BEE3DB] font-semibold">Uploaded</div></template>
+        <template x-if="uploading"><div class="h-1 w-full bg-[#FFFFFF]/30 rounded overflow-hidden"><div class="h-full bg-[#FF9950] animate-pulse" style="width:100%"></div></div></template>
+      </div>
+    </div>
+    {% endif %}
+  {% if editable %}<input type="file" x-ref="file" class="hidden" accept="image/*" @change="onFiles($event)" />{% endif %}
+  </div>
+  {% endif %}
+  <script>
+    // Remove server fallback once Alpine has applied the reactive image (prevents duplicate display)
+    document.addEventListener('alpine:init', () => {
+      requestAnimationFrame(() => {
+        document.querySelectorAll('[data-server-fallback]').forEach(el => {
+          // If an Alpine-driven image has appeared, remove fallback
+          const hasReactive = el.parentElement && el.parentElement.querySelector('template[x-if]');
+          if (hasReactive) {
+            el.remove();
+          }
+        });
+      });
+    });
+  </script>
+  <!-- Right column content -->
+  <div class="flex flex-col gap-6 flex-1 relative z-10">
+    {% if standalone %}
+    <!-- Name / License / Chips (standalone only; modal shows sticky header) -->
+    <div class="flex flex-col gap-3">
+      <div class="flex flex-wrap items-baseline gap-2">
+        <h1 class="text-2xl md:text-3xl font-extrabold leading-tight text-[#555B6E] flex items-center flex-wrap gap-2">
+          <span x-text="[$store.profileModal.therapist.title,$store.profileModal.therapist.first_name,$store.profileModal.therapist.last_name].filter(Boolean).join(' ')"></span>
+          <template x-if="$store.profileModal.therapist.license_type || $store.profileModal.therapist.license_type_short">
+            <span class="flex items-baseline gap-1 pl-2 ml-1 border-l border-[#BEE3DB]">
+              <template x-if="$store.profileModal.therapist.license_type">
+                <span class="text-base md:text-lg font-semibold text-[#116466]" x-text="$store.profileModal.therapist.license_type"></span>
+              </template>
+              <template x-if="$store.profileModal.therapist.license_type && $store.profileModal.therapist.license_type_short">
+                <span class="text-[11px] md:text-xs font-medium text-[#89B0AE]" x-text="$store.profileModal.therapist.license_type_short"></span>
+              </template>
+              <template x-if="!$store.profileModal.therapist.license_type && $store.profileModal.therapist.license_type_short">
+                <span class="text-[11px] md:text-xs font-medium text-[#116466]" x-text="$store.profileModal.therapist.license_type_short"></span>
+              </template>
+            </span>
+          </template>
+        </h1>
+      </div>
+  {# Standalone chips removed; consolidated placement beside photo above intro #}
+    </div>
+    {% endif %}
+    <div class="flex flex-col gap-4">
+  <!-- Delivery & Availability chips (relocated here: beside photo, above intro) -->
+  {% if not show_photo_in_header %}
+  <div class="flex flex-wrap items-center gap-2 text-[11px]" data-edit-wrapper>
+    <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold"
+      data-edit-wrapper data-field="therapy_delivery_method"
+      x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }"
+      @click.prevent.stop="can_edit && $dispatch('edit-select',{field:'therapy_delivery_method',value:$store.profileModal.therapist.therapy_delivery_method, el: $el})"
+      :class="[!$store.profileModal.therapist.therapy_delivery_method ? 'ring-1 ring-[#FF9950] ' + (can_edit ? 'animate-pulse cursor-pointer' : '') : '', can_edit ? 'cursor-pointer hover:bg-[#D2E7E4] transition' : ''].join(' ')"
+      x-text="(() => { const raw = $store.profileModal.therapist.therapy_delivery_method || ''; const v = raw.toLowerCase(); if(!raw) return can_edit ? 'Set Delivery Method' : 'Delivery Method'; if(/^(in[- ]?person)$/.test(v)) return 'In Person Only'; if(/^(online|telehealth)$/.test(v)) return 'Online Only'; if(/hybrid/.test(v) || (v.includes('person') && (v.includes('online')||v.includes('telehealth')))) return 'In Person & Online'; return raw; })()"></span>
+    <span class="px-2 py-1 rounded-full font-semibold"
+      data-edit-wrapper data-field="accepting_new_clients"
+      x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }"
+      @click.prevent.stop="can_edit && $dispatch('edit-select',{field:'accepting_new_clients',value:$store.profileModal.therapist.accepting_new_clients||'', el:$el})"
+      :class="(() => { let v=($store.profileModal.therapist.accepting_new_clients||'').toString().trim().toLowerCase(); if(v==='true'||v==='false') v=''; if(!v){ return 'bg-[#FFE8E5] text-[#9b4d49] ring-1 ring-[#FF9950] ' + (can_edit?'cursor-pointer animate-pulse':''); } if(v.startsWith('accept')) return 'bg-[#116466] text-white ' + (can_edit?'cursor-pointer':''); if(v.startsWith('not')) return 'bg-[#FFE8E5] text-[#9b4d49] ' + (can_edit?'cursor-pointer':''); if(v.includes('wait')) return 'bg-[#E5F4F2] text-[#116466] ' + (can_edit?'cursor-pointer':''); return 'bg-[#E5F4F2] text-[#116466]'; })()"
+      x-text="(() => { let v=($store.profileModal.therapist.accepting_new_clients||'').toString().trim().toLowerCase(); if(v==='true'||v==='false') v=''; if(!v) return can_edit ? 'Set Availability' : 'Availability'; if(v.startsWith('accept')) return 'Accepting New Clients'; if(v.startsWith('not')) return 'Not Accepting New Clients'; if(v.includes('wait')) return 'I Have a Waitlist'; return $store.profileModal.therapist.accepting_new_clients; })()"></span>
+  </div>
+  {% endif %}
+      <!-- Name & License (already in sticky header for modal; here mainly for standalone) intentionally omitted duplication -->
+      <!-- Intro / Credentials Note -->
+  {% if not show_photo_in_header %}
+  <div class="relative group rounded-xl bg-statement p-4 shadow-lg" data-edit-wrapper data-field="intro_note" x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }" role="button" tabindex="0" @keydown.enter.prevent="can_edit && $dispatch('edit-rich-text',{field:'intro_note',current:($store.profileModal.therapist.intro_note||''), el: $el})" @keydown.space.prevent="can_edit && $dispatch('edit-rich-text',{field:'intro_note',current:($store.profileModal.therapist.intro_note||''), el: $el})" @click.stop="can_edit && $dispatch('edit-rich-text',{field:'intro_note',current:($store.profileModal.therapist.intro_note||''), el: $el})" :class="[(!$store.profileModal.therapist.intro_note) ? (can_edit ? 'ring-1 ring-[#FF9950] animate-pulse' : '') : '', can_edit ? 'hover:ring-1 hover:ring-[#BEE3DB] transition' : '']">
+        <div class="text-sm md:text-base leading-relaxed font-light text-[#2e4a49] min-h-[54px] flex flex-col gap-3 pr-14">
+          <template x-if="$store.profileModal.therapist.credentials_note">
+            <p class="mb-0" x-text="$store.profileModal.therapist.credentials_note"></p>
+          </template>
+          <template x-if="$store.profileModal.therapist.intro_note || $store.profileModal.therapist.intro_statement">
+            <div class="prose prose-sm max-w-none" x-html="$store.profileModal.therapist.intro_note || $store.profileModal.therapist.intro_statement"></div>
+          </template>
+          <template x-if="!($store.profileModal.therapist.credentials_note || $store.profileModal.therapist.intro_note || $store.profileModal.therapist.intro_statement)">
+            <p class="italic text-[#89B0AE]" x-text="can_edit ? 'Add an introduction that helps new clients connect with you…' : 'No introduction provided.'"></p>
+          </template>
+        </div>
+        {% if editable %}
+        <div class="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition pointer-events-none group-hover:pointer-events-auto">
+          <button type="button" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white shadow" @click.stop="$dispatch('edit-rich-text',{field:($store.profileModal.therapist.intro_note?'intro_note':'intro_statement'),current:($store.profileModal.therapist.intro_note||$store.profileModal.therapist.intro_statement||''), el: $el})">Edit</button>
+        </div>
+        {% endif %}
+  </div>
+  {% endif %}
+      <!-- Aggregated Locations (fallback single city/state handled below) -->
+      <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.locations && $store.profileModal.therapist.locations.length">
+        <div class="text-xs text-[#555B6E] opacity-80">
+          <span class="font-semibold block mb-1">Locations:</span>
+          <div class="flex flex-col gap-0.5">
+            <template x-for="loc in [...new Set(($store.profileModal.therapist.locations || []).map(l => [l.city, l.state].filter(Boolean).join(', ')).filter(Boolean))]" :key="loc">
+              <span x-text="loc"></span>
+            </template>
+          </div>
+        </div>
+      </template>
+      <template x-if="!$store.profileModal.loading && (!($store.profileModal.therapist.locations && $store.profileModal.therapist.locations.length)) && ($store.profileModal.therapist.city || $store.profileModal.therapist.state)">
+        <div class="text-xs text-[#555B6E] opacity-80">
+          <span x-text="[$store.profileModal.therapist.city, $store.profileModal.therapist.state].filter(Boolean).join(', ')"></span>
+        </div>
+      </template>
+      <!-- Participant Types & Age Groups -->
+      <template x-if="!$store.profileModal.loading && (($store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length) || ($store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length))">
+        <div class="flex flex-col gap-3">
+          <div class="flex flex-wrap gap-2 text-[11px]" x-show="$store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length">
+            <template x-for="pt in $store.profileModal.therapist.participant_types" :key="'pt-' + pt"><span class="px-2 py-1 rounded-full bg-[#BEE3DB] text-[#444] font-semibold shadow-sm" x-text="pt"></span></template>
+          </div>
+          <div class="flex flex-wrap gap-2 text-[11px]" x-show="$store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length">
+            <template x-for="ag in $store.profileModal.therapist.age_groups" :key="'ag-' + ag"><span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold shadow-sm" x-text="ag"></span></template>
+          </div>
+        </div>
+      </template>
+      <!-- Top Specialties -->
+      <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.top_specialties && $store.profileModal.therapist.top_specialties.length">
+        <div>
+          <h3 class="text-xs font-semibold mb-2 tracking-wide text-[#555B6E] uppercase">Top Specialties</h3>
+          <div class="flex flex-wrap gap-2">
+            <template x-for="s in $store.profileModal.therapist.top_specialties" :key="'tops-' + s">
+              <span class='px-2 py-1 rounded-full bg-[#FFDDD0] text-[#444] text-xs font-medium shadow-sm' x-text="s"></span>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+{% if not standalone %}
+    </div><!-- inner content -->
+  </div>
+</div>
+{% endif %}
+</div>

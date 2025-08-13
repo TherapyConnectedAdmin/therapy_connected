@@ -116,11 +116,9 @@
                 <a href="/about/" class="font-medium nav-link{% if request.path|slice:':6' == '/about' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/about' %}#FF9950{% else %}#555B6E{% endif %};">About</a>
             </nav>
             <div class="hidden lg:flex items-center space-x-2 lg:space-x-4 ml-auto">
-                {% if request.user.is_authenticated %}
+                    {% if request.user.is_authenticated %}
                     <a href="/users/logout/" class="text-sm font-medium" style="color: #89B0AE;">Logout</a>
-                    {% if request.path != '/users/profile-wizard/' %}
-                        <a href="/users/dashboard/" class="get-started-btn px-4 py-2 rounded font-semibold text-sm">Dashboard</a>
-                    {% endif %}
+                    <a href="/users/dashboard/" class="get-started-btn px-4 py-2 rounded font-semibold text-sm">Dashboard</a>
                 {% else %}
                     <a href="/users/login/" class="text-sm font-medium" style="color: #89B0AE;">Login</a>
                     {% if request.path != '/users/register/' %}
@@ -164,12 +162,10 @@
                     <a href="#" class="font-medium nav-link" style="color: #555B6E;">Pricing</a>
                     <a href="#" class="font-medium nav-link" style="color: #555B6E;">About</a>
                     <div class="flex flex-col gap-2 mt-2">
-                        {% if request.user.is_authenticated %}
+                            {% if request.user.is_authenticated %}
                             <a href="/users/logout/" class="text-sm font-medium" style="color: #89B0AE;">Logout</a>
-                            {% if request.path != '/users/profile-wizard/' %}
                                 <a href="/users/profile/" class="px-4 py-2 rounded font-semibold text-sm text-center signup-btn" style="background-color: #FF9950; color: #fff;">Profile</a>
                                 <a href="/users/profile/" class="get-started-btn px-4 py-2 rounded font-semibold text-sm text-center signup-btn">Profile</a>
-                            {% endif %}
                         {% else %}
                             <a href="/users/login/" class="text-sm font-medium" style="color: #89B0AE;">Login</a>
                             {% if request.path != '/users/register/' %}
@@ -221,25 +217,45 @@
                         else if(fig.dataset.lightboxVideo){ store.openVideo(fig.dataset.lightboxVideo, fig.dataset.lightboxCaption||''); }
                     });
                 </script>
-        <!-- Leaflet (maps for profile modal locations) -->
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
-            <div x-cloak x-show="$store.mediaLightbox.open" x-transition class="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm" @keydown.window.escape="$store.mediaLightbox.close()" @click.self="$store.mediaLightbox.close()">
-                <div class="relative max-w-5xl w-[92vw] mx-auto" x-trap.noscroll="$store.mediaLightbox.open">
-                    <button @click="$store.mediaLightbox.close()" class="absolute -top-12 right-0 bg-[#FF9950] hover:bg-[#555B6E] text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg" aria-label="Close media">
-                        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' class='w-7 h-7'><path stroke-linecap='round' stroke-linejoin='round' d='M6 18L18 6M6 6l12 12'/></svg>
-                    </button>
-                    <template x-if="$store.mediaLightbox.type==='image'">
-                        <img :src="$store.mediaLightbox.src" class="w-full max-h-[78vh] object-contain rounded-xl shadow-2xl" />
-                    </template>
-                    <template x-if="$store.mediaLightbox.type==='video'">
-                        <div class="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
-                            <video :src="$store.mediaLightbox.src" controls autoplay class="w-full h-full object-contain"></video>
-                        </div>
-                    </template>
-                    <div class="mt-4 text-center text-sm text-white/80" x-show="$store.mediaLightbox.caption" x-text="$store.mediaLightbox.caption"></div>
+                <!-- Lightbox focus trap helper defined before overlay so Alpine can invoke it -->
+                <script>
+                window.lightboxTrap = function(){
+                    return {
+                        trap(e){
+                            const store = Alpine.store('mediaLightbox');
+                            if(!store || !store.open) return;
+                            if(e.key !== 'Tab') return;
+                            const focusables = [...this.$el.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+                                .filter(el => !el.disabled && el.offsetParent);
+                            if(!focusables.length) return;
+                            const first = focusables[0];
+                            const last = focusables[focusables.length-1];
+                            if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+                            else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+                        }
+                    }
+                };
+                </script>
+                <!-- Leaflet (maps for profile modal locations) -->
+                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
+                <!-- Global Lightbox Overlay (z higher than profile modal z-[500]) -->
+                <div x-cloak x-show="$store.mediaLightbox.open" x-transition class="fixed inset-0 z-[600] flex items-center justify-center bg-black/80 backdrop-blur-sm" @keydown.window.escape="$store.mediaLightbox.close()" @click.self="$store.mediaLightbox.close()" x-data="{}" @keydown.arrow-left.stop.prevent="$store.mediaLightbox.close()" @keydown.arrow-right.stop.prevent="$store.mediaLightbox.close()">
+                    <div class="relative max-w-5xl w-[92vw] mx-auto" x-data="lightboxTrap()" @keydown.window="trap($event)" x-effect="$store.mediaLightbox.open && $nextTick(()=>$refs.lightboxClose && $refs.lightboxClose.focus())">
+                        <button x-ref="lightboxClose" @click="$store.mediaLightbox.close()" class="absolute -top-12 right-0 bg-[#FF9950] hover:bg-[#555B6E] text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg focus:outline-none focus:ring-2 focus:ring-[#FF9950]/60" aria-label="Close media">
+                            <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' class='w-7 h-7'><path stroke-linecap='round' stroke-linejoin='round' d='M6 18L18 6M6 6l12 12'/></svg>
+                        </button>
+                        <template x-if="$store.mediaLightbox.type==='image'">
+                            <img :src="$store.mediaLightbox.src" class="w-full max-h-[78vh] object-contain rounded-xl shadow-2xl" />
+                        </template>
+                        <template x-if="$store.mediaLightbox.type==='video'">
+                            <div class="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
+                                <video :src="$store.mediaLightbox.src" controls autoplay class="w-full h-full object-contain"></video>
+                            </div>
+                        </template>
+                        <div class="mt-4 text-center text-sm text-white/80" x-show="$store.mediaLightbox.caption" x-text="$store.mediaLightbox.caption"></div>
+                    </div>
                 </div>
-            </div>
         <script>
             async function geocodeAddress(addr){
                 if(!addr) return null;
@@ -247,7 +263,7 @@
                 try { const res = await fetch(url, { headers:{'Accept-Language':'en'} }); if(!res.ok) return null; const data = await res.json(); if(data && data.length){ return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }; } } catch(e){ console.warn('Geocode failed', e); }
                 return null;
             }
-            window.initTherapistLocationMaps = async function(){
+        window.initTherapistLocationMaps = async function(){
                 const retry = ()=> setTimeout(window.initTherapistLocationMaps,120);
                 if(!window.Alpine || !Alpine.store){ return retry(); }
                 if(!window.L){ return retry(); }
@@ -271,6 +287,11 @@
                     } else {
                         el.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-[10px] text-[#555B6E] px-2 text-center">Map unavailable for this address.</div>';
                     }
+                    // Remove any loading overlay (search map element & wrapper)
+                    try {
+                        el.querySelectorAll('[data-map-loading]').forEach(o=>o.remove());
+                        if(el.parentElement) el.parentElement.querySelectorAll('[data-map-loading]').forEach(o=>o.remove());
+                    } catch(e){}
                     el.dataset.mapInit='1';
                 }
             };

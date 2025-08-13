@@ -14,6 +14,7 @@
         ids:[{% for therapist in therapists %}{{ therapist.user.id }}{% if not forloop.last %}, {% endif %}{% endfor %}],
         currentIndex:-1,
         _controller:null,
+        get therapistIds(){ return this.ids; },
         open(id, preserve=false){
           if(this.show && this.therapist && this.therapist.id === id && !preserve){ return; }
           if(!this.show){
@@ -32,8 +33,35 @@
             .catch(e=>{ if(e.name!== 'AbortError'){ this.error=e.message; } })
             .finally(()=>{ if(this._controller && this._controller.signal.aborted){ return; } this.loading=false; this.contentVisible=true; });
         },
-        next(){ if(!this.ids || this.currentIndex===-1) return; if(this.currentIndex < this.ids.length-1){ this.open(this.ids[this.currentIndex+1], true); } },
-        prev(){ if(!this.ids || this.currentIndex===-1) return; if(this.currentIndex > 0){ this.open(this.ids[this.currentIndex-1], true); } },
+        next(){
+          if(!this.ids || !this.ids.length) return;
+          if(this.currentIndex === -1){ this.currentIndex = 0; return; }
+          const isLastOnPage = this.currentIndex === this.ids.length - 1;
+          if(isLastOnPage){
+            // At end of current page: paginate forward if possible, else stop.
+            const hasNextPage = {% if page_obj.has_next %}true{% else %}false{% endif %};
+            if(hasNextPage){
+              const nextPageUrl = {% if page_obj.has_next %}"?{% if request.GET.q %}q={{ request.GET.q|urlencode }}&{% endif %}{% if request.GET.tier %}tier={{ request.GET.tier|urlencode }}&{% endif %}{% if request.GET.specialty %}specialty={{ request.GET.specialty|urlencode }}&{% endif %}page={{ page_obj.next_page_number }}"{% else %}null{% endif %};
+              if(nextPageUrl){ window.location = nextPageUrl + '#openfirst'; }
+            }
+            return;
+          }
+          this.open(this.ids[this.currentIndex+1], true);
+        },
+        prev(){
+          if(!this.ids || !this.ids.length) return;
+            if(this.currentIndex === -1){ this.currentIndex = 0; return; }
+          const isFirstOnPage = this.currentIndex === 0;
+          if(isFirstOnPage){
+            const hasPrevPage = {% if page_obj.has_previous %}true{% else %}false{% endif %};
+            if(hasPrevPage){
+              const prevPageUrl = {% if page_obj.has_previous %}"?{% if request.GET.q %}q={{ request.GET.q|urlencode }}&{% endif %}{% if request.GET.tier %}tier={{ request.GET.tier|urlencode }}&{% endif %}{% if request.GET.specialty %}specialty={{ request.GET.specialty|urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}"{% else %}null{% endif %};
+              if(prevPageUrl){ window.location = prevPageUrl + '#openlast'; }
+            }
+            return;
+          }
+          this.open(this.ids[this.currentIndex-1], true);
+        },
         close(){ this.show=false; this.contentVisible=false; requestAnimationFrame(()=>{ document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden'); }); }
       });
     }
@@ -318,6 +346,25 @@
     {% empty %}
       <div class="col-span-full text-center text-[#555B6E] text-lg">No therapists found matching your criteria.</div>
     {% endfor %}
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const hash = (window.location.hash || '').trim();
+        if(!hash) return;
+        const store = window.Alpine && Alpine.store('profileModal');
+        const collectIds = () => ([...document.querySelectorAll('[data-therapist-id]')].map(n=>parseInt(n.getAttribute('data-therapist-id'))).filter(Boolean));
+        const ids = collectIds();
+        const openById = (id) => { if(store && id){ store.open(id); } };
+        if(hash.startsWith('#autoopen=')){
+          const id = parseInt(hash.split('=')[1]);
+          openById(id);
+        } else if(hash === '#openfirst') {
+          if(ids.length) openById(ids[0]);
+        } else if(hash === '#openlast') {
+          if(ids.length) openById(ids[ids.length-1]);
+        }
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      });
+    </script>
     {% if paginator.num_pages > 1 %}
     <nav class="flex justify-center items-center mt-6" aria-label="Pagination">
       <ul class="flex gap-4 items-center">

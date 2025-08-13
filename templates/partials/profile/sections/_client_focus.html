@@ -1,0 +1,77 @@
+{# Client Focus & Approaches Section (extracted from profile_modal) #}
+<div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
+  <section id="section-client-focus" class="tc-section relative p-5 md:p-7 mt-4 md:mt-6 mb-6 md:mb-10 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg md:col-span-2"
+           style="box-shadow:0 6px 24px -10px #25454433;"
+           x-data="{ editable: {{ editable|default:0|yesno:'true,false' }} }"
+           x-show="editable || ($store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length) || ($store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length) || $store.profileModal.therapist.mental_health_role || ($store.profileModal.therapist.therapy_types && $store.profileModal.therapist.therapy_types.length) || ($store.profileModal.therapist.specialties && $store.profileModal.therapist.specialties.length) || ($store.profileModal.therapist.areas_of_expertise && $store.profileModal.therapist.areas_of_expertise.length)"
+           x-cloak>
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+      <div class="flex flex-col gap-1">
+        <h2 class="text-[22px] md:text-[24px] font-extrabold tracking-tight text-[#2e4a49] flex items-center gap-2">
+          <svg class="w-7 h-7 text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 12c2.21 0 4-1.79 4-4S14.21 4 12 4 8 5.79 8 8s1.79 4 4 4Zm0 0c-3.866 0-7 2.239-7 5v1h14v-1c0-2.761-3.134-5-7-5Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M18 8c0 1.657-.672 3.157-1.76 4.243A5.985 5.985 0 0 0 20 17v1h2v-1c0-2.577-2.061-4.773-5-5.656A5.985 5.985 0 0 0 20 8a6 6 0 0 0-6-6"/></svg>
+          Client Focus &amp; Approaches
+        </h2>
+        <p class="text-[11px] font-medium tracking-wide text-[#587a79] uppercase">Populations & clinical lens</p>
+      </div>
+      <div class="flex flex-wrap gap-2 text-[10px] font-semibold text-[#116466]" x-data="{ pt:()=>($store.profileModal.therapist.participant_types||[]).length, ag:()=>($store.profileModal.therapist.age_groups||[]).length }">
+        <span x-show="pt()" class="px-2 py-0.5 rounded-full bg-[#E5F4F2] ring-1 ring-[#BEE3DB]/70">Participants: <span x-text="pt()"></span></span>
+        <span x-show="ag()" class="px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB]/70">Ages: <span x-text="ag()"></span></span>
+      </div>
+    </div>
+    <div class="text-sm md:text-[15px] text-[#2e4a49] space-y-7">
+      <!-- Participant Types -->
+      <div data-edit-wrapper data-field="participant_types" class="space-y-2">
+        <div class="flex items-center gap-2 mb-1">
+          <h4 class="text-xs md:text-sm font-semibold uppercase tracking-wide text-[#555B6E] flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-md bg-[#E5F4F2] text-[#116466] text-[10px] font-bold uppercase">Participants</span>
+          </h4>
+          <button x-show="editable" type="button" class="text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] font-semibold" @click.stop="$dispatch('edit-participant-types',{ el:$el, current:[...($store.profileModal.therapist.participant_types||[])] })">Edit</button>
+        </div>
+        <template x-if="$store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length">
+          <div class="flex flex-wrap gap-2">
+            <template x-for="pt in $store.profileModal.therapist.participant_types" :key="'pt-tag-'+pt">
+              <span class="px-2.5 py-1 rounded-full bg-white text-[#116466] text-[11px] font-medium shadow-sm ring-1 ring-[#BEE3DB]" x-text="pt"></span>
+            </template>
+          </div>
+        </template>
+        <template x-if="!($store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length)">
+          <div class="flex items-center gap-2">
+            <p class="italic text-[12px] text-[#89B0AE]">No participant types yet.</p>
+            <button x-show="editable" type="button" class="px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] text-[11px] font-semibold" @click.stop="$dispatch('edit-participant-types',{ el:$el, current:[] })">Add</button>
+          </div>
+        </template>
+      </div>
+      <!-- Age Groups -->
+      <div data-edit-wrapper data-field="age_groups" class="space-y-2">
+        <div class="flex items-center gap-2 mb-1">
+          <h4 class="text-xs md:text-sm font-semibold uppercase tracking-wide text-[#555B6E] flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-md bg-white text-[#116466] text-[10px] font-bold uppercase ring-1 ring-[#BEE3DB]">Ages</span>
+          </h4>
+          <button x-show="editable" type="button" class="text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] font-semibold" @click.stop="$dispatch('edit-age-groups',{ el:$el, current:[...($store.profileModal.therapist.age_groups||[])] })">Edit</button>
+        </div>
+        <template x-if="$store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length">
+          <div class="flex flex-wrap gap-2">
+            <template x-for="ag in $store.profileModal.therapist.age_groups" :key="'ag-tag-'+ag">
+              <span class="px-2.5 py-1 rounded-full bg-white text-[#116466] text-[11px] font-medium shadow-sm ring-1 ring-[#BEE3DB]" x-text="ag"></span>
+            </template>
+          </div>
+        </template>
+        <template x-if="!($store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length)">
+          <div class="flex items-center gap-2">
+            <p class="italic text-[12px] text-[#89B0AE]">No age groups yet.</p>
+            <button x-show="editable" type="button" class="px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] text-[11px] font-semibold" @click.stop="$dispatch('edit-age-groups',{ el:$el, current:[] })">Add</button>
+          </div>
+        </template>
+      </div>
+      <!-- Role / Modalities / Specialties / Expertise (display only; editing handled elsewhere) -->
+      <div class="space-y-5">
+        <div x-show="$store.profileModal.therapist.mental_health_role" class="flex flex-col gap-1">
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-[#555B6E]">Role</h4>
+          <span class="inline-block px-3 py-1 rounded-full bg-white text-[#2e4a49] text-[12px] font-medium shadow-sm ring-1 ring-[#BEE3DB]" x-text="$store.profileModal.therapist.mental_health_role"></span>
+        </div>
+  <!-- Removed: Therapy Modalities, Top Specialties, Other Specialties, Areas of Expertise (redundant with dedicated sections) -->
+      </div>
+    </div>
+  </section>
+</div>

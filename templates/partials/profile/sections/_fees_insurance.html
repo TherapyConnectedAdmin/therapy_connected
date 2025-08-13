@@ -1,0 +1,221 @@
+{# Fees & Insurance Section (extracted from profile_modal) #}
+<div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
+  <section id="section-fees" class="tc-section relative p-5 md:p-7 mt-4 md:mt-6 mb-6 md:mb-10 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg md:col-span-2" style="box-shadow:0 6px 24px -10px #25454433;"
+           {% if editable %}x-data="feesInsuranceManager()" x-init="init()"{% else %}
+           x-data="{ editable:false, fees:{individual:'',couples:''}, insuranceForm:{provider:''}, providerResults:[], providerOpen:false, providerLoading:false, insError:'', fmt(v){ if(v==null||v==='') return ''; const num=parseFloat((''+v).replace(/[^0-9.]/g,'')); if(isNaN(num)) return v; return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:0,maximumFractionDigits:0}).format(num); }, formatFeeInput(){return '';}, setSliding(){}, toggleOON(){}, removeInsurance(){}, addInsurance(){}, onProviderInput(){}, providerKeydown(){}, clickAway(){}, selectProvider(){}, onProviderFocus(){} }"{% endif %}
+           x-show="{{ editable|default:0|yesno:'true,false' }} || $store.profileModal.therapist.finance_note || $store.profileModal.therapist.no_show_policy || $store.profileModal.therapist.individual_session_cost || $store.profileModal.therapist.couples_session_cost || $store.profileModal.therapist.sliding_scale_pricing_available || ($store.profileModal.therapist.insurance_details && $store.profileModal.therapist.insurance_details.length)"
+           x-cloak
+           aria-labelledby="fees-insurance-heading">
+    <div class="mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+      <div class="flex flex-col gap-1">
+        <h2 id="fees-insurance-heading" class="text-[22px] md:text-[24px] font-extrabold tracking-tight text-[#2e4a49] flex items-center gap-2">
+          <svg class="w-7 h-7 text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h18M5 5v14a2 2 0 0 0 2 2h6.5a4.5 4.5 0 0 0 4.5-4.5V5"/><path stroke-linecap="round" stroke-linejoin="round" d="M16 14h-5c-1.5 0-2.5-.5-2.5-2S9.5 10 11 10h3c1.5 0 2.5-.5 2.5-2s-1-2-2.5-2H8"/><path stroke-linecap="round" stroke-linejoin="round" d="M11 4v2m0 10v2"/></svg>
+          Fees &amp; Insurance
+        </h2>
+        <p class="text-[11px] font-medium tracking-wide text-[#587a79] uppercase">Cost transparency & coverage</p>
+        <p class="text-[11px] text-[#89B0AE]" x-show="editable">Keep fees transparent; clients value clarity.</p>
+      </div>
+      <div class="flex flex-wrap gap-2 text-[10px] font-semibold text-[#116466]" x-data="{ ind:()=> $store.profileModal.therapist.individual_session_cost, coup:()=> $store.profileModal.therapist.couples_session_cost, prov:()=> ($store.profileModal.therapist.insurance_details||[]).length }">
+        <span x-show="ind()" class="px-2 py-0.5 rounded-full bg-[#E5F4F2] ring-1 ring-[#BEE3DB]/70">Individual <span x-text="fmt(ind())"></span></span>
+        <span x-show="coup()" class="px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB]/70">Couples <span x-text="fmt(coup())"></span></span>
+        <span x-show="$store.profileModal.therapist.sliding_scale_pricing_available" class="px-2 py-0.5 rounded-full bg-[#116466] text-white">Sliding Scale</span>
+        <span x-show="prov()" class="px-2 py-0.5 rounded-full bg-[#FFE8E5] text-[#9b4d49] ring-1 ring-[#FFC9BC]">Providers: <span x-text="prov()"></span></span>
+      </div>
+    </div>
+    <!-- Finance & No-Show side-by-side on larger screens -->
+    <div class="mb-8 grid gap-6 md:grid-cols-2">
+      <!-- Finance Note -->
+      <div data-edit-wrapper data-field="finance_note">
+        <div class="flex items-center gap-2 mb-2">
+          <h4 class="text-xs md:text-sm font-semibold tracking-wide text-[#116466] flex items-center gap-2"><span class="px-2 py-0.5 rounded-md bg-[#E5F4F2] text-[#116466] text-[10px] font-bold uppercase">Note</span> Finance</h4>
+          <button type="button" x-show="editable" class="text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] font-semibold" @click.stop="$dispatch('edit-rich-text',{field:'finance_note',current:$store.profileModal.therapist.finance_note||'', el:$el})">Edit</button>
+        </div>
+        <template x-if="$store.profileModal.therapist.finance_note">
+          <div class="text-sm md:text-[15px] leading-relaxed font-light text-[#2e4a49] whitespace-pre-line bg-white/70 rounded-xl border border-[#BEE3DB] p-4" x-html="$store.profileModal.therapist.finance_note"></div>
+        </template>
+        <template x-if="!$store.profileModal.therapist.finance_note">
+          <p class="italic text-[12px] text-[#89B0AE]" x-text="editable ? 'Add a helpful note about fees, policies, or superbills…' : 'No additional fee information.'"></p>
+        </template>
+      </div>
+      <!-- No-Show Policy -->
+      <div data-edit-wrapper data-field="no_show_policy">
+        <div class="flex items-center gap-2 mb-2">
+          <h4 class="text-xs md:text-sm font-semibold tracking-wide text-[#116466] flex items-center gap-2"><span class="px-2 py-0.5 rounded-md bg-[#FFE8E5] text-[#9b4d49] text-[10px] font-bold uppercase">Policy</span> No-Show</h4>
+          <button type="button" x-show="editable" class="text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] font-semibold" @click.stop="$dispatch('edit-rich-text',{field:'no_show_policy',current:$store.profileModal.therapist.no_show_policy||'', el:$el})">Edit</button>
+        </div>
+        <template x-if="$store.profileModal.therapist.no_show_policy">
+          <div class="text-sm md:text-[15px] leading-relaxed font-light text-[#2e4a49] whitespace-pre-line bg-white/70 rounded-xl border border-[#BEE3DB] p-4" x-html="$store.profileModal.therapist.no_show_policy"></div>
+        </template>
+        <template x-if="!$store.profileModal.therapist.no_show_policy">
+          <p class="italic text-[12px] text-[#89B0AE]" x-text="editable ? 'Describe your cancellation window, fees, and what counts as a no-show…' : 'No no-show policy provided.'"></p>
+        </template>
+      </div>
+    </div>
+    <!-- Two-column responsive layout -->
+    <div class="grid md:grid-cols-2 gap-8">
+      <!-- Fees Column -->
+      <div class="flex flex-col gap-5" aria-labelledby="fees-col-heading">
+        <h4 id="fees-col-heading" class="text-xs font-semibold uppercase tracking-wide text-[#555B6E]">Session Fees</h4>
+        <ul class="space-y-2" role="list">
+          <!-- Individual Fee Row -->
+          <li class="p-2 rounded-lg transition ring-1 ring-transparent hover:ring-[#BEE3DB] hover:bg-white/60" x-data="{editing:false}" data-edit-wrapper data-field="individual_session_cost">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex flex-col cursor-pointer select-none" @click="editable && !editing && (editing=true, $nextTick(()=> $refs.individualInput && $refs.individualInput.focus()))">
+                <span class="text-sm font-semibold text-[#116466] flex items-center gap-1">
+                  Individual
+                  <svg x-show="editable && !editing" class="w-3.5 h-3.5 text-[#89B0AE] group-hover:text-[#116466]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232a2.5 2.5 0 113.536 3.536L8.75 18.786a4 4 0 01-1.414.94l-2.357.786.786-2.357a4 4 0 01.94-1.414l10.527-10.51z"/></svg>
+                </span>
+                <template x-if="!editing && $store.profileModal.therapist.individual_session_cost">
+                  <span class="text-base font-light text-[#2e4a49]" x-text="fmt($store.profileModal.therapist.individual_session_cost)"></span>
+                </template>
+                <template x-if="!editing && !$store.profileModal.therapist.individual_session_cost">
+                  <span class="italic text-[12px] text-[#89B0AE]">Not provided</span>
+                </template>
+                <div x-show="editing" class="flex items-center gap-2 mt-1" x-cloak>
+                  <input x-ref="individualInput" type="text" x-model="fees.individual" placeholder="$0" inputmode="decimal" class="flex-1 rounded-md border border-[#BEE3DB] bg-white px-2 py-1 text-sm focus:border-[#116466] focus:ring-1 focus:ring-[#116466]" @keydown.enter.prevent="saveFee('individual_session_cost', fees.individual); editing=false" @keydown.escape.prevent="fees.individual = formatFeeInput('individual_session_cost'); editing=false" />
+                  <button type="button" @click.stop="saveFee('individual_session_cost', fees.individual); editing=false" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold hover:bg-[#0d4c4d]">Save</button>
+                  <button type="button" @click.stop="fees.individual = formatFeeInput('individual_session_cost'); editing=false" class="text-[10px] px-2 py-1 rounded bg-white ring-1 ring-[#BEE3DB] text-[#116466] font-semibold hover:bg-[#E5F4F2]">Cancel</button>
+                </div>
+              </div>
+              <div x-show="editable && !editing" class="flex items-center">
+                <button type="button" @click.stop="editing=true; $nextTick(()=> $refs.individualInput && $refs.individualInput.focus())" class="text-[10px] px-2 py-1 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] font-semibold">Edit</button>
+              </div>
+            </div>
+          </li>
+          <!-- Couples Fee Row -->
+          <li class="p-2 rounded-lg transition ring-1 ring-transparent hover:ring-[#BEE3DB] hover:bg-white/60" x-data="{editing:false}" data-edit-wrapper data-field="couples_session_cost">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex flex-col cursor-pointer select-none" @click="editable && !editing && (editing=true, $nextTick(()=> $refs.couplesInput && $refs.couplesInput.focus()))">
+                <span class="text-sm font-semibold text-[#116466] flex items-center gap-1">
+                  Couples
+                  <svg x-show="editable && !editing" class="w-3.5 h-3.5 text-[#89B0AE] group-hover:text-[#116466]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232a2.5 2.5 0 113.536 3.536L8.75 18.786a4 4 0 01-1.414.94l-2.357.786.786-2.357a4 4 0 01.94-1.414l10.527-10.51z"/></svg>
+                </span>
+                <template x-if="!editing && $store.profileModal.therapist.couples_session_cost">
+                  <span class="text-base font-light text-[#2e4a49]" x-text="fmt($store.profileModal.therapist.couples_session_cost)"></span>
+                </template>
+                <template x-if="!editing && !$store.profileModal.therapist.couples_session_cost">
+                  <span class="italic text-[12px] text-[#89B0AE]">Not provided</span>
+                </template>
+                <div x-show="editing" class="flex items-center gap-2 mt-1" x-cloak>
+                  <input x-ref="couplesInput" type="text" x-model="fees.couples" placeholder="$0" inputmode="decimal" class="flex-1 rounded-md border border-[#BEE3DB] bg-white px-2 py-1 text-sm focus:border-[#116466] focus:ring-1 focus:ring-[#116466]" @keydown.enter.prevent="saveFee('couples_session_cost', fees.couples); editing=false" @keydown.escape.prevent="fees.couples = formatFeeInput('couples_session_cost'); editing=false" />
+                  <button type="button" @click.stop="saveFee('couples_session_cost', fees.couples); editing=false" class="text-[10px] px-2 py-1 rounded bg-[#116466] text-white font-semibold hover:bg-[#0d4c4d]">Save</button>
+                  <button type="button" @click.stop="fees.couples = formatFeeInput('couples_session_cost'); editing=false" class="text-[10px] px-2 py-1 rounded bg-white ring-1 ring-[#BEE3DB] text-[#116466] font-semibold hover:bg-[#E5F4F2]">Cancel</button>
+                </div>
+              </div>
+              <div x-show="editable && !editing" class="flex items-center">
+                <button type="button" @click.stop="editing=true; $nextTick(()=> $refs.couplesInput && $refs.couplesInput.focus())" class="text-[10px] px-2 py-1 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] font-semibold">Edit</button>
+              </div>
+            </div>
+          </li>
+        </ul>
+        <!-- Sliding Scale Yes/No -->
+        <div class="pt-3 mt-4 border-t border-[#BEE3DB]/60" data-edit-wrapper data-field="sliding_scale_pricing_available">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex flex-col">
+              <span class="text-sm font-semibold text-[#116466] flex items-center gap-2">Sliding Scale
+                <template x-if="$store.profileModal.therapist.sliding_scale_pricing_available && !editable"><span class="px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[#116466] text-[10px] font-semibold">Offered</span></template>
+                <template x-if="!$store.profileModal.therapist.sliding_scale_pricing_available && !editable"><span class="px-2 py-0.5 rounded-full bg-[#ECEBE8] text-[#555B6E] text-[10px] font-semibold">Not Offered</span></template>
+              </span>
+              <p class="text-[11px] text-[#555B6E] leading-snug max-w-sm mt-1">Discounted rates based on a client's income and ability to pay. Indicate if you currently offer this.</p>
+            </div>
+            <div x-show="editable" class="flex items-center gap-2">
+              <button type="button" @click="setSliding(true)" :class="$store.profileModal.therapist.sliding_scale_pricing_available ? 'bg-[#116466] text-white' : 'bg-white text-[#116466]'" class="px-3 py-1.5 rounded-full ring-1 ring-[#BEE3DB] text-[11px] font-semibold hover:bg-[#E5F4F2]">Yes</button>
+              <button type="button" @click="setSliding(false)" :class="!$store.profileModal.therapist.sliding_scale_pricing_available ? 'bg-[#116466] text-white' : 'bg-white text-[#116466]'" class="px-3 py-1.5 rounded-full ring-1 ring-[#BEE3DB] text-[11px] font-semibold hover:bg-[#E5F4F2]">No</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Insurance Column -->
+      <div class="flex flex-col gap-5" aria-labelledby="insurance-col-heading">
+        <h4 id="insurance-col-heading" class="text-xs md:text-sm font-semibold uppercase tracking-wide text-[#555B6E] flex items-center gap-2">
+          <svg class="w-4 h-4 text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8M8 14h5"/></svg>
+          Insurance
+        </h4>
+        <template x-if="$store.profileModal.therapist.insurance_details && $store.profileModal.therapist.insurance_details.length">
+          <div class="flex flex-wrap gap-2" role="list">
+            <template x-for="(ins, idx) in $store.profileModal.therapist.insurance_details" :key="ins.provider + idx">
+              <div class="group flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-[#116466] text-[11px] font-medium shadow-sm ring-1 ring-[#BEE3DB] pr-2" :aria-label="'Insurance Provider ' + ins.provider">
+                <span x-text="ins.provider"></span>
+                <span x-show="ins.out_of_network" class="px-1 py-0.5 text-[9px] rounded bg-[#FFE8E5] text-[#9b4d49] font-semibold">OON</span>
+                <div class="flex items-center gap-1 ml-1 opacity-0 group-hover:opacity-100 transition" x-show="editable">
+                  <button type="button" class="text-[10px] px-1.5 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2]" @click="toggleOON(idx)" x-text="ins.out_of_network ? 'In' : 'OON'"></button>
+                  <button type="button" class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FFE8E5] text-[#9b4d49] font-semibold hover:bg-[#FFD5CF]" @click="removeInsurance(idx)">✕</button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+        <template x-if="!($store.profileModal.therapist.insurance_details && $store.profileModal.therapist.insurance_details.length)">
+          <p class="italic text-[12px] text-[#89B0AE]">No insurance providers listed.</p>
+        </template>
+        <!-- Editor -->
+        <div x-show="editable" class="mt-2 rounded-xl bg-white/70 p-3 ring-1 ring-[#BEE3DB] flex flex-col gap-3" data-edit-wrapper data-field="insurance_details" aria-label="Edit Insurance Providers">
+          <div class="flex flex-col gap-2 relative" @keydown="providerKeydown($event)" @click.outside="clickAway()">
+            <div class="flex items-center gap-2">
+              <div class="relative flex-1">
+                <input type="text" x-model="insuranceForm.provider" @input="onProviderInput()" placeholder="Search provider" class="w-full tc-input px-3 py-2 text-sm border border-[#BEE3DB] rounded-md focus:border-[#116466] focus:ring-1 focus:ring-[#116466] bg-white" aria-label="Insurance Provider" @focus="onProviderFocus ? onProviderFocus() : (insuranceForm.provider ? onProviderInput() : (providerResults.length ? (providerOpen=true) : onProviderInput()))" />
+                <div x-show="providerLoading" class="absolute top-1/2 -translate-y-1/2 right-2 animate-spin rounded-full h-4 w-4 border-[2px] border-[#89B0AE] border-t-transparent"></div>
+                <template x-if="providerOpen && providerResults.length">
+                  <ul class="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-[#BEE3DB] bg-white shadow-lg text-sm" role="listbox">
+                    <template x-for="(p,i) in providerResults" :key="p.id">
+                      <li :id="'prov-opt-'+i" @mousedown.prevent="selectProvider(i)" :class="i===providerSelectedIndex ? 'bg-[#E5F4F2] text-[#116466]' : 'hover:bg-[#F1F8F7]'" class="px-3 py-1.5 cursor-pointer flex items-center justify-between">
+                        <span x-text="p.name"></span>
+                        <span class="text-[10px] text-[#89B0AE]" x-show="p.name.toLowerCase() === insuranceForm.provider.toLowerCase()">match</span>
+                      </li>
+                    </template>
+                  </ul>
+                </template>
+              </div>
+              <button type="button" @click="addInsurance()" :disabled="!insuranceForm.provider.trim()" class="px-3 py-2 rounded-full text-[11px] font-semibold disabled:opacity-30 disabled:cursor-not-allowed bg-[#116466] text-white hover:bg-[#0d4c4d]">Add</button>
+            </div>
+            <p class="text-[10px] text-[#555B6E] leading-snug">Type a provider then click Add or press Enter. Suggestions appear as you type. Auto-saves.</p>
+          </div>
+          <template x-if="insError"><p class="text-[11px] text-[#9b4d49]" x-text="insError"></p></template>
+          <p class="text-[10px] text-[#89B0AE]" x-show="providerLoading">Searching...</p>
+        </div>
+      </div>
+    </div>
+    <!-- Accessibility Summary List (hidden) -->
+    <ul class="sr-only" aria-hidden="true">
+      <li>Individual fee: <span x-text="fmt($store.profileModal.therapist.individual_session_cost)"></span></li>
+      <li>Couples fee: <span x-text="fmt($store.profileModal.therapist.couples_session_cost)"></span></li>
+      <li x-show="$store.profileModal.therapist.sliding_scale_pricing_available">Sliding scale offered</li>
+    </ul>
+  </section>
+</div>
+
+<!-- Fallback Fees & Insurance JS manager (only if missing) -->
+<script>
+if(typeof feesInsuranceManager !== 'function'){
+  function feesInsuranceManager(){
+    const csrf = window.TC_CSRF;
+    return {
+      editable: {{ editable|default:0|yesno:'true,false' }},
+      fees:{ individual:'', couples:'' },
+      insuranceForm:{ provider:'' },
+      insError:'',
+      providerQuery:'', providerResults:[], providerLoading:false, providerOpen:false, providerSelectedIndex:-1, providerDebounce:null,
+      insuranceSaveTimer:null,
+      init(){ const s=Alpine.store('profileModal'); if(s && s.therapist){ this.fees.individual = s.therapist.individual_session_cost || ''; this.fees.couples = s.therapist.couples_session_cost || ''; } },
+      fmt(v){ if(v==null||v==='') return ''; const num=parseFloat((''+v).replace(/[^0-9.]/g,'')); if(isNaN(num)) return v; return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:0,maximumFractionDigits:0}).format(num); },
+      normalizeCurrency(raw){ if(!raw) return ''; const digits=(''+raw).replace(/[^0-9.]/g,''); if(!digits) return ''; const num=parseFloat(digits); if(isNaN(num)) return ''; return Math.round(num); },
+      formatFeeInput(field){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return ''; const v=s.therapist[field]; if(!v && v!==0) return ''; const num=this.normalizeCurrency(v); return num? ('$'+num):''; },
+      saveFee(field,val){ const s=Alpine.store('profileModal'); const norm=this.normalizeCurrency(val); window.__tcSaveProfileField(field, norm? norm : ''); if(s&&s.therapist){ s.therapist[field]= norm? norm : ''; } },
+      setSliding(val){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; if(s.therapist.sliding_scale_pricing_available === val) return; window.__tcSaveProfileField('sliding_scale_pricing_available', val); s.therapist.sliding_scale_pricing_available = val; },
+      // Insurance logic
+      addInsurance(){ const raw=(this.insuranceForm.provider||'').trim(); if(!raw){ this.insError='Provider required'; return; } this.insError=''; const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); if(list.some(i=> (i.provider||'').toLowerCase()===raw.toLowerCase())){ this.insuranceForm.provider=''; this.providerResults=[]; this.providerOpen=false; return; } list.push({ provider: raw, out_of_network:false }); s.therapist.insurance_details=list; this.insuranceForm.provider=''; this.providerResults=[]; this.providerOpen=false; this.providerSelectedIndex=-1; this.scheduleInsuranceSave(); },
+      removeInsurance(idx){ const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); list.splice(idx,1); s.therapist.insurance_details=list; this.scheduleInsuranceSave(); },
+      toggleOON(idx){ const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); if(list[idx]){ list[idx].out_of_network=!list[idx].out_of_network; } s.therapist.insurance_details=list; this.scheduleInsuranceSave(); },
+      saveInsurance(){ const s=Alpine.store('profileModal'); const payload=(s.therapist.insurance_details||[]).map(i=>({provider:i.provider, out_of_network:!!i.out_of_network})); window.__tcSaveProfileField('insurance_details', payload); },
+      scheduleInsuranceSave(){ if(this.insuranceSaveTimer) clearTimeout(this.insuranceSaveTimer); this.insuranceSaveTimer=setTimeout(()=> this.saveInsurance(), 600); },
+      // Provider search
+      onProviderInput(){ this.providerQuery = this.insuranceForm.provider; this.providerSelectedIndex=-1; if(this.providerDebounce) clearTimeout(this.providerDebounce); if(!this.providerQuery){ this.providerResults=[]; this.providerOpen=false; return; } this.providerDebounce=setTimeout(()=> this.fetchProviders(), 220); },
+      onProviderFocus(){ if(this.insuranceForm.provider && this.insuranceForm.provider.trim()){ this.onProviderInput(); return; } if(this.providerResults.length){ this.providerOpen=true; return; } this.providerLoading=true; fetch('/users/api/lookups/insurance_providers/?q=').then(r=>r.json()).then(d=>{ this.providerResults=(d.results||[]); this.providerOpen=true; }).catch(()=>{ this.providerResults=[]; this.providerOpen=false; }).finally(()=> this.providerLoading=false); },
+      fetchProviders(){ this.providerLoading=true; fetch('/users/api/lookups/insurance_providers/?q='+encodeURIComponent(this.providerQuery)).then(r=>r.json()).then(d=>{ this.providerResults=(d.results||[]); this.providerOpen=true; }).catch(()=>{ this.providerResults=[]; this.providerOpen=false; }).finally(()=> this.providerLoading=false); },
+      selectProvider(idx){ const item=this.providerResults[idx]; if(!item) return; this.insuranceForm.provider=item.name; this.providerOpen=false; this.providerResults=[]; this.addInsurance(); },
+      providerKeydown(e){ if(!this.providerOpen){ if(e.key==='ArrowDown' && this.providerResults.length){ this.providerOpen=true; e.preventDefault(); } else if(e.key==='Enter'){ if(this.insuranceForm.provider.trim()){ e.preventDefault(); this.addInsurance(); } } return; } if(e.key==='ArrowDown'){ e.preventDefault(); this.providerSelectedIndex=(this.providerSelectedIndex+1)%this.providerResults.length; } else if(e.key==='ArrowUp'){ e.preventDefault(); this.providerSelectedIndex=(this.providerSelectedIndex-1+this.providerResults.length)%this.providerResults.length; } else if(e.key==='Enter'){ e.preventDefault(); if(this.providerSelectedIndex>-1){ this.selectProvider(this.providerSelectedIndex); } if(this.insuranceForm.provider.trim()){ this.addInsurance(); } } else if(e.key==='Escape'){ this.providerOpen=false; } },
+      clickAway(){ this.providerOpen=false; }
+    };
+  }
+}
+</script>

@@ -37,7 +37,7 @@ def therapists_page(request):
     lgbtqia_ids = [v for v in request.GET.getlist('lgbtqia') if v.strip()]
     other_identity_ids = [v for v in request.GET.getlist('other_identity') if v.strip()]
     sort_opt = request.GET.get('sort', 'distance').strip()  # distance|name (recent removed)
-    therapists = TherapistProfile.objects.filter(user__is_active=True, user__onboarding_status='active').prefetch_related('locations')
+    therapists = TherapistProfile.objects.filter(user__is_active=True, user__onboarding_status='active').only('id','first_name','last_name','slug','license_type','credentials_note','intro_statement','personal_statement_q1').prefetch_related('locations')
     # Prefetch for filters
     therapists = therapists.prefetch_related(
         'participant_types', 'age_groups', 'types_of_therapy__therapy_type',
@@ -104,6 +104,19 @@ def therapists_page(request):
         therapists = therapists.filter(other_identities__other_identity__id__in=int_other_identity_ids)
     # Ensure distinct after multi joins
     therapists = therapists.distinct()
+    # Ensure any legacy profiles missing slug have one (best-effort, avoids 404 for card link)
+    from django.utils.text import slugify
+    dirty = []
+    for tp in therapists:
+        if not getattr(tp, 'slug', ''):
+            base = f"{tp.first_name} {tp.last_name}".strip() or str(tp.pk)
+            tp.slug = slugify(base)[:150]
+            dirty.append(tp)
+    if dirty:
+        try:
+            TherapistProfile.objects.bulk_update(dirty, ['slug'])
+        except Exception:
+            pass
     # Removed specialty filtering due to missing PracticeAreaTag model
 
     user_zip = request.session.get('user_zip')

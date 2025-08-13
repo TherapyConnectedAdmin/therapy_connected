@@ -1,0 +1,127 @@
+{# Contact & Web Section (owner-only, standardized wrapper) #}
+{% if standalone and editable %}
+<div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
+  <section id="section-contact" class="tc-section relative p-5 md:p-7 mt-4 md:mt-6 mb-6 md:mb-8 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg" style="box-shadow:0 6px 28px -10px #25454433;" x-data="contactWebManager()" x-init="init()" x-cloak>
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <h2 class="text-xl md:text-[22px] font-semibold tracking-tight text-[#555B6E] mb-2">Contact &amp; Web</h2>
+        <p class="text-[10px] text-[#89B0AE] leading-snug max-w-lg">Only visible to you while editing. Provide at least one reliable contact method.</p>
+      </div>
+      <div class="flex items-center gap-2" x-show="!editing">
+        <button type="button" @click="startEdit()" class="px-3 py-1.5 rounded-full bg-[#116466] text-white text-[11px] font-semibold shadow hover:bg-[#0d4c4d]">Edit</button>
+      </div>
+    </div>
+    <!-- Read View -->
+    <div x-show="!editing" class="text-xs text-[#555B6E] space-y-2">
+      <div class="grid sm:grid-cols-2 gap-x-6 gap-y-2">
+        <div x-show="$store.profileModal.therapist.phone_number">Phone: <span class="font-semibold" x-text="$store.profileModal.therapist.phone_number"></span><span x-show="$store.profileModal.therapist.phone_extension"> x<span x-text="$store.profileModal.therapist.phone_extension"></span></span></div>
+        <div x-show="$store.profileModal.therapist.mobile_number">Mobile: <span class="font-semibold" x-text="$store.profileModal.therapist.mobile_number"></span></div>
+        <div x-show="$store.profileModal.therapist.practice_email">Practice Email: <span class="font-semibold" x-text="$store.profileModal.therapist.practice_email"></span></div>
+        <div x-show="$store.profileModal.therapist.office_email">Office Email: <span class="font-semibold" x-text="$store.profileModal.therapist.office_email"></span></div>
+        <div x-show="$store.profileModal.therapist.practice_website_url">Website: <a :href="$store.profileModal.therapist.practice_website_url" class="text-[#116466] underline font-semibold" target="_blank" rel="noopener">Visit Site</a></div>
+      </div>
+      <div class="flex flex-wrap gap-2 pt-2" x-show="socialList().length">
+        <template x-for="soc in socialList()" :key="soc.key">
+          <a :href="soc.url" target="_blank" class="text-[10px] px-2 py-1 rounded bg-[#E5F4F2] text-[#116466] font-semibold" x-text="soc.label"></a>
+        </template>
+      </div>
+      <div class="pt-2 grid sm:grid-cols-2 gap-2 text-[10px] text-[#555B6E]">
+        <div x-show="$store.profileModal.therapist.receive_calls_from_client">Accepting Client Calls</div>
+        <div x-show="$store.profileModal.therapist.receive_texts_from_clients">Can Receive Texts</div>
+        <div x-show="$store.profileModal.therapist.receive_emails_from_clients">Can Receive Client Emails</div>
+        <div x-show="$store.profileModal.therapist.receive_emails_when_client_calls">Email Notification on Calls</div>
+      </div>
+    </div>
+    <!-- Edit Form -->
+    <form x-show="editing" @submit.prevent="save()" class="space-y-5" x-transition>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Phone Number</label>
+          <input type="text" x-model="form.phone_number" maxlength="32" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="(###) ###-####" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Phone Extension</label>
+          <input type="text" x-model="form.phone_extension" maxlength="8" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="Ext" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Mobile Number</label>
+          <input type="text" x-model="form.mobile_number" maxlength="32" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="(###) ###-####" />
+        </div>
+        <div class="flex items-center gap-2 pt-6">
+          <label class="inline-flex items-center gap-1 text-[11px] font-medium text-[#555B6E]"><input type="checkbox" x-model="form.receive_texts_from_clients" class="accent-[#116466]" /> Allow Texts</label>
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Practice Email</label>
+          <input type="email" x-model="form.practice_email" maxlength="128" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="you@practice.com" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Office Email</label>
+          <input type="email" x-model="form.office_email" maxlength="128" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="office@practice.com" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Website URL</label>
+          <input type="url" x-model="form.practice_website_url" maxlength="256" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="https://" />
+        </div>
+        <div class="flex flex-col gap-2 pt-6">
+          <label class="inline-flex items-center gap-1 text-[11px] font-medium text-[#555B6E]"><input type="checkbox" x-model="form.receive_calls_from_client" class="accent-[#116466]" /> Accept Calls</label>
+          <label class="inline-flex items-center gap-1 text-[11px] font-medium text-[#555B6E]"><input type="checkbox" x-model="form.receive_emails_from_clients" class="accent-[#116466]" /> Accept Client Emails</label>
+          <label class="inline-flex items-center gap-1 text-[11px] font-medium text-[#555B6E]"><input type="checkbox" x-model="form.receive_emails_when_client_calls" class="accent-[#116466]" /> Email When Client Calls</label>
+        </div>
+      </div>
+      <div class="border-t border-[#BEE3DB] pt-4 grid md:grid-cols-3 gap-4">
+        <template x-for="f in socialFields" :key="f.key">
+          <div>
+            <label class="block text-[11px] font-semibold text-[#555B6E] mb-1" x-text="f.label"></label>
+            <input :type="f.type" x-model="form[f.key]" maxlength="256" class="w-full border border-[#BEE3DB] rounded-md px-2 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" :placeholder="f.placeholder" />
+          </div>
+        </template>
+      </div>
+      <div class="flex items-center gap-3 pt-2">
+        <button type="submit" :disabled="saving" class="px-4 py-2 rounded-full bg-[#116466] text-white text-[12px] font-semibold shadow disabled:opacity-40" x-text="saving ? 'Saving…' : 'Save Changes'"></button>
+        <button type="button" @click="cancel()" :disabled="saving" class="px-4 py-2 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[12px] font-medium hover:bg-[#E5F4F2]">Cancel</button>
+        <p class="text-[11px] text-[#9b4d49]" x-show="error" x-text="error"></p>
+        <p class="text-[11px] text-[#89B0AE]" x-show="success">Saved</p>
+      </div>
+    </form>
+  </section>
+</div>
+{% endif %}
+
+<!-- Fallback no-op contactWebManager (only if absent) -->
+<script>
+if(typeof contactWebManager === 'undefined'){
+  function contactWebManager(){
+    const csrf = typeof TC_CSRF !== 'undefined' ? TC_CSRF : '';
+    return { editing:false, saving:false, success:false, error:'',
+      socialFields:[
+        {key:'facebook_url', label:'Facebook URL', placeholder:'https://facebook.com/...', type:'url'},
+        {key:'instagram_url', label:'Instagram URL', placeholder:'https://instagram.com/...', type:'url'},
+        {key:'linkedin_url', label:'LinkedIn URL', placeholder:'https://linkedin.com/in/...', type:'url'},
+        {key:'twitter_url', label:'Twitter URL', placeholder:'https://x.com/...', type:'url'},
+        {key:'tiktok_url', label:'TikTok URL', placeholder:'https://tiktok.com/@...', type:'url'},
+        {key:'youtube_url', label:'YouTube URL', placeholder:'https://youtube.com/@...', type:'url'}
+      ],
+      form:{ phone_number:'', phone_extension:'', mobile_number:'', practice_email:'', office_email:'', practice_website_url:'',
+             receive_calls_from_client:false, receive_texts_from_clients:false, receive_emails_from_clients:false, receive_emails_when_client_calls:false,
+             facebook_url:'', instagram_url:'', linkedin_url:'', twitter_url:'', tiktok_url:'', youtube_url:'' },
+      init(){ this.load(); },
+      load(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const t=s.therapist; for(const k in this.form){ this.form[k] = (t[k]!==undefined && t[k]!==null) ? t[k] : (typeof this.form[k]==='boolean'? false : ''); } },
+      startEdit(){ this.load(); this.editing=true; this.success=false; this.error=''; },
+      cancel(){ if(this.saving) return; this.editing=false; this.error=''; },
+      socialList(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return []; const map=[['facebook_url','Facebook'],['instagram_url','Instagram'],['linkedin_url','LinkedIn'],['twitter_url','Twitter'],['tiktok_url','TikTok'],['youtube_url','YouTube']]; return map.filter(([k])=> s.therapist[k]).map(([k,l])=> ({key:k,label:l,url:s.therapist[k]})); },
+      validate(){ const urlFields=['practice_website_url','facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url']; const urlRe=/^https?:\/\//i; for(const f of urlFields){ const v=this.form[f]; if(v && !urlRe.test(v)){ this.error=f.replace(/_/g,' ')+' must start with http'; return false; } } return true; },
+      buildPayload(){ const p={}; for(const k in this.form){ p[k]=this.form[k]; } return p; },
+      save(){ if(this.saving) return; this.error=''; if(!this.validate()) return; this.saving=true; const payload=this.buildPayload(); const s=Alpine.store('profileModal'); const prev={}; if(s&&s.therapist){ for(const k in payload){ prev[k]=s.therapist[k]; s.therapist[k]=payload[k]; } }
+        fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload)})
+          .then(r=>r.json().then(d=>[r,d]))
+          .then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && Object.values(d.errors)[0]) || d.error || 'Save failed'; if(s&&s.therapist){ for(const k in prev){ s.therapist[k]=prev[k]; } } return; }
+            if(s&&s.therapist){ for(const k in d){ if(k in this.form) s.therapist[k]=d[k]; } }
+            this.success=true; this.editing=false; setTimeout(()=> this.success=false,1800);
+          })
+          .catch(()=>{ this.error='Network error'; if(s&&s.therapist){ for(const k in prev){ s.therapist[k]=prev[k]; } } })
+          .finally(()=> this.saving=false);
+      }
+    };
+  }
+}
+</script>

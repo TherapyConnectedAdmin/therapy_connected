@@ -1,0 +1,79 @@
+{# Identity Section (extracted verbatim from profile_modal for incremental refactor) #}
+<!-- My Identity (shown only on edit page, above About Me) -->
+<div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
+  <section id="section-identity" class="tc-section relative p-5 md:p-7 mt-8 md:mt-10 mb-6 md:mb-8 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg" style="box-shadow:0 6px 28px -10px #25454433;">
+    <div class="flex flex-col gap-4">
+  <h2 class="text-xl md:text-[22px] font-semibold tracking-tight text-[#555B6E] flex items-center gap-3">
+        <span>My Identity</span>
+        <span class="text-[10px] font-medium text-[#89B0AE]">(Helps clients feel seen)</span>
+      </h2>
+      <p class="text-[12px] text-[#89B0AE] italic -mt-1">Add identity details to help clients feel represented. None of this information is shared; it's only used to help clients connect with the right therapist.</p>
+      <div class="flex flex-col gap-5 text-[13px] text-[#2e4a49]">
+        <template x-if="$store.profileModal.therapist.gender">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-semibold text-[#116466]">Gender:</span>
+            <span x-text="$store.profileModal.therapist.gender"></span>
+            <button type="button" class="text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2]" @click.stop="$dispatch('edit-gender',{ el: $el, current: $store.profileModal.therapist.gender })">Edit</button>
+          </div>
+        </template>
+        <template x-if="!$store.profileModal.therapist.gender">
+          <div class="flex items-center gap-2 text-[12px] text-[#89B0AE]">
+            <button type="button" class="px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] text-[11px] font-semibold" @click.stop="$dispatch('edit-gender',{ el: $el, current: '' })">Add Gender</button>
+          </div>
+        </template>
+        <template x-if="$store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length">
+          <div class="flex flex-col gap-1" x-data="{can_edit:true}">
+            <div class="flex items-center gap-2 flex-wrap" data-edit-wrapper>
+              <span class="font-semibold text-[#116466] mr-1">Race / Ethnicities:</span>
+              <template x-for="r in $store.profileModal.therapist.race_ethnicities" :key="r">
+                <span class="px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[#116466] text-[11px] font-semibold shadow-sm" x-text="r"></span>
+              </template>
+              <button type="button" class="text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] transition" @click.stop="$dispatch('edit-race-ethnicities',{ el: $el, current: [...$store.profileModal.therapist.race_ethnicities] })">Edit</button>
+            </div>
+          </div>
+        </template>
+        <template x-if="!($store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length)">
+          <div class="flex items-center gap-2 text-[12px] text-[#89B0AE]">
+            <button type="button" class="px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] text-[11px] font-semibold" @click.stop="$dispatch('edit-race-ethnicities',{ el: $el, current: [] })">Add Race/Ethnicity</button>
+          </div>
+        </template>
+        <template x-if="$store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-semibold text-[#116466]">Faiths:</span>
+            <span x-text="$store.profileModal.therapist.faiths.join(', ')"></span>
+            <button type="button" class="text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2]" @click.stop="$dispatch('edit-faiths',{ el: $el, current: [...$store.profileModal.therapist.faiths] })">Edit</button>
+          </div>
+        </template>
+        <template x-if="!($store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length)">
+          <div class="flex items-center gap-2 text-[12px] text-[#89B0AE]">
+            <button type="button" class="px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] text-[11px] font-semibold" @click.stop="$dispatch('edit-faiths',{ el: $el, current: [] })">Add Faith</button>
+          </div>
+        </template>
+        <template x-if="$store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-semibold text-[#116466]">LGBTQIA+ Identities:</span>
+            <span x-text="$store.profileModal.therapist.lgbtqia_identities.join(', ')"></span>
+            <button type="button" class="text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2]" @click.stop="$dispatch('edit-lgbtqia',{ el: $el, current: [...$store.profileModal.therapist.lgbtqia_identities] })">Edit</button>
+          </div>
+        </template>
+        <template x-if="!($store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length)">
+          <div class="flex items-center gap-2 text-[12px] text-[#89B0AE]">
+            <button type="button" class="px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] text-[11px] font-semibold" @click.stop="$dispatch('edit-lgbtqia',{ el: $el, current: [] })">Add LGBTQIA Identity</button>
+          </div>
+        </template>
+        <template x-if="$store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-semibold text-[#116466]">Other Identities:</span>
+            <span x-text="$store.profileModal.therapist.other_identities.join(', ')"></span>
+            <button type="button" class="text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2]" @click.stop="$dispatch('edit-other-identities',{ el: $el, current: [...$store.profileModal.therapist.other_identities] })">Edit</button>
+          </div>
+        </template>
+        <template x-if="!($store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length)">
+          <div class="flex items-center gap-2 text-[12px] text-[#89B0AE]">
+            <button type="button" class="px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] text-[11px] font-semibold" @click.stop="$dispatch('edit-other-identities',{ el: $el, current: [] })">Add Identity</button>
+          </div>
+        </template>
+      </div>
+    </div>
+  </section>
+</div>

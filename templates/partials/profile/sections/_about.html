@@ -1,0 +1,50 @@
+{# Clean About Me Section (statements, gallery, video) - now styled like Identity section #}
+<div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
+  <section id="section-about" class="tc-section relative overflow-hidden mt-4 md:mt-6 mb-6 md:mb-8 rounded-2xl ring-1 ring-[#BEE3DB] bg-white/90 shadow" style="box-shadow:0 6px 26px -8px #555B6E33;"
+           x-data="{ editable: {{ editable|default:0|yesno:'true,false' }}, standalone: {{ standalone|default:0|yesno:'true,false' }} }"
+           x-show="editable || (standalone ? ($store.profileModal.therapist.personal_statement_q1 || $store.profileModal.therapist.personal_statement_q2 || $store.profileModal.therapist.personal_statement_q3 || ($store.profileModal.therapist.gallery_images && $store.profileModal.therapist.gallery_images.length) || ($store.profileModal.therapist.video_gallery && $store.profileModal.therapist.video_gallery.length)) : ($store.profileModal.therapist.personal_statement_q1 || $store.profileModal.therapist.personal_statement_q2 || $store.profileModal.therapist.personal_statement_q3 || ($store.profileModal.therapist.gallery_images && $store.profileModal.therapist.gallery_images.length) || ($store.profileModal.therapist.video_gallery && $store.profileModal.therapist.video_gallery.length)))"
+           x-cloak>
+    {% if standalone %}
+    <div class="pointer-events-none absolute inset-0 opacity-45 mix-blend-normal bg-[radial-gradient(circle_at_22%_18%,#E5F4F2,transparent_55%),radial-gradient(circle_at_82%_74%,#FFDDD0,transparent_62%)]"></div>
+    {% endif %}
+    <div class="relative p-4 md:p-6 flex flex-col gap-8">
+      {% if standalone %}
+        {% include 'partials/profile/sections/_about_standalone_body.html' %}
+      {% else %}
+        {% include 'partials/profile/sections/_about_modal_body.html' %}
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<!-- Fallback JS definitions (only if not already present from full edit page) -->
+<script>
+if(typeof galleryManager !== 'function'){
+  function galleryManager(){
+    const csrf = window.TC_CSRF;
+    return {
+      images:(Alpine.store('profileModal')?.therapist?.gallery_images||[]).slice(), file:null, caption:'', is_primary:false, uploading:false, progress:0, error:'', drag:false,
+      onFile(e){ this.file=e.target.files[0]; },
+      onDrop(ev){ this.drag=false; const f=ev.dataTransfer?.files?.[0]; if(f) this.file=f; },
+      reset(){ this.file=null; this.caption=''; this.is_primary=false; this.progress=0; this.error=''; if(this.$refs.file) this.$refs.file.value=''; },
+      upload(){ if(!this.file) return; if(this.images.length>=12){ this.error='Maximum 12 images.'; return;} this.error=''; this.uploading=true; const form=new FormData(); form.append('file',this.file); if(this.caption) form.append('caption',this.caption); if(this.is_primary) form.append('is_primary','1'); fetch('/users/api/profile/gallery/upload/',{method:'POST',headers:{'X-CSRFToken':csrf},body:form}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Upload failed'; return;} this.images=d.gallery_images||[]; const s=Alpine.store('profileModal'); if(s?.therapist) s.therapist.gallery_images=this.images; this.reset(); }).catch(()=> this.error='Network error').finally(()=> this.uploading=false); },
+      saveMeta(img){ fetch('/users/api/profile/gallery/'+img.id+'/',{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},body:JSON.stringify({caption:img.caption})}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Save failed'; return;} this.images=d.gallery_images||[]; const s=Alpine.store('profileModal'); if(s?.therapist) s.therapist.gallery_images=this.images; }).catch(()=> this.error='Network error'); },
+      setPrimary(img){ if(img.is_primary) return; fetch('/users/api/profile/gallery/'+img.id+'/',{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},body:JSON.stringify({is_primary:true})}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Update failed'; return;} this.images=d.gallery_images||[]; const s=Alpine.store('profileModal'); if(s?.therapist) s.therapist.gallery_images=this.images; }).catch(()=> this.error='Network error'); },
+      remove(img){ if(!confirm('Delete this image?')) return; fetch('/users/api/profile/gallery/'+img.id+'/',{method:'DELETE',headers:{'X-CSRFToken':csrf}}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Delete failed'; return;} this.images=d.gallery_images||[]; const s=Alpine.store('profileModal'); if(s?.therapist) s.therapist.gallery_images=this.images; }).catch(()=> this.error='Network error'); }
+    }; }
+}
+if(typeof videoManager !== 'function'){
+  function videoManager(){
+    const csrf=window.TC_CSRF;
+    return { video:(Alpine.store('profileModal')?.therapist?.video_gallery||[])[0]||null, file:null, caption:'', uploading:false, progress:0, error:'', recording:false, mediaRecorder:null, chunks:[], stream:null, drag:false,
+      reset(){ this.file=null; this.caption=''; this.error=''; this.progress=0; if(this.$refs.file) this.$refs.file.value=''; },
+      onFile(e){ this.file=e.target.files[0]; },
+      startRecording(){ if(!navigator.mediaDevices?.getUserMedia){ this.error='Recording not supported'; return;} this.error=''; navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(str=>{ this.stream=str; this.mediaRecorder=new MediaRecorder(str); this.chunks=[]; this.mediaRecorder.ondataavailable=ev=>{ if(ev.data.size>0) this.chunks.push(ev.data); }; this.mediaRecorder.onstop=()=>{ const blob=new Blob(this.chunks,{type:'video/webm'}); this.file=new File([blob],'recording.webm',{type:'video/webm'}); this.stopStream(); }; this.mediaRecorder.start(); this.recording=true; }).catch(()=> this.error='Permission denied'); },
+      stopRecording(){ if(this.mediaRecorder && this.recording){ this.mediaRecorder.stop(); this.recording=false; } },
+      stopStream(){ this.stream?.getTracks().forEach(t=>t.stop()); this.stream=null; },
+      upload(){ if(!this.file){ this.error='No video selected'; return;} this.error=''; this.uploading=true; const form=new FormData(); form.append('file',this.file); if(this.caption) form.append('caption',this.caption); fetch('/users/api/profile/video/',{method:'POST',headers:{'X-CSRFToken':csrf},body:form}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Upload failed'; return;} const s=Alpine.store('profileModal'); if(s?.therapist) s.therapist.video_gallery=d.video_gallery||[]; this.video=(d.video_gallery||[])[0]||null; this.reset(); }).catch(()=> this.error='Network error').finally(()=> this.uploading=false); },
+      updateCaption(){ if(!this.video) return; fetch('/users/api/profile/video/',{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},body:JSON.stringify({caption:this.video.caption||''})}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Save failed'; return;} const s=Alpine.store('profileModal'); if(s?.therapist) s.therapist.video_gallery=d.video_gallery||[]; this.video=(d.video_gallery||[])[0]||null; }).catch(()=> this.error='Network error'); },
+      remove(){ if(!this.video || !confirm('Delete video?')) return; fetch('/users/api/profile/video/',{method:'DELETE',headers:{'X-CSRFToken':csrf}}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Delete failed'; return;} const s=Alpine.store('profileModal'); if(s?.therapist) s.therapist.video_gallery=d.video_gallery||[]; this.video=null; }).catch(()=> this.error='Network error'); }
+    }; }
+}
+</script>

@@ -1,4 +1,5 @@
-from django.urls import path
+from django.urls import path, re_path
+from django.views.generic import RedirectView
 from . import views
 
 urlpatterns = [
@@ -11,7 +12,8 @@ urlpatterns = [
     # New unified edit experience replaces wizard
     path('profile/edit/', views.edit_profile, name='edit_profile'),
     path('profile/<int:user_id>/', views.therapist_profile, name='therapist_profile'),
-    path('t/<slug:slug>/', views.public_therapist_profile, name='public_therapist_profile'),
+    # Legacy path retained (temporary) – redirect to new canonical /therapists/<slug>/
+    path('t/<slug:slug>/', RedirectView.as_view(pattern_name='therapist_profile_public_slug', permanent=True), name='public_therapist_profile_legacy'),
     path('contact/<int:user_id>/', views.contact_therapist, name='contact_therapist'),
     path('update_subscription/', views.update_subscription, name='update_subscription'),
     path('api/profile_click/', views.ajax_profile_click, name='ajax_profile_click'),
