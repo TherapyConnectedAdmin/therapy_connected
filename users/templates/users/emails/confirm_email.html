@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Confirm your email – Therapy Connected</title>
+    <style>
+      /* Basic email-safe styles (avoid external CSS) */
+      body { margin:0; padding:0; background:#f5f9f8; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#2e4a49; }
+      a { color:#116466; }
+      .wrapper { width:100%; background:#f5f9f8; padding:32px 0; }
+      .container { max-width:600px; margin:0 auto; background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #BEE3DB; box-shadow:0 8px 32px -8px rgba(17,100,102,0.18); }
+      .brand-bar { height:6px; background:linear-gradient(90deg,#116466,#89B0AE,#BEE3DB,#FFDDD0); }
+      .inner { padding:32px 28px 40px; }
+      h1 { font-size:22px; margin:0 0 16px; color:#116466; line-height:1.2; }
+      p { font-size:15px; line-height:1.55; margin:0 0 18px; }
+      .btn { display:inline-block; background:#116466; color:#ffffff !important; text-decoration:none; padding:14px 26px; font-weight:600; font-size:14px; letter-spacing:.3px; border-radius:999px; box-shadow:0 4px 12px -2px rgba(17,100,102,0.35); }
+      .btn:hover { background:#0d4c4d; }
+      .confirm-url { word-break:break-all; font-size:12px; color:#555B6E; }
+      .note { font-size:12px; color:#555B6E; margin-top:28px; line-height:1.45; }
+      .footer { font-size:11px; color:#587a79; text-align:center; padding:24px 24px 8px; line-height:1.4; }
+      .logo-circle { width:54px; height:54px; border-radius:50%; background:radial-gradient(circle at 30% 30%,#BEE3DB,#116466); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px -4px rgba(17,100,102,0.45); margin-bottom:20px; }
+      .logo-circle span { font-size:24px; font-weight:700; color:#ffffff; font-family: 'Segoe UI',Roboto,Helvetica,Arial,sans-serif; letter-spacing:1px; }
+      @media (max-width:620px){ .inner { padding:28px 22px 36px; } h1 { font-size:20px; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="container" role="presentation">
+        <div class="brand-bar"></div>
+        <div class="inner">
+          <div style="text-align:center;">
+            <div class="logo-circle" aria-hidden="true"><span>TC</span></div>
+          </div>
+          <h1>Confirm your email</h1>
+          <p>Hi{% if user_first_name %} <strong>{{ user_first_name }}</strong>{% endif %},</p>
+          <p>Thanks for creating your account with <strong>Therapy Connected</strong>. Please verify that <strong>{{ user_email }}</strong> is your email address by clicking the button below. This helps us keep your account secure and enables important notifications.</p>
+          <p style="text-align:center; margin:32px 0 34px;">
+            <a class="btn" href="{{ confirm_url }}" target="_blank" rel="noopener" aria-label="Confirm your email address">Confirm Email</a>
+          </p>
+          <p>If the button doesn’t work, copy and paste this link into your browser:</p>
+          <p class="confirm-url">{{ confirm_url }}</p>
+          <p class="note">If you didn’t sign up for a Therapy Connected account, you can safely ignore this email—no action is needed and the account won’t become active.</p>
+          <p class="note">Need help? Reply to this email or contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p>
+        </div>
+        <div class="footer">
+          © {{ year }} Therapy Connected. All rights reserved.<br/>
+          123 Sample Street, San Francisco, CA 94105
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

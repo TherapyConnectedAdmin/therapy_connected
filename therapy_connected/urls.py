@@ -17,7 +17,10 @@ Including another URLconf
 from django.contrib import admin
 
 from django.urls import path, include
+from django.contrib.sitemaps.views import sitemap
+from users.sitemaps import TherapistProfileSitemap
 from . import views
+from users import views as user_views  # for public_therapist_profile if needed
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,6 +31,10 @@ urlpatterns = [
     path('set_zip/', views.set_zip, name='set_zip'),
     path('geo_zip/', views.geo_zip, name='geo_zip'),
     path('therapists/', views.therapists_page, name='therapists_page'),
+    # SEO-friendly therapist public profile pages (slug under /therapists/)
+    path('therapists/<slug:slug>/', user_views.public_therapist_profile, name='therapist_profile_public_slug'),
+    # XML sitemap exposing therapist profile slugs
+    path('sitemap.xml', sitemap, {'sitemaps': {'therapists': TherapistProfileSitemap}}, name='django.contrib.sitemaps.views.sitemap'),
     path('features/', views.features_page, name='features_page'),
     path('pricing/', views.pricing_page, name='pricing_page'),
     path('about/', views.about_page, name='about_page'),

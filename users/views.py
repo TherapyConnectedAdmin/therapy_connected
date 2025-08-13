@@ -102,12 +102,23 @@ def register(request):
             token = get_random_string(32)
             confirmation_tokens[token] = user.id
             confirm_url = request.build_absolute_uri(f'/users/confirm/{token}/')
-            subject = 'Confirm your email'
-            plain_text = f'Click the link to confirm your email: {confirm_url}'
+            from django.template.loader import render_to_string
+            from django.utils import timezone as _tz
+            subject = 'Confirm your email – Therapy Connected'
+            ctx = {
+                'confirm_url': confirm_url,
+                'user_email': email,
+                'user_first_name': getattr(user, 'first_name', '') or '',
+                'support_email': getattr(settings, 'SUPPORT_EMAIL','support@therapyconnected.com'),
+                'year': _tz.now().year,
+            }
+            plain_text = render_to_string('users/emails/confirm_email.txt', ctx)
+            html_body = render_to_string('users/emails/confirm_email.html', ctx)
             success, message_id = service.send_email(
                 recipient=email,
                 subject=subject,
                 plain_text=plain_text,
+                html=html_body,
                 display_name=email
             )
             # Set onboarding_status to 'pending_email_confirmation' after email sent
@@ -283,15 +294,18 @@ def therapist_profile(request, user_id):
     profile = TherapistProfile.objects.filter(user__id=user_id).first()
     if not profile:
         return HttpResponse('Profile not found', status=404)
-    # Increment profile click
+    # Ensure slug exists (legacy safeguard)
+    if not profile.slug:
+        profile.save()  # triggers slug generation in model.save
+    # Track click (maintain stats parity with old template response)
     today = timezone.now().date()
     stats, _ = TherapistProfileStats.objects.get_or_create(therapist=profile.user, date=today)
     stats.profile_clicks += 1
     stats.save()
-    # Optionally update last_viewed_at
     profile.last_viewed_at = timezone.now()
-    profile.save()
-    return render(request, 'users/therapist_profile.html', {'profile': profile})
+    profile.save(update_fields=['last_viewed_at'])
+    # Permanent redirect to canonical slug page
+    return redirect('therapist_profile_public_slug', slug=profile.slug)
 
 def public_therapist_profile(request, slug):
     """Standalone SEO-friendly therapist profile page matching modal content.
@@ -308,6 +322,46 @@ def public_therapist_profile(request, slug):
             'lgbtqia_identities__lgbtqia', 'other_identities__other_identity',
             'additional_credentials', 'educations'
         ), slug=slug)
+    # Compute approximate distance (miles) from visitor session zip (if set) mirroring search view logic
+    profile.distance = None  # default so template condition exists
+    user_zip = request.session.get('user_zip')
+    if user_zip:
+        try:
+            import math, re
+            from users.models_profile import ZipCode
+            user_zip_clean = re.match(r"\d{5}", user_zip or "")
+            user_zip_clean = user_zip_clean.group(0) if user_zip_clean else user_zip
+            user_zip_row = ZipCode.objects.filter(pk=user_zip_clean).first()
+            if user_zip_row:
+                # Preload location zip rows to avoid N queries
+                loc_zips = {loc.zip for loc in profile.locations.all() if getattr(loc, 'zip', None)}
+                zip_rows = {z.zip: z for z in ZipCode.objects.filter(zip__in=loc_zips)}
+
+                def haversine(lat1, lon1, lat2, lon2):
+                    R = 3958.8
+                    phi1 = math.radians(lat1)
+                    phi2 = math.radians(lat2)
+                    dphi = math.radians(lat2 - lat1)
+                    dlambda = math.radians(lon2 - lon1)
+                    a = math.sin(dphi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda/2)**2
+                    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                    return R * c
+
+                min_d = None
+                for loc in profile.locations.all():
+                    zr = zip_rows.get(getattr(loc, 'zip', None))
+                    if zr and zr.latitude and zr.longitude:
+                        try:
+                            d = haversine(float(user_zip_row.latitude), float(user_zip_row.longitude), float(zr.latitude), float(zr.longitude))
+                        except Exception:
+                            continue
+                        if min_d is None or d < min_d:
+                            min_d = d
+                if min_d is not None:
+                    profile.distance = round(min_d, 1)
+        except Exception:
+            # Swallow errors silently; distance just stays None
+            pass
     # Build JSON structure analogous to api_full_profile
     primary_location = profile.locations.filter(is_primary_address=True).first() or profile.locations.first()
     def office_hours(loc):
@@ -445,6 +499,7 @@ def public_therapist_profile(request, slug):
         'participant_types': [pt.name for pt in profile.participant_types.all()],
         'age_groups': [ag.name for ag in profile.age_groups.all()],
         'areas_of_expertise': [ae.expertise for ae in profile.areas_of_expertise.all()],
+    'distance': profile.distance,
     }
     # Gallery Images (match modal expectations: url, caption, is_primary)
     images = []
@@ -1596,6 +1651,42 @@ def api_full_profile(request, user_id):
         .prefetch_related('locations__office_hours'),
         user__id=user_id
     )
+    # Compute approximate distance (miles) from session user_zip if present
+    distance_value = None
+    user_zip = request.session.get('user_zip')
+    if user_zip:
+        try:
+            import math, re
+            from users.models_profile import ZipCode
+            user_zip_clean = re.match(r"\d{5}", user_zip or "")
+            user_zip_clean = user_zip_clean.group(0) if user_zip_clean else user_zip
+            user_zip_row = ZipCode.objects.filter(pk=user_zip_clean).first()
+            if user_zip_row:
+                loc_zips = {loc.zip for loc in profile.locations.all() if getattr(loc, 'zip', None)}
+                zip_rows = {z.zip: z for z in ZipCode.objects.filter(zip__in=loc_zips)}
+                def haversine(lat1, lon1, lat2, lon2):
+                    R = 3958.8
+                    phi1 = math.radians(lat1)
+                    phi2 = math.radians(lat2)
+                    dphi = math.radians(lat2 - lat1)
+                    dlambda = math.radians(lon2 - lon1)
+                    a = math.sin(dphi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda/2)**2
+                    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                    return R * c
+                min_d = None
+                for loc in profile.locations.all():
+                    zr = zip_rows.get(getattr(loc, 'zip', None))
+                    if zr and zr.latitude and zr.longitude:
+                        try:
+                            d = haversine(float(user_zip_row.latitude), float(user_zip_row.longitude), float(zr.latitude), float(zr.longitude))
+                        except Exception:
+                            continue
+                        if min_d is None or d < min_d:
+                            min_d = d
+                if min_d is not None:
+                    distance_value = round(min_d, 1)
+        except Exception:
+            pass
     # Primary location
     primary_location = profile.locations.filter(is_primary_address=True).first() or profile.locations.first()
     def img_url(image_field):
@@ -1760,6 +1851,7 @@ def api_full_profile(request, user_id):
                 'year_issued': ac.year_issued,
             } for ac in profile.additional_credentials.all()
         ],
+    'distance': distance_value,
     }
     # Populate identity option lists (avoid large duplication if not needed)
     try:

@@ -1,0 +1,15 @@
+Confirm your email – Therapy Connected
+
+Hi{% if user_first_name %} {{ user_first_name }}{% endif %},
+
+Thanks for creating your account with Therapy Connected.
+
+Please confirm that {{ user_email }} is your email address by visiting the link below:
+
+{{ confirm_url }}
+
+If you didn’t sign up for a Therapy Connected account, you can ignore this email and the account will remain inactive.
+
+Need help? Reach us at {{ support_email }}.
+
+© {{ year }} Therapy Connected. All rights reserved.

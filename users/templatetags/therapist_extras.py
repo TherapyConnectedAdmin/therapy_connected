@@ -106,3 +106,27 @@ def to_ampm(value):
     except Exception:
         return value
 
+# Weekday helpers (0=Mon .. 6=Sun)
+_WEEKDAY_SHORT = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+_WEEKDAY_LONG = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+
+@register.filter
+def weekday_short(val):
+    try:
+        i = int(val)
+    except (TypeError, ValueError):
+        return val
+    if 0 <= i < 7:
+        return _WEEKDAY_SHORT[i]
+    return val
+
+@register.filter
+def weekday_long(val):
+    try:
+        i = int(val)
+    except (TypeError, ValueError):
+        return val
+    if 0 <= i < 7:
+        return _WEEKDAY_LONG[i]
+    return val
+

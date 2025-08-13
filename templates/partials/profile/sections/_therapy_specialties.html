@@ -1,0 +1,232 @@
+{# Therapy Types & Specialties Section Partial - standardized wrapper #}
+<div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
+  <section id="section-therapy" class="tc-section relative p-5 md:p-7 mt-4 md:mt-6 mb-6 md:mb-10 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg" style="box-shadow:0 6px 26px -10px #25454433;" x-data="therapySpecialtiesManager({ editable: {{ editable|default:0|yesno:'true,false' }} })" x-init="init()"
+           x-show="editable || $store.profileModal.therapist.therapy_types_note || ($store.profileModal.therapist.therapy_types && $store.profileModal.therapist.therapy_types.length) || $store.profileModal.therapist.specialties_note || ($store.profileModal.therapist.specialties && $store.profileModal.therapist.specialties.length)"
+           x-cloak>
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+      <div class="flex flex-col gap-1">
+        <h2 class="text-[22px] md:text-[24px] font-extrabold tracking-tight text-[#2e4a49] flex items-center gap-2">
+          <svg class="w-7 h-7 text-[#116466]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.5c-2.21 0-4 1.567-4 3.5 0 .936.393 1.786 1.04 2.428a1 1 0 0 1 .27.63v1.192a1 1 0 0 1-.553.894L7.5 16.5h9l-1.257-1.356a1 1 0 0 1-.243-.649v-1.387a1 1 0 0 1 .287-.697A3.87 3.87 0 0 0 16 10c0-1.933-1.79-3.5-4-3.5Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M9.5 19h5"/></svg>
+          Therapy Types &amp; Specialties
+        </h2>
+        <p class="text-[11px] font-medium tracking-wide text-[#587a79] uppercase">Modalities & clinical focus</p>
+      </div>
+      <div class="flex flex-wrap gap-2 text-[10px] font-semibold text-[#116466]" x-data="{ modCount:()=>($store.profileModal.therapist.therapy_types||[]).length, specCount:()=>($store.profileModal.therapist.specialties||[]).length, topCount:()=>($store.profileModal.therapist.top_specialties||[]).length }" x-show="modCount() || specCount()">
+        <span x-show="modCount()" class="px-2 py-0.5 rounded-full bg-[#E5F4F2] border border-[#BEE3DB]/70">Modalities: <span x-text="modCount()"></span></span>
+        <span x-show="specCount()" class="px-2 py-0.5 rounded-full bg-white border border-[#BEE3DB]/70">Specialties: <span x-text="specCount()"></span></span>
+        <span x-show="topCount()" class="px-2 py-0.5 rounded-full bg-[#116466] text-white">Top: <span x-text="topCount()"></span>/5</span>
+      </div>
+    </div>
+    <!-- Spotlight Top Specialties (public view) -->
+    <template x-if="!editable && $store.profileModal.therapist.top_specialties && $store.profileModal.therapist.top_specialties.length">
+      <div class="mb-8 bg-gradient-to-r from-[#FFDDD0] via-[#FFE8E5] to-[#FDF9F7] rounded-2xl ring-1 ring-[#FFC9BC] p-4 md:p-5 shadow-sm">
+        <h3 class="text-[12px] font-semibold tracking-wide text-[#9b4d49] mb-3 flex items-center gap-2 uppercase">
+          <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="m9.049 2.927-1.9 5.857H1.667l4.9 3.563-1.9 5.856L10 14.64l5.333 3.563-1.9-5.856 4.9-3.563h-5.482l-1.9-5.857Z"/></svg>
+          Highlighted Specialties
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          <template x-for="sp in ($store.profileModal.therapist.specialties||[]).filter(s=>s.is_top)" :key="'sp-top-public-'+(sp.name||sp)">
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/70 backdrop-blur ring-1 ring-[#FFC9BC] text-[#7a3a36] shadow hover:shadow-md transition">
+              <svg class="w-3.5 h-3.5 text-[#D94F04]" viewBox="0 0 20 20" fill="currentColor"><path d="m9.049 2.927-1.9 5.857H1.667l4.9 3.563-1.9 5.856L10 14.64l5.333 3.563-1.9-5.856 4.9-3.563h-5.482l-1.9-5.857Z"/></svg>
+              <span x-text="sp.name||sp"></span>
+            </span>
+          </template>
+        </div>
+      </div>
+    </template>
+    <!-- Therapy Types -->
+    <div class="mb-10">
+      <!-- Note Panel -->
+      <div class="mb-4" data-edit-wrapper data-field="therapy_types_note">
+        <div class="flex items-center gap-2 mb-2">
+          <h4 class="text-xs md:text-sm font-semibold tracking-wide text-[#116466] flex items-center gap-2"><span class="px-2 py-0.5 rounded-md bg-[#E5F4F2] text-[#116466] text-[10px] font-bold uppercase">Note</span> Therapy Types</h4>
+          <button type="button" x-show="editable===true" class="text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] font-semibold" @click.stop="$dispatch('edit-rich-text',{field:'therapy_types_note',current:$store.profileModal.therapist.therapy_types_note||'', el:$el})">Edit</button>
+        </div>
+        <template x-if="$store.profileModal.therapist.therapy_types_note">
+          <div x-data="{ open:false, long:($store.profileModal.therapist.therapy_types_note||'').length>420 }" class="relative">
+            <div class="text-sm md:text-[15px] leading-relaxed font-light text-[#2e4a49] whitespace-pre-line bg-white/70 rounded-xl border border-[#BEE3DB] p-4 pr-10" :class="!open && long ? 'max-h-40 overflow-hidden' : ''" x-html="$store.profileModal.therapist.therapy_types_note"></div>
+            <div x-show="long && !open" class="absolute bottom-0 left-0 right-0 h-16 rounded-b-xl bg-gradient-to-t from-white/90 to-transparent pointer-events-none"></div>
+            <button type="button" x-show="long" @click="open=!open" class="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[#116466] ring-1 ring-[#BEE3DB] hover:bg-white">{{ '{' }}{ open ? 'Collapse' : 'Expand' }{{ '}' }}</button>
+          </div>
+        </template>
+        <template x-if="!$store.profileModal.therapist.therapy_types_note">
+          <button type="button" x-show="editable" @click.stop="$dispatch('edit-rich-text',{field:'therapy_types_note',current:'', el:$el})" class="w-full text-left group">
+            <div class="p-4 rounded-lg border-2 border-dashed border-[#BEE3DB] bg-white/40 hover:bg-white/70 transition">
+              <p class="text-[12px] text-[#89B0AE] group-hover:text-[#555B6E]">Add a brief note describing how you apply these modalities (e.g., integration style, client fit, populations).</p>
+            </div>
+          </button>
+          <p x-show="!editable" class="italic text-[12px] text-[#89B0AE]">No therapy types note.</p>
+        </template>
+      </div>
+      <!-- List / Input Panel -->
+      <div class="rounded-2xl border border-[#BEE3DB] bg-[#F8FBFA] p-4 md:p-5" data-edit-wrapper data-field="therapy_types">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="text-xs md:text-sm font-semibold uppercase tracking-wide text-[#555B6E] flex items-center gap-1">
+            <svg class="w-3.5 h-3.5 text-[#116466]" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a2 2 0 0 1 2-2h2.172a2 2 0 0 1 1.414.586l1.828 1.828A2 2 0 0 0 11.828 6H15a2 2 0 0 1 2 2v1H3V5Z"/><path d="M3 9h14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/></svg>
+            Therapy Modalities
+          </h4>
+          <p class="text-[10px] text-[#89B0AE]" x-show="editable">Add each modality once (e.g., CBT, EMDR, ACT)</p>
+        </div>
+        <template x-if="$store.profileModal.therapist.therapy_types && $store.profileModal.therapist.therapy_types.length">
+          <div class="flex flex-wrap gap-2 mb-4">
+            <template x-for="t in $store.profileModal.therapist.therapy_types" :key="'tt-chip-display-' + t">
+              <span x-show="!editable" class="px-2.5 py-1 rounded-full bg-white text-[#116466] text-[11px] font-medium shadow-sm ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2] transition" x-text="t"></span>
+            </template>
+            <template x-for="t in $store.profileModal.therapist.therapy_types" :key="'tt-chip-editable-' + t">
+              <span x-show="editable" class="group flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-[#116466] text-[11px] font-medium shadow-sm ring-1 ring-[#BEE3DB] pr-2">
+                <span x-text="t"></span>
+                <button type="button" @click.stop="removeTherapyType(t)" class="opacity-60 group-hover:opacity-100 text-[#116466] hover:text-[#9b4d49]" aria-label="Remove">✕</button>
+              </span>
+            </template>
+          </div>
+        </template>
+        <template x-if="!($store.profileModal.therapist.therapy_types && $store.profileModal.therapist.therapy_types.length)">
+          <p class="italic text-[12px] text-[#89B0AE] mb-4">No therapy types added yet.</p>
+        </template>
+        <div x-show="editable" class="relative" @keydown="therapyKeydown($event)" @click.outside="clickAwayTherapy()" x-cloak>
+          <div class="flex items-center gap-2">
+            <div class="relative flex-1">
+              <input type="text" x-model="therapyQuery" @input="onTherapyInput()" placeholder="Search or add a therapy modality" class="w-full tc-input px-3 py-2 text-sm border border-[#BEE3DB] rounded-md focus:border-[#116466] focus:ring-1 focus:ring-[#116466] bg-white" aria-label="Therapy Type" @focus="onTherapyFocus()" />
+              <div x-show="therapyLoading" class="absolute top-1/2 -translate-y-1/2 right-2 animate-spin rounded-full h-4 w-4 border-[2px] border-[#89B0AE] border-t-transparent"></div>
+              <template x-if="therapyOpen && therapyResults.length">
+                <ul class="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-md border border-[#BEE3DB] bg-white shadow-lg text-sm" role="listbox">
+                  <template x-for="(p,i) in therapyResults" :key="p.id">
+                    <li :id="'tt-opt2-'+i" @mousedown.prevent="selectTherapy(i)" :class="i===therapySelectedIndex ? 'bg-[#E5F4F2] text-[#116466]' : 'hover:bg-[#F1F8F7]'" class="px-3 py-1.5 cursor-pointer flex items-center justify-between">
+                      <span x-text="p.name"></span>
+                      <span class="text-[10px] text-[#89B0AE]" x-show="caseEq(p.name, therapyQuery)">match</span>
+                    </li>
+                  </template>
+                </ul>
+              </template>
+            </div>
+            <button type="button" @click="addTherapyType()" :disabled="!therapyQuery.trim()" class="px-3 py-2 rounded-full text-[11px] font-semibold disabled:opacity-30 disabled:cursor-not-allowed bg-[#116466] text-white hover:bg-[#0d4c4d]">Add</button>
+          </div>
+          <p class="text-[10px] text-[#555B6E] leading-snug mt-2">Press Enter or click Add. Auto-saves shortly after changes.</p>
+        </div>
+      </div>
+    </div>
+    <!-- Specialties -->
+    <div class="mb-2">
+      <!-- Specialties Note Panel -->
+      <div class="mb-4" data-edit-wrapper data-field="specialties_note">
+        <div class="flex items-center gap-2 mb-2">
+          <h4 class="text-xs md:text-sm font-semibold tracking-wide text-[#116466] flex items-center gap-2"><span class="px-2 py-0.5 rounded-md bg-[#FFE8E5] text-[#9b4d49] text-[10px] font-bold uppercase">Note</span> Specialties</h4>
+          <button type="button" x-show="editable===true" class="text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2] font-semibold" @click.stop="$dispatch('edit-rich-text',{field:'specialties_note',current:$store.profileModal.therapist.specialties_note||'', el:$el})">Edit</button>
+        </div>
+        <template x-if="$store.profileModal.therapist.specialties_note">
+          <div class="text-sm md:text-base leading-relaxed font-light text-[#2e4a49] whitespace-pre-line bg-white/70 rounded-lg border border-[#BEE3DB] p-3" x-html="$store.profileModal.therapist.specialties_note"></div>
+        </template>
+        <template x-if="!$store.profileModal.therapist.specialties_note">
+          <button type="button" x-show="editable" @click.stop="$dispatch('edit-rich-text',{field:'specialties_note',current:'', el:$el})" class="w-full text-left group">
+            <div class="p-4 rounded-lg border-2 border-dashed border-[#BEE3DB] bg-white/40 hover:bg-white/70 transition">
+              <p class="text-[12px] text-[#89B0AE] group-hover:text-[#555B6E]">Give a short narrative about your focus areas, client populations, or theoretical lens.</p>
+            </div>
+          </button>
+          <p x-show="!editable" class="italic text-[12px] text-[#89B0AE]">No specialties note.</p>
+        </template>
+      </div>
+      <!-- Specialties List / Input Panel -->
+      <div class="rounded-2xl border border-[#BEE3DB] bg-[#FDF9F7] p-4 md:p-5" data-edit-wrapper data-field="specialties">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+          <div class="flex items-center gap-3">
+            <h4 class="text-xs md:text-sm font-semibold uppercase tracking-wide text-[#555B6E] flex items-center gap-1">
+              <svg class="w-4 h-4 text-[#D94F04]" viewBox="0 0 20 20" fill="currentColor"><path d="m9.049 2.927-1.9 5.857H1.667l4.9 3.563-1.9 5.856L10 14.64l5.333 3.563-1.9-5.856 4.9-3.563h-5.482l-1.9-5.857Z"/></svg>
+              Specialties
+            </h4>
+            <template x-if="$store.profileModal.therapist.top_specialties && $store.profileModal.therapist.top_specialties.length">
+              <span class="text-[10px] font-medium text-[#D94F04]">★ <span x-text="$store.profileModal.therapist.top_specialties.length"></span>/5 highlighted</span>
+            </template>
+          </div>
+          <p class="text-[10px] text-[#89B0AE]" x-show="editable">Star up to 5 to feature at the top</p>
+        </div>
+        <template x-if="$store.profileModal.therapist.specialties && $store.profileModal.therapist.specialties.length">
+          <div class="flex flex-wrap gap-2 mb-4">
+            <template x-for="sp in ($store.profileModal.therapist.specialties || []).filter(s => s.is_top)" :key="'sp-top-chip2-' + (sp.name||sp)">
+              <span class='group flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#FFDDD0] text-[#7a3a36] text-[11px] font-medium shadow-sm pr-2 ring-1 ring-[#FFC9BC]'>
+                <span x-text="sp.name || sp"></span>
+                <button x-show="editable" type="button" @click.stop="toggleTop(sp.name||sp)" class="opacity-60 group-hover:opacity-100 text-[#D94F04]" aria-label="Unmark Top">★</button>
+                <button x-show="editable" type="button" @click.stop="removeSpecialty(sp.name||sp)" class="opacity-60 group-hover:opacity-100 text-[#116466] hover:text-[#9b4d49]" aria-label="Remove">✕</button>
+              </span>
+            </template>
+            <template x-for="sp in ($store.profileModal.therapist.specialties || []).filter(s => !s.is_top)" :key="'sp-rest-chip2-' + (sp.name||sp)">
+              <span class='group flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-[#444] text-[11px] font-medium shadow-sm ring-1 ring-[#BEE3DB] pr-2'>
+                <button x-show="editable" type="button" @click.stop="toggleTop(sp.name||sp)" :disabled="($store.profileModal.therapist.specialties||[]).filter(x=>x.is_top).length>=5" :class="(($store.profileModal.therapist.specialties||[]).filter(x=>x.is_top).length>=5) ? 'opacity-30 cursor-not-allowed' : 'opacity-60 group-hover:opacity-100'" class="text-[#F0B429]" aria-label="Mark Top">☆</button>
+                <span x-text="sp.name || sp"></span>
+                <button x-show="editable" type="button" @click.stop="removeSpecialty(sp.name||sp)" class="opacity-60 group-hover:opacity-100 text-[#116466] hover:text-[#9b4d49]" aria-label="Remove">✕</button>
+              </span>
+            </template>
+          </div>
+        </template>
+        <template x-if="!($store.profileModal.therapist.specialties && $store.profileModal.therapist.specialties.length)">
+          <p class="italic text-[12px] text-[#89B0AE] mb-4">No specialties added yet.</p>
+        </template>
+        <div x-show="editable" class="relative" @keydown="specialtyKeydown($event)" @click.outside="clickAwaySpecialty()" x-cloak>
+          <div class="flex items-center gap-2">
+            <div class="relative flex-1">
+              <input type="text" x-model="specialtyQuery" @input="onSpecialtyInput()" placeholder="Search or add a specialty" class="w-full tc-input px-3 py-2 text-sm border border-[#BEE3DB] rounded-md focus:border-[#116466] focus:ring-1 focus:ring-[#116466] bg-white" aria-label="Specialty" @focus="onSpecialtyFocus()" />
+              <div x-show="specialtyLoading" class="absolute top-1/2 -translate-y-1/2 right-2 animate-spin rounded-full h-4 w-4 border-[2px] border-[#89B0AE] border-t-transparent"></div>
+              <template x-if="specialtyOpen && specialtyResults.length">
+                <ul class="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-md border border-[#BEE3DB] bg-white shadow-lg text-sm" role="listbox">
+                  <template x-for="(p,i) in specialtyResults" :key="p.id">
+                    <li :id="'sp-opt2-'+i" @mousedown.prevent="selectSpecialty(i)" :class="i===specialtySelectedIndex ? 'bg-[#E5F4F2] text-[#116466]' : 'hover:bg-[#F1F8F7]'" class="px-3 py-1.5 cursor-pointer flex items-center justify-between">
+                      <span x-text="p.name"></span>
+                      <span class="text-[10px] text-[#89B0AE]" x-show="caseEq(p.name, specialtyQuery)">match</span>
+                    </li>
+                  </template>
+                </ul>
+              </template>
+            </div>
+            <button type="button" @click="addSpecialty()" :disabled="!specialtyQuery.trim()" class="px-3 py-2 rounded-full text-[11px] font-semibold disabled:opacity-30 disabled:cursor-not-allowed bg-[#116466] text-white hover:bg-[#0d4c4d]">Add</button>
+          </div>
+          <p class="text-[10px] text-[#555B6E] leading-snug mt-2">Add and (optionally) star up to 5 specialties to feature them. Auto-saves shortly after changes.</p>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center gap-3 text-[10px] text-[#555B6E]">
+          <span class="flex items-center gap-1"><span class="text-[#D94F04]">★</span> Highlighted Specialty</span>
+          <span class="flex items-center gap-1"><span class="text-[#F0B429]">☆</span> Click to highlight</span>
+          <span class="flex items-center gap-1"><span class="text-[#9b4d49] font-semibold">✕</span> Remove</span>
+        </div>
+        <p class="text-[10px] text-[#9b4d49] mt-2" x-show="error" x-text="error"></p>
+        <p class="text-[10px] text-[#89B0AE] mt-1" x-show="saving">Saving…</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Fallback lightweight manager if full version not loaded (e.g., standalone modal render) -->
+<script>
+if(typeof therapySpecialtiesManager === 'undefined'){
+  function therapySpecialtiesManager(opts){
+    const csrf = typeof TC_CSRF !== 'undefined' ? TC_CSRF : '';
+    return {
+      editable: opts && opts.editable === true,
+      therapyQuery:'', therapyResults:[], therapyOpen:false, therapyLoading:false, therapySelectedIndex:-1,
+      specialtyQuery:'', specialtyResults:[], specialtyOpen:false, specialtyLoading:false, specialtySelectedIndex:-1,
+      saving:false, error:'',
+      caseEq(a,b){ return (a||'').toLowerCase() === (b||'').toLowerCase(); },
+      init(){},
+      fetchOptions(kind, query){ if(!query || query.length < 2){ if(kind==='therapy'){ this.therapyResults=[]; this.therapyOpen=false; } else { this.specialtyResults=[]; this.specialtyOpen=false; } return; } const stateMap={therapy:['therapyResults','therapyOpen','therapyLoading'], specialty:['specialtyResults','specialtyOpen','specialtyLoading']}; const [resKey,openKey,loadKey]=stateMap[kind]; this[loadKey]=true; fetch(`/users/api/profile/search/${kind}/?q=`+encodeURIComponent(query))
+          .then(r=>r.ok?r.json():Promise.reject()).then(d=>{ this[resKey]=Array.isArray(d)?d:(d.results||[]); this[openKey]=true; }).catch(()=>{}).finally(()=> this[loadKey]=false); },
+      onTherapyInput(){ this.therapySelectedIndex=-1; this.fetchOptions('therapy', this.therapyQuery); },
+      onTherapyFocus(){ this.onTherapyInput(); },
+      therapyKeydown(e){ if(!this.therapyOpen) return; if(['ArrowDown','ArrowUp','Enter'].includes(e.key)){ e.preventDefault(); } if(e.key==='ArrowDown'){ this.therapySelectedIndex=Math.min(this.therapySelectedIndex+1,this.therapyResults.length-1);} else if(e.key==='ArrowUp'){ this.therapySelectedIndex=Math.max(this.therapySelectedIndex-1,0);} else if(e.key==='Enter' && this.therapySelectedIndex>-1){ this.selectTherapy(this.therapySelectedIndex);} },
+      clickAwayTherapy(){ this.therapyOpen=false; },
+      selectTherapy(i){ const item=this.therapyResults[i]; if(!item) return; this.therapyQuery=item.name; this.addTherapyType(); },
+      addTherapyType(){ if(!this.editable) return; const v=this.therapyQuery.trim(); if(!v) return; const s=Alpine.store('profileModal'); const list=[...(s.therapist.therapy_types||[])]; if(list.includes(v)){ this.therapyQuery=''; return; } list.push(v); this.saveAll({ therapy_types:list }); this.therapyQuery=''; },
+      removeTherapyType(v){ if(!this.editable) return; const s=Alpine.store('profileModal'); const list=(s.therapist.therapy_types||[]).filter(x=>x!==v); this.saveAll({ therapy_types:list }); },
+      onSpecialtyInput(){ this.specialtySelectedIndex=-1; this.fetchOptions('specialty', this.specialtyQuery); },
+      onSpecialtyFocus(){ this.onSpecialtyInput(); },
+      specialtyKeydown(e){ if(!this.specialtyOpen) return; if(['ArrowDown','ArrowUp','Enter'].includes(e.key)){ e.preventDefault(); } if(e.key==='ArrowDown'){ this.specialtySelectedIndex=Math.min(this.specialtySelectedIndex+1,this.specialtyResults.length-1);} else if(e.key==='ArrowUp'){ this.specialtySelectedIndex=Math.max(this.specialtySelectedIndex-1,0);} else if(e.key==='Enter' && this.specialtySelectedIndex>-1){ this.selectSpecialty(this.specialtySelectedIndex);} },
+      clickAwaySpecialty(){ this.specialtyOpen=false; },
+      selectSpecialty(i){ const item=this.specialtyResults[i]; if(!item) return; this.specialtyQuery=item.name; this.addSpecialty(); },
+      addSpecialty(){ if(!this.editable) return; const v=this.specialtyQuery.trim(); if(!v) return; const s=Alpine.store('profileModal'); const list=[...(s.therapist.specialties||[])]; if(list.some(sp=> (sp.name||sp)===v)){ this.specialtyQuery=''; return; } list.push({name:v,is_top:false}); this.saveAll({ specialties:list.map(x=> x.name||x), top_specialties:list.filter(x=>x.is_top).map(x=>x.name).slice(0,5) }); this.specialtyQuery=''; },
+      removeSpecialty(name){ if(!this.editable) return; const s=Alpine.store('profileModal'); const list=(s.therapist.specialties||[]).filter(sp=> (sp.name||sp)!==name); const tops=list.filter(sp=> sp.is_top).map(sp=> sp.name).slice(0,5); this.saveAll({ specialties:list.map(x=> x.name||x), top_specialties:tops }); },
+      toggleTop(name){ if(!this.editable) return; const s=Alpine.store('profileModal'); const list=(s.therapist.specialties||[]).map(sp=> ({...sp})); const idx=list.findIndex(sp=> (sp.name||sp)===name); if(idx===-1) return; const topCount=list.filter(sp=> sp.is_top).length; if(list[idx].is_top){ list[idx].is_top=false; } else if(topCount<5){ list[idx].is_top=true; } const tops=list.filter(sp=> sp.is_top).map(sp=> sp.name).slice(0,5); this.saveAll({ specialties:list.map(x=> x.name||x), top_specialties:tops }); },
+      saveAll(payload){ this.saving=true; this.error=''; fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload) })
+        .then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && Object.values(d.errors)[0]) || d.error || 'Save failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ if(d.therapy_types) s.therapist.therapy_types=d.therapy_types; if(d.specialties){ s.therapist.specialties=(d.specialties||[]).map(x=> typeof x==='string'? {name:x,is_top:(d.top_specialties||[]).includes(x)} : x); } if(d.top_specialties) s.therapist.top_specialties=d.top_specialties; } if(window.__profileEdit && window.__profileEdit.applyData){ window.__profileEdit.applyData(d); window.__profileEdit.notify && window.__profileEdit.notify('Saved'); } })
+        .catch(()=> this.error='Network error')
+        .finally(()=> this.saving=false); }
+    };
+  }
+}
+</script>
