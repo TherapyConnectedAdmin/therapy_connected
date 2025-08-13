@@ -738,6 +738,8 @@ def _profile_json(profile):
         'license_type': profile.license_type.name if getattr(profile, 'license_type', None) else None,
         'license_type_short': profile.license_type.short_description if getattr(profile, 'license_type', None) else None,
         'license_type_description': profile.license_type.description if getattr(profile, 'license_type', None) else None,
+    'license_status': getattr(profile, 'license_status', ''),
+    'license_last_verified_at': profile.license_last_verified_at.isoformat() if getattr(profile, 'license_last_verified_at', None) else None,
     'race_ethnicity_options': race_ethnicity_options,
     'gender_options': gender_options,
     'faith_options': faith_options,
@@ -808,6 +810,14 @@ def api_profile_update(request):
         top_specialties_new = None  # list of top specialty names (subset of specialties)
         participant_types_new = None  # list of participant type names (full replacement)
         age_groups_new = None  # list of age group names (full replacement)
+        license_fields_changed = False
+        orig_license_snapshot = {
+            'license_type': profile.license_type_id if getattr(profile, 'license_type', None) else None,
+            'license_number': profile.license_number,
+            'license_state': profile.license_state,
+            'license_first_name': profile.license_first_name,
+            'license_last_name': profile.license_last_name,
+        }
         for field, value in payload.items():
             canonical = FIELD_ALIASES.get(field, field)
             if canonical in ('race_ethnicities','faiths','lgbtqia_identities','other_identities'):
@@ -907,8 +917,10 @@ def api_profile_update(request):
                     profile.license_type = lt_obj
                 else:
                     profile.license_type = None
-                updated = True; continue
+                updated = True; license_fields_changed = True; continue
             setattr(profile, canonical, value); updated = True
+            if canonical in {'license_number','license_state','license_first_name','license_last_name'}:
+                license_fields_changed = True
         # Multi-select helpers
         def process_multi(new_vals, rel_attr, model_cls_name, sel_cls_name, field_name, error_key):
             """Generic full-replace handler for identity-style multi selects.
@@ -1171,6 +1183,15 @@ def api_profile_update(request):
             except Exception:
                 # Silently ignore activation errors; user can continue editing
                 pass
+            # Trigger license verification if relevant fields changed
+            if license_fields_changed:
+                try:
+                    from users.utils.license_verification import verify_and_persist
+                    # Avoid excessive calls: only run if basic required pieces present
+                    if profile.license_number and profile.license_state and profile.license_type:
+                        verify_and_persist(profile)
+                except Exception:
+                    pass
         return JsonResponse(_profile_json(profile))
     except Exception as ex:
         traceback.print_exc()

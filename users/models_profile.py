@@ -398,3 +398,20 @@ class LicenseVerificationLog(models.Model):
     def __str__(self):
         return f"{self.therapist_id} {self.status} {self.created_at:%Y-%m-%d}" 
 
+class StateLicenseBoard(models.Model):
+    """Metadata/config for each state's licensing board search.
+    Initially minimal; can be expanded with scraping selectors later.
+    """
+    state = models.CharField(max_length=2, db_index=True)
+    board_name = models.CharField(max_length=128, blank=True)
+    license_type = models.CharField(max_length=64, blank=True, help_text="Optional license type scope if board differs by type")
+    search_url = models.CharField(max_length=512, help_text="Public search or lookup URL for manual + automated verification")
+    active = models.BooleanField(default=True)
+    notes = models.CharField(max_length=512, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        unique_together = ('state','license_type','search_url')
+        ordering = ['state','license_type']
+    def __str__(self):
+        return f"{self.state} {self.license_type or ''} board".strip()
+
