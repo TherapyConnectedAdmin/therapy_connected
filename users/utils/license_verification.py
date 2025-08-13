@@ -30,71 +30,114 @@ def verify_ca(profile: TherapistProfile) -> LicenseCheckResult:
 
 @register_state('KY')
 def verify_ky(profile: TherapistProfile) -> LicenseCheckResult:
-    """Attempt Kentucky OOP verification (best-effort, heuristic).
+    """Perform Kentucky OOP WebForms search and parse result row.
 
-    NOTE: This is an initial heuristic implementation. Kentucky's OOP portal is a generalized
-    multi-board search UI (likely an ASP.NET or similar form-driven app). Without stable, documented
-    API parameters or legal clearance for automated scraping we keep this conservative:
-    1. Fetch landing page to ensure availability.
-    2. Attempt a minimal search (if license number present) via simple GET query patterns that may
-       exist (fallback to page presence only). We avoid aggressive form emulation.
-    3. Parse returned HTML for recognizable status keywords near the license number or last name.
+    Steps:
+      1. GET landing page to capture __VIEWSTATE / __EVENTVALIDATION / __VIEWSTATEGENERATOR.
+      2. POST form with radio selection (individual), license number (or name fallback), and Search button.
+      3. Parse returned HTML segment #ContentPlaceHolder2_LData for result table.
+      4. Extract row matching license number (preferred) else name; capture board, license type, issue & expiration dates, discipline flag, status.
+      5. Map to internal status.
 
-    Outcomes:
-      active_good_standing -> if keywords like Active, Good Standing found with no negative flags
-      expired -> if Expired appears
-      disciplinary_flag -> if Suspended, Revoked, Probation, Surrender appears
-      not_found -> if no matching tokens at all when searching by license number
-      unverified -> fallback when ambiguous
+    Limitations: If site structure changes or additional anti-bot measures appear, this may fail and fall back gracefully.
+    We intentionally do not select all boards explicitly (site auto-loads board list); targeting by license number is usually unique.
     """
-    import bs4  # BeautifulSoup (installed via requirements)
+    import bs4
     base = "https://oop.ky.gov"
-    lname = (profile.license_last_name or profile.last_name or '').strip()
     lnum = (profile.license_number or '').strip()
-    source_url = base
+    lname = (profile.license_last_name or profile.last_name or '').strip()
+    if not lnum and not lname:
+        return LicenseCheckResult(status='error', message='Missing license number and last name', source_url=base)
     try:
-        landing = requests.get(base, timeout=10)
+        session = requests.Session()
+        landing = session.get(base, timeout=15)
     except Exception as ex:
-        return LicenseCheckResult(status='error', message=f'KY portal unreachable: {ex.__class__.__name__}', source_url=source_url)
+        return LicenseCheckResult(status='error', message=f'KY portal unreachable: {ex.__class__.__name__}', source_url=base)
     if landing.status_code != 200:
-        return LicenseCheckResult(status='error', message=f'KY portal HTTP {landing.status_code}', source_url=source_url, raw={'status_code': landing.status_code})
-
-    # Heuristic: if no license number, we cannot uniquely search; treat as unverified but reachable
-    if not lnum:
-        return LicenseCheckResult(status='unverified', message='KY reachable; waiting on license number', source_url=source_url)
-
-    # Because true form parameters are unknown here, we scan landing HTML for the license number first
-    html = landing.text
-    if lnum in html:
-        # Already present (unlikely) treat as ambiguous
-        pass
-    # Basic token classification
-    soup = bs4.BeautifulSoup(html, 'html.parser')
-    text = soup.get_text(" ", strip=True)
-    # Narrow scope: find segments around license number or last name (if present later when real search implemented)
-    # For now whole text (landing page does not contain individual results yet)
-    status_tokens = {
-        'active': re.compile(r'\bactive\b', re.I),
-        'good': re.compile(r'good standing', re.I),
-        'expired': re.compile(r'\bexpired\b', re.I),
-        'suspended': re.compile(r'\bsuspended\b', re.I),
-        'revoked': re.compile(r'\brevoked\b', re.I),
-        'probation': re.compile(r'\bprobation\b', re.I),
-        'surrender': re.compile(r'\bsurrender(ed)?\b', re.I),
+        return LicenseCheckResult(status='error', message=f'KY portal HTTP {landing.status_code}', source_url=base, raw={'status_code': landing.status_code})
+    soup = bs4.BeautifulSoup(landing.text, 'html.parser')
+    def grab(name):
+        el = soup.find('input', {'name': name})
+        return el.get('value') if el else ''
+    viewstate = grab('__VIEWSTATE')
+    eventval = grab('__EVENTVALIDATION')
+    viewstategen_el = soup.find('input', {'name': '__VIEWSTATEGENERATOR'})
+    viewstategen = viewstategen_el.get('value') if viewstategen_el else ''
+    # Build POST data
+    data = {
+        '__VIEWSTATE': viewstate,
+        '__EVENTVALIDATION': eventval,
+        '__VIEWSTATEGENERATOR': viewstategen,
+        'ctl00$ContentPlaceHolder2$rdLictype': '1',  # Individual
+        'ctl00$ContentPlaceHolder2$TLicno': lnum,
+        'ctl00$ContentPlaceHolder2$TFname': '',
+        'ctl00$ContentPlaceHolder2$TLname': lname if not lnum else '',  # only use name if license number absent
+        'ctl00$ContentPlaceHolder2$DStatus': '',
+        'ctl00$ContentPlaceHolder2$BSrch': 'Search',
     }
-    found = {k: bool(rx.search(text)) for k, rx in status_tokens.items()}
-    # Derive status ranking
-    if found['expired']:
-        status = 'expired'
-    elif any(found[k] for k in ('suspended','revoked','probation','surrender')):
-        status = 'disciplinary_flag'
-    elif found['active'] or (found['active'] and found['good']):
-        # Only treat as active_good_standing if both active and good standing appear to reduce false positives
-        status = 'active_good_standing' if (found['active'] and found['good']) else 'unverified'
+    try:
+        resp = session.post(base, data=data, timeout=20)
+    except Exception as ex:
+        return LicenseCheckResult(status='error', message=f'KY search failed: {ex.__class__.__name__}', source_url=base)
+    if resp.status_code != 200:
+        return LicenseCheckResult(status='error', message=f'KY search HTTP {resp.status_code}', source_url=base, raw={'status_code': resp.status_code})
+    rsoup = bs4.BeautifulSoup(resp.text, 'html.parser')
+    container = rsoup.find(id='ContentPlaceHolder2_LData')
+    if not container:
+        return LicenseCheckResult(status='error', message='KY result container missing', source_url=base)
+    # Find table rows after header; header contains <B>Name</B>
+    rows = container.find_all('tr')
+    target = None
+    header_seen = False
+    for tr in rows:
+        cells = [c.get_text(strip=True) for c in tr.find_all('td')]
+        if not cells:
+            continue
+        if any('Name' == c for c in cells) and any('License Number' in c for c in cells):
+            header_seen = True
+            continue
+        if header_seen and len(cells) >= 9:
+            # cells mapping based on sample: 0 Name,1 Board,2 License Type,3 Legacy,4 License Number,5 Disciplinary Actions,6 Status,7 Issue,8 Expiration
+            lic_no = cells[4]
+            name_cell = cells[0]
+            if lnum and lic_no == lnum:
+                target = cells; break
+            if not lnum and lname and lname.lower() in name_cell.lower():
+                target = cells; break
+    if not target:
+        # Check for total matches indicator = 0
+        if 'Total Matches Found : 0' in container.get_text():
+            return LicenseCheckResult(status='not_found', message='No KY matches', source_url=base)
+        return LicenseCheckResult(status='unverified', message='KY match not isolated', source_url=base)
+    name, board, lic_type, legacy_no, lic_no, disciplinary, status_text, issue_date, exp_date = target[:9]
+    # Determine internal status
+    status_lc = status_text.lower()
+    if 'expired' in status_lc:
+        internal = 'expired'
+    elif any(w in status_lc for w in ['suspend','revok','probation','surrender']):
+        internal = 'disciplinary_flag'
+    elif status_lc.startswith('active'):
+        # Consider disciplinary column
+        if disciplinary.lower() == 'no':
+            internal = 'active_good_standing'
+        else:
+            internal = 'disciplinary_flag'
     else:
-        status = 'unverified'
-    # Without actual search results we cannot assert not_found; that will come with form simulation
-    return LicenseCheckResult(status=status, message='KY heuristic parse (landing page only)', source_url=source_url, raw={'tokens': found})
+        internal = 'unverified'
+    raw = {
+        'name': name,
+        'board': board,
+        'license_type': lic_type,
+        'legacy_number': legacy_no,
+        'license_number': lic_no,
+        'disciplinary_actions': disciplinary,
+        'status_text': status_text,
+        'issue_date': issue_date,
+        'expiration_date': exp_date,
+        'source': 'KY_OOP',
+    }
+    msg = f"KY: {status_text} (exp {exp_date}) disciplinary={disciplinary}"
+    return LicenseCheckResult(status=internal, message=msg, source_url=base, raw=raw)
 
 # Fallback generic strategy (HTML scraping patterns could go here)
 
