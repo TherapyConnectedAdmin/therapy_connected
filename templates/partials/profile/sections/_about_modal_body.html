@@ -13,31 +13,115 @@
     </div>
   </div>
 </div>
-<!-- Intro Video (modal first) - only render if a video exists -->
-<template x-if="$store.profileModal.therapist.video_gallery && $store.profileModal.therapist.video_gallery.length">
-  <div class="mb-10" x-data="videoManager()" x-init="if(!video){ const vg=Alpine.store('profileModal')?.therapist?.video_gallery||[]; if(vg.length) video=vg[0]; }" {% if editable %}data-editable="1"{% endif %}>
-    <div class="flex items-center gap-3 mb-2">
-      <h3 class="text-xl font-semibold text-[#555B6E]">Intro Video</h3>
-      <span class="text-[11px] font-medium text-[#89B0AE]" x-text="video ? '1 / 1' : '0 / 1'"></span>
+<!-- Intro Video (modal first) unified editable block (now boxed like gallery). Wrapper ends BEFORE personal statements. -->
+<div class="mb-8 rounded-xl p-4 md:p-5 bg-white/75 ring-1 ring-[#BEE3DB] shadow-sm flex flex-col gap-4 relative overflow-hidden"
+    x-data="(typeof videoManager==='function') ? videoManager() : {}"
+    x-init="if(!video){ const vg=Alpine.store('profileModal')?.therapist?.video_gallery||[]; if(vg.length) video=vg[0]; } $watch('$store.profileModal.therapist.video_gallery', v => { if(v && v.length){ video = v[0]; } else { if(!recording && !file) video=null; } });"
+    {% if editable %}data-editable="1"{% endif %}>
+  <div class="absolute inset-0 pointer-events-none opacity-35 bg-[radial-gradient(circle_at_18%_22%,#E5F4F2,transparent_58%),radial-gradient(circle_at_82%_78%,#FFDDD0,transparent_65%)]"></div>
+  <div class="relative z-10">
+  <div class="flex items-center gap-3 mb-2">
+    <h3 class="text-xl font-semibold text-[#555B6E]">Intro Video</h3>
+    <span class="text-[11px] font-medium text-[#89B0AE]" x-text="video ? '1 / 1' : '0 / 1'"></span>
+  </div>
+  <!-- If video exists show display/edit -->
+  <div class="w-full md:w-72 flex flex-col gap-4" x-show="video" x-cloak>
+    <div class="rounded-xl overflow-hidden bg-black aspect-video relative" x-data="{ }">
+  <video x-show="video && !videoLoadError" :src="video && video.video_url ? video.video_url : ''" controls playsinline class="w-full h-full object-cover" @error="videoLoadError=true; console.warn('Intro video failed to load');" @loadeddata="videoLoadError=false"></video>
+      <template x-if="videoLoadError">
+        <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70 text-white text-xs p-3 text-center">
+          <p class="font-medium">Video failed to load.</p>
+          {% if editable %}
+          <button type="button" @click="video=null; videoLoadError=false;" class="px-3 py-1.5 rounded-full bg-white text-[#116466] text-[11px] font-semibold hover:bg-[#E5F4F2]">Re-upload</button>
+          {% endif %}
+        </div>
+      </template>
     </div>
-    <div class="w-full md:w-72 flex flex-col gap-4">
-      <div class="rounded-xl overflow-hidden bg-black aspect-video relative">
-  <video :src="video.video_url" controls playsinline class="w-full h-full object-cover"
-         @error="console.warn('Intro video failed to load, removing.'); const s=Alpine.store('profileModal'); if(s?.therapist){ s.therapist.video_gallery=[]; }"></video>
+    <template x-if="video">
+      <textarea x-model="video.caption" @change="updateCaption()" maxlength="128" placeholder="Caption" class="w-full rounded-md border border-[#BEE3DB] bg-white px-3 py-2 text-[12px] focus:border-[#116466] focus:ring-[#116466]"></textarea>
+    </template>
+    {% if editable %}
+    <div class="flex gap-2" x-show="video" x-cloak>
+      <button type="button" @click="openDelete()" class="px-3 py-2 rounded-full bg-[#FFE8E5] text-[#9b4d49] text-xs font-semibold hover:bg-[#FFD5CF]">Delete</button>
+    </div>
+    {% endif %}
+  </div>
+  <!-- If no video show upload/record UI (edit mode only) -->
+  {% if editable %}
+  <div x-show="!video" x-cloak class="w-full">
+    <div class="flex flex-col md:flex-row gap-6 items-start">
+      <!-- Left: Upload & Record Column -->
+      <div class="flex-1 flex flex-col gap-4 max-w-full md:max-w-md">
+        <div class="relative border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center text-center gap-3 bg-white/80"
+             :class="drag ? 'border-[#116466] bg-[#E5F4F2]/60' : 'border-[#BEE3DB]'"
+             @dragover.prevent="drag=true" @dragleave.prevent="drag=false" @drop.prevent="drag=false; const f=$event.dataTransfer?.files?.[0]; if(f) setFile(f);">
+          <svg class="w-10 h-10 text-[#116466]" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0 4-4m-4 4-4-4M4 16.5a4.5 4.5 0 0 1 4.5-4.5h1.118a2 2 0 0 0 1.414-.586l1.172-1.172a2 2 0 0 1 1.414-.586H15a5 5 0 0 1 5 5v1a4 4 0 0 1-4 4H8.5A4.5 4.5 0 0 1 4 16.5Z"/></svg>
+          <p class="text-[12px] leading-snug text-[#2e4a49]">Drop video or <button type="button" class="underline font-semibold" @click="$refs.vidFile.click()">browse</button><br/><span class="text-[11px] text-[#89B0AE]">MP4 / WebM • ≤ 60MB</span></p>
+          <input type="file" x-ref="vidFile" accept="video/mp4,video/webm" class="hidden" @change="onFile($event)" />
+          <template x-if="file"><p class="text-[11px] text-[#116466] truncate max-w-[180px]" x-text="file.name"></p></template>
+          <template x-if="error"><p class="text-[11px] text-[#9b4d49]" x-text="error"></p></template>
+        </div>
+        <div class="flex flex-wrap gap-2 items-center">
+          <button type="button" @click="recording ? stopRecording() : startRecording()" class="px-3.5 py-1.5 rounded-full text-[11px] font-semibold" :class="recording ? 'bg-[#9b4d49] text-white' : 'bg-[#116466] text-white hover:bg-[#0d4c4d]'" x-text="recording ? 'Stop' : 'Record'"></button>
+          <button type="button" @click="upload()" :disabled="uploading || !file" class="px-3.5 py-1.5 rounded-full text-[11px] font-semibold bg-[#116466] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#0d4c4d]">Upload</button>
+          <button type="button" @click="reset()" :disabled="uploading || (!file && !recording)" class="px-3.5 py-1.5 rounded-full text-[11px] font-medium bg-white ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2] disabled:opacity-30">Clear</button>
+          <template x-if="recording"><span class="flex items-center gap-1 text-[10px] font-semibold text-[#9b4d49] animate-pulse select-none"><span class="w-2 h-2 rounded-full bg-[#9b4d49]"></span>REC</span></template>
+        </div>
+        <div class="rounded-xl overflow-hidden bg-black aspect-video relative" x-show="recording || previewUrl" x-cloak>
+          <video x-ref="livePreview" x-show="recording" autoplay playsinline muted class="w-full h-full object-cover"></video>
+          <video x-show="!recording && previewUrl" :src="previewUrl" controls playsinline class="w-full h-full object-cover"></video>
+          <div class="absolute top-2 left-2 flex items-center gap-2" x-show="recording"><span class="px-2 py-0.5 rounded-full bg-[#9b4d49] text-white text-[10px] font-semibold shadow">Recording…</span></div>
+        </div>
+        <input type="text" x-model="caption" maxlength="120" placeholder="Caption (optional)" class="w-full rounded-md border border-[#BEE3DB] bg-white px-3 py-2 text-[12px] focus:border-[#116466] focus:ring-[#116466]" />
+        <template x-if="uploading"><div class="h-1 w-full bg-[#E5F4F2] rounded overflow-hidden"><div class="h-full bg-[#FF9950] animate-pulse" style="width:100%"></div></div></template>
       </div>
-      <template x-if="video.caption"><p class="text-[11px] text-[#555B6E]" x-text="video.caption"></p></template>
+      <!-- Right: Helpful Hints Panel -->
+      <div class="md:w-64 lg:w-72 shrink-0 rounded-2xl bg-white/95 ring-1 ring-[#BEE3DB] shadow-md px-4 py-4 md:px-5 md:py-5 backdrop-blur-sm">
+        <h4 class="text-[13px] font-semibold tracking-wide text-[#116466] mb-2">Intro Video Tips</h4>
+        <ul class="text-[12px] leading-relaxed text-[#2e4a49] space-y-2 list-disc pl-4">
+          <li><span class="font-medium">Aim for ~45–60s:</span> focus on how clients feel working with you.</li>
+          <li><span class="font-medium">Good lighting & sound:</span> face natural light; reduce background noise.</li>
+          <li><span class="font-medium">Eye contact:</span> look at the camera lens to build trust.</li>
+          <li><span class="font-medium">Who you help:</span> name the people / concerns you work best with.</li>
+          <li><span class="font-medium">Warm close:</span> invite them to reach out for a consult.</li>
+        </ul>
+      </div>
     </div>
   </div>
-</template>
+  {% endif %}
+  </div><!-- /inner content -->
+  <div x-show="confirmDelete" x-cloak class="fixed inset-0 z-[7000] flex items-center justify-center" aria-modal="true" role="dialog">
+    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="cancelDelete()"></div>
+    <div class="relative w-full max-w-sm mx-auto bg-white rounded-2xl shadow-2xl ring-1 ring-[#BEE3DB] overflow-hidden">
+      <div class="absolute inset-0 pointer-events-none opacity-60 mix-blend-normal bg-[radial-gradient(circle_at_18%_22%,#E5F4F2,transparent_60%),radial-gradient(circle_at_82%_78%,#FFDDD0,transparent_65%)]"></div>
+      <div class="relative p-6 flex flex-col gap-4">
+        <h3 class="text-base font-semibold text-[#555B6E]">Delete intro video?</h3>
+        <p class="text-[12px] leading-relaxed text-[#2e4a49]">This will permanently remove your current intro video. You can upload a new one anytime.</p>
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button type="button" @click="cancelDelete()" :disabled="deleting" class="px-4 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] text-xs font-semibold hover:bg-[#E5F4F2] disabled:opacity-50">Cancel</button>
+          <button type="button" @click="confirmDeleteAction()" :disabled="deleting" class="px-4 py-1.5 rounded-full bg-[#9b4d49] text-white text-xs font-semibold hover:bg-[#873f3b] disabled:opacity-50 flex items-center gap-2">
+            <span x-show="!deleting">Delete</span>
+            <span x-show="deleting" class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>Deleting…</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /video wrapper -->
 <!-- Personal Statement 1 (moves to top when no video because video block not rendered) -->
 <div x-show="editable || $store.profileModal.therapist.personal_statement_q1" x-cloak>
-  <div class="mb-8 rounded-xl p-4 md:p-5 bg-statement/90 ring-1 ring-[#BEE3DB] shadow-md" style="box-shadow:0 4px 18px -6px #555B6E1F;">
+  <div class="mb-8 rounded-xl p-5 md:p-6 bg-white/85 backdrop-blur-sm ring-2 ring-[#BEE3DB] shadow-lg relative overflow-hidden group max-w-[900px] mx-auto w-full" style="box-shadow:0 6px 24px -8px #555B6E33;">
+    <div class="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_18%_24%,#E5F4F2,transparent_60%),radial-gradient(circle_at_82%_78%,#FFDDD0,transparent_65%)] mix-blend-normal"></div>
     <div class="group relative cursor-pointer" data-edit-wrapper data-field="personal_statement_q1" x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }" role="button" tabindex="0" @click.stop="can_edit && $dispatch('edit-rich-text',{field:'personal_statement_q1',current:$store.profileModal.therapist.personal_statement_q1||'', el: $el})">
       <template x-if="$store.profileModal.therapist.personal_statement_q1">
-        <div class="text-base md:text-lg leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q1"></div>
+        <div class="text-[15px] md:text-[16px] leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q1"></div>
       </template>
       <template x-if="!$store.profileModal.therapist.personal_statement_q1">
-        <p class="italic text-[#89B0AE]" :class="can_edit ? 'animate-pulse' : ''" x-text="can_edit ? 'Add a first personal statement…' : ''"></p>
+        <div class="flex flex-col gap-1" :class="can_edit ? 'animate-pulse' : ''">
+          <p class="text-[#116466] font-semibold text-sm tracking-wide">Personal Statement 1</p>
+          <p class="italic text-[#89B0AE] text-[12px] leading-snug">Briefly introduce yourself, your approach & how early sessions feel. (120–400 chars)</p>
+          <p class="italic text-[#89B0AE] text-[11px]">Click to start…</p>
+        </div>
       </template>
       {% if editable %}<button type="button" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-1 rounded bg-[#116466] text-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q1',current:$store.profileModal.therapist.personal_statement_q1||'', el: $el})">Edit</button>{% endif %}
     </div>
@@ -45,27 +129,65 @@
 </div>
 <!-- Image Gallery (modal third) - modern compact grid -->
 <div x-show="editable || ($store.profileModal.therapist.gallery_images && $store.profileModal.therapist.gallery_images.length)" x-cloak>
+  {% if editable %}
+  <div class="mb-10 rounded-xl p-4 md:p-5 bg-white/70 ring-1 ring-[#BEE3DB] shadow-sm flex flex-col gap-4" x-data="galleryManager()" x-init="images=(Alpine.store('profileModal')?.therapist?.gallery_images||[]).slice()">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <h3 class="text-sm font-bold tracking-wide text-[#555B6E]">Image Gallery</h3>
+      <span class="text-[10px] font-medium text-[#89B0AE]" x-text="images.length + ' / 12'"></span>
+    </div>
+    <div class="grid md:grid-cols-5 gap-4">
+      <div class="md:col-span-2 flex flex-col gap-3">
+        <div class="relative border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center gap-3 bg-white/60" :class="drag ? 'border-[#116466] bg-[#E5F4F2]/60' : 'border-[#BEE3DB]'" @dragover.prevent="drag=true" @dragleave.prevent="drag=false" @drop.prevent="onDrop($event)">
+          <svg class="w-8 h-8 text-[#116466]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 0 1 4-4h1.26a8 8 0 1 1 7.48 5.5H17a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Zm8-5v6m0 0 2-2m-2 2-2-2"/></svg>
+          <p class="text-[11px] leading-snug text="#555B6E]">Drop image or <button type="button" class="underline text-[#116466] font-semibold" @click="$refs.galFile.click()">browse</button><br/>JPG/PNG ≤ 5MB.</p>
+          <input type="file" x-ref="galFile" accept="image/*" class="hidden" @change="onFile($event)" />
+          <template x-if="file"><p class="text-[10px] text-[#116466] truncate max-w-[140px]" x-text="file.name"></p></template>
+          <template x-if="error"><p class="text-[10px] text-[#9b4d49]" x-text="error"></p></template>
+        </div>
+        <input type="text" x-model="caption" maxlength="80" placeholder="Caption (optional)" class="w-full rounded-md border border-[#BEE3DB] bg-white px-2 py-1.5 text-[12px] focus:border-[#116466] focus:ring-[#116466]" />
+        <label class="inline-flex items-center gap-2 text-[11px] text-[#555B6E]"><input type="checkbox" x-model="is_primary" class="accent-[#116466]"/> Primary Image</label>
+        <div class="flex gap-2 pt-1">
+          <button type="button" @click="upload()" :disabled="uploading || !file" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-[#116466] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#0d4c4d]">Upload</button>
+          <button type="button" @click="reset()" :disabled="uploading || !file" class="px-3 py-1.5 rounded-full text-[11px] font-medium bg-white ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2] disabled:opacity-30">Clear</button>
+        </div>
+        <template x-if="uploading"><div class="h-1 w-full bg-[#E5F4F2] rounded overflow-hidden"><div class="h-full bg-[#FF9950] animate-pulse" style="width:100%"></div></div></template>
+      </div>
+      <div class="md:col-span-3">
+        <template x-if="!images.length"><p class="text-[11px] italic text-[#89B0AE]">No images yet. Upload your first.</p></template>
+        <div class="grid grid-cols-3 gap-2" x-show="images.length">
+          <template x-for="img in images" :key="img.id || img.url">
+            <div class="relative group border rounded-lg overflow-hidden bg-white ring-1 ring-[#BEE3DB]/70">
+              <img :src="img.url" class="w-full h-24 object-cover" :alt="img.caption" />
+              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition"></div>
+              <div class="absolute top-1 left-1 flex gap-1">
+                <span x-show="img.is_primary" class="px-1.5 py-0.5 rounded bg-[#116466] text-white text-[9px] font-semibold">Primary</span>
+              </div>
+              <div class="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                <button type="button" @click="setPrimary(img)" x-show="!img.is_primary" class="px-1.5 py-0.5 rounded bg-white text-[9px] font-semibold text-[#116466] ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2]">Primary</button>
+                <button type="button" @click="remove(img)" class="px-1.5 py-0.5 rounded bg-[#FFE8E5] text-[9px] font-semibold text-[#9b4d49] hover:bg-[#FFD5CF]">Del</button>
+              </div>
+              <div class="p-1">
+                <input type="text" x-model="img.caption" @change="saveMeta(img)" maxlength="60" placeholder="Caption" class="w-full bg-white/80 rounded border border-[#BEE3DB] px-1 py-0.5 text-[10px] focus:border-[#116466] focus:ring-[#116466]" />
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
   <template x-if="$store.profileModal.therapist.gallery_images && $store.profileModal.therapist.gallery_images.length">
     <div class="mb-10" x-data="{ hover:false }">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-bold tracking-wide text-[#555B6E]">My Images</h3>
         <span class="text-[10px] font-medium text-[#89B0AE]" x-text="$store.profileModal.therapist.gallery_images.length + ' image' + ($store.profileModal.therapist.gallery_images.length===1?'':'s')"></span>
       </div>
-  <div class="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3" data-gallery>
+      <div class="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3" data-gallery>
         <template x-for="(g,i) in $store.profileModal.therapist.gallery_images" :key="g.url || i">
-      <figure class="group relative overflow-hidden rounded-xl ring-1 ring-[#BEE3DB] bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-lg transition-all cursor-zoom-in"
-      :class="g.is_primary ? 'col-span-3 md:col-span-3 row-span-2' : 'col-span-1'"
-      :style="g.is_primary ? '' : ''"
-      data-lightbox-image
-      @click="($store.mediaLightbox ? $store.mediaLightbox.openImage(g.url) : ($store.profileModal.lightboxImage=g.url))"
-      tabindex="0"
-      @keydown.enter.prevent="($store.mediaLightbox ? $store.mediaLightbox.openImage(g.url) : ($store.profileModal.lightboxImage=g.url))">
-    <div class="w-full overflow-hidden flex items-center justify-center bg-[#F6FBFA]" :class="g.is_primary ? 'aspect-[4/3] md:aspect-[16/10]' : 'aspect-[4/3]'">
-      <img :src="g.url" :alt="g.caption || 'Gallery image'" loading="lazy"
-       class="w-full h-full object-cover will-change-transform transition duration-500 ease-out group-hover:scale-105 group-focus:scale-105"
-       :class="g.is_primary ? 'object-cover' : 'object-cover'" />
+          <figure class="group relative overflow-hidden rounded-xl ring-1 ring-[#BEE3DB] bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-lg transition-all cursor-zoom-in" :class="g.is_primary ? 'col-span-3 md:col-span-3 row-span-2' : 'col-span-1'" data-lightbox-image @click="($store.mediaLightbox ? $store.mediaLightbox.openImage(g.url) : ($store.profileModal.lightboxImage=g.url))" tabindex="0" @keydown.enter.prevent="($store.mediaLightbox ? $store.mediaLightbox.openImage(g.url) : ($store.profileModal.lightboxImage=g.url))">
+            <div class="w-full overflow-hidden flex items-center justify-center bg-[#F6FBFA]" :class="g.is_primary ? 'aspect-[4/3] md:aspect-[16/10]' : 'aspect-[4/3]'">
+              <img :src="g.url" :alt="g.caption || 'Gallery image'" loading="lazy" class="w-full h-full object-cover will-change-transform transition duration-500 ease-out group-hover:scale-105 group-focus:scale-105" />
             </div>
-            <!-- Gradient + caption -->
             <div class="pointer-events-none absolute inset-0 flex flex-col justify-end">
               <div class="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 bg-gradient-to-t from-black/55 via-black/20 to-transparent p-2 md:p-2.5">
                 <div class="flex items-center gap-2">
@@ -74,42 +196,51 @@
                 </div>
               </div>
             </div>
-            <!-- Focus ring overlay -->
             <div class="absolute inset-0 rounded-xl ring-2 ring-offset-2 ring-[#116466] opacity-0 group-focus:opacity-100 transition"></div>
           </figure>
         </template>
       </div>
     </div>
   </template>
-  <template x-if="editable && (!($store.profileModal.therapist.gallery_images && $store.profileModal.therapist.gallery_images.length))">
-    <p class="italic text-[12px] text-[#89B0AE] mb-8">No gallery images yet.</p>
-  </template>
+  {% endif %}
+  </div>
 </div>
-<!-- Personal Statement 2 (modal fourth) -->
+<!-- Personal Statement 2 (restored inside About section for unified background) -->
 <div x-show="editable || $store.profileModal.therapist.personal_statement_q2" x-cloak>
-  <div class="mb-8 rounded-xl p-4 md:p-5 bg-statement/90 ring-1 ring-[#BEE3DB] shadow-md" style="box-shadow:0 4px 18px -6px #555B6E1F;">
+  <div class="mb-8 rounded-xl p-5 md:p-6 bg-white/85 backdrop-blur-sm ring-2 ring-[#BEE3DB] shadow-lg relative overflow-hidden group max-w-[900px] mx-auto w-full" style="box-shadow:0 6px 24px -8px #555B6E33;">
+    <div class="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_18%_18%,#E5F4F2,transparent_60%),radial-gradient(circle_at_78%_82%,#FFDDD0,transparent_65%)]"></div>
     <div class="group relative cursor-pointer" data-edit-wrapper data-field="personal_statement_q2" x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }" role="button" tabindex="0" @click.stop="can_edit && $dispatch('edit-rich-text',{field:'personal_statement_q2',current:$store.profileModal.therapist.personal_statement_q2||'', el: $el})">
       <template x-if="$store.profileModal.therapist.personal_statement_q2">
-        <div class="text-base md:text-lg leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q2"></div>
+        <div class="text-[15px] md:text-[16px] leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q2"></div>
       </template>
       <template x-if="!$store.profileModal.therapist.personal_statement_q2">
-        <p class="italic text-[#89B0AE]" :class="can_edit ? 'animate-pulse' : ''" x-text="can_edit ? 'Add a second personal statement…' : ''"></p>
+        <div class="flex flex-col gap-1" :class="can_edit ? 'animate-pulse' : ''">
+          <p class="text-[#116466] font-semibold text-sm tracking-wide">Personal Statement 2</p>
+          <p class="italic text-[#89B0AE] text-[12px] leading-snug">Who you help & common concerns / populations. (120–400 chars)</p>
+          <p class="italic text-[#89B0AE] text-[11px]">Click to start…</p>
+        </div>
       </template>
       {% if editable %}<button type="button" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-1 rounded bg-[#116466] text-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q2',current:$store.profileModal.therapist.personal_statement_q2||'', el: $el})">Edit</button>{% endif %}
     </div>
   </div>
 </div>
-<!-- Personal Statement 3 (modal fifth) -->
+<!-- Personal Statement 3 (restored) -->
 <div x-show="editable || $store.profileModal.therapist.personal_statement_q3" x-cloak>
-  <div class="mb-4 rounded-xl p-4 md:p-5 bg-statement/90 ring-1 ring-[#BEE3DB] shadow-md" style="box-shadow:0 4px 18px -6px #555B6E1F;">
+  <div class="mb-4 rounded-xl p-5 md:p-6 bg-white/85 backdrop-blur-sm ring-2 ring-[#BEE3DB] shadow-lg relative overflow-hidden group max-w-[900px] mx-auto w-full" style="box-shadow:0 6px 24px -8px #555B6E33;">
+    <div class="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_24%_24%,#E5F4F2,transparent_60%),radial-gradient(circle_at_78%_78%,#FFDDD0,transparent_65%)]"></div>
     <div class="group relative cursor-pointer" data-edit-wrapper data-field="personal_statement_q3" x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }" role="button" tabindex="0" @click.stop="can_edit && $dispatch('edit-rich-text',{field:'personal_statement_q3',current:$store.profileModal.therapist.personal_statement_q3||'', el: $el})">
       <template x-if="$store.profileModal.therapist.personal_statement_q3">
-        <div class="text-base md:text-lg leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q3"></div>
+        <div class="text-[15px] md:text-[16px] leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q3"></div>
       </template>
       <template x-if="!$store.profileModal.therapist.personal_statement_q3">
-        <p class="italic text-[#89B0AE]" :class="can_edit ? 'animate-pulse' : ''" x-text="can_edit ? 'Add a third personal statement…' : ''"></p>
+        <div class="flex flex-col gap-1" :class="can_edit ? 'animate-pulse' : ''">
+          <p class="text-[#116466] font-semibold text-sm tracking-wide">Personal Statement 3</p>
+          <p class="italic text-[#89B0AE] text-[12px] leading-snug">Your values / philosophy & an invitation to connect. (120–400 chars)</p>
+          <p class="italic text-[#89B0AE] text-[11px]">Click to start…</p>
+        </div>
       </template>
       {% if editable %}<button type="button" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-1 rounded bg-[#116466] text-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q3',current:$store.profileModal.therapist.personal_statement_q3||'', el: $el})">Edit</button>{% endif %}
     </div>
   </div>
 </div>
+<!-- Personal Statement 3 (modal fifth) -->

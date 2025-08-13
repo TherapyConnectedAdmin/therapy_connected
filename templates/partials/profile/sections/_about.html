@@ -8,7 +8,10 @@
     <div class="pointer-events-none absolute inset-0 opacity-45 mix-blend-normal bg-[radial-gradient(circle_at_22%_18%,#E5F4F2,transparent_55%),radial-gradient(circle_at_82%_74%,#FFDDD0,transparent_62%)]"></div>
     {% endif %}
     <div class="relative p-4 md:p-6 flex flex-col gap-8">
-      {% if standalone %}
+      {# Always use modal body when editable so video manager + edit UIs present #}
+      {% if editable %}
+        {% include 'partials/profile/sections/_about_modal_body.html' %}
+      {% elif standalone %}
         {% include 'partials/profile/sections/_about_standalone_body.html' %}
       {% else %}
         {% include 'partials/profile/sections/_about_modal_body.html' %}
@@ -36,10 +39,47 @@ if(typeof galleryManager !== 'function'){
 if(typeof videoManager !== 'function'){
   function videoManager(){
     const csrf=window.TC_CSRF;
-    return { video:(Alpine.store('profileModal')?.therapist?.video_gallery||[])[0]||null, file:null, caption:'', uploading:false, progress:0, error:'', recording:false, mediaRecorder:null, chunks:[], stream:null, drag:false,
-      reset(){ this.file=null; this.caption=''; this.error=''; this.progress=0; if(this.$refs.file) this.$refs.file.value=''; },
+  return { video:(Alpine.store('profileModal')?.therapist?.video_gallery||[])[0]||null, file:null, caption:'', uploading:false, progress:0, error:'', recording:false, mediaRecorder:null, chunks:[], stream:null, drag:false, chosenType:null, trackFailed:false, videoLoadError:false,
+      reset(){
+        if(this.recording){ this.stopRecording(); }
+        this.stopStream();
+        if(this.previewUrl){ try{ URL.revokeObjectURL(this.previewUrl); }catch(_){} }
+        this.previewUrl=null; this.file=null; this.chunks=[]; this.chosenType=null; this.trackFailed=false;
+        this.error=''; this.progress=0; this.caption='';
+        if(this.$refs.file) this.$refs.file.value='';
+      },
       onFile(e){ this.file=e.target.files[0]; },
-      startRecording(){ if(!navigator.mediaDevices?.getUserMedia){ this.error='Recording not supported'; return;} this.error=''; navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(str=>{ this.stream=str; this.mediaRecorder=new MediaRecorder(str); this.chunks=[]; this.mediaRecorder.ondataavailable=ev=>{ if(ev.data.size>0) this.chunks.push(ev.data); }; this.mediaRecorder.onstop=()=>{ const blob=new Blob(this.chunks,{type:'video/webm'}); this.file=new File([blob],'recording.webm',{type:'video/webm'}); this.stopStream(); }; this.mediaRecorder.start(); this.recording=true; }).catch(()=> this.error='Permission denied'); },
+      handleTrackFailure(msg){ if(this.recording){ this.error=msg||'Camera stream ended unexpectedly'; this.trackFailed=true; } },
+      startRecording(){
+        if(!navigator.mediaDevices?.getUserMedia){ this.error='Recording not supported'; return; }
+        this.error=''; this.file=null; this.chunks=[]; this.chosenType=null; this.trackFailed=false;
+        navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(str=>{
+          this.stream=str;
+          const candidates=[
+            'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+            'video/mp4',
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm'
+          ];
+            let chosen=null;
+            if(window.MediaRecorder && MediaRecorder.isTypeSupported){
+              chosen=candidates.find(t=>{ try { return MediaRecorder.isTypeSupported(t); } catch(_) { return false; } })||null;
+            }
+            this.chosenType=chosen;
+            // Track listeners
+            str.getTracks().forEach(tr=>{
+              tr.addEventListener('ended', ()=> this.handleTrackFailure('Camera stopped (ended)'));
+            });
+            try { this.mediaRecorder = chosen ? new MediaRecorder(str,{mimeType:chosen}) : new MediaRecorder(str); }
+            catch(e){ try{ this.mediaRecorder=new MediaRecorder(str); } catch(e2){ this.error='Unable to start recorder'; this.stopStream(); return; } }
+            this.chunks=[];
+            this.mediaRecorder.ondataavailable=ev=>{ if(ev.data?.size>0) this.chunks.push(ev.data); };
+            this.mediaRecorder.onstop=()=>{ const type=this.chosenType || (this.mediaRecorder && this.mediaRecorder.mimeType) || 'video/webm'; const ext=/mp4/.test(type)?'mp4':'webm'; const blob=new Blob(this.chunks,{type}); this.file=new File([blob],'recording.'+ext,{type}); this.stopStream(); };
+            try { this.mediaRecorder.start(); } catch(e){ this.error='Recorder start failed'; this.stopStream(); return; }
+            this.recording=true;
+        }).catch(()=> this.error='Permission denied');
+      },
       stopRecording(){ if(this.mediaRecorder && this.recording){ this.mediaRecorder.stop(); this.recording=false; } },
       stopStream(){ this.stream?.getTracks().forEach(t=>t.stop()); this.stream=null; },
       upload(){ if(!this.file){ this.error='No video selected'; return;} this.error=''; this.uploading=true; const form=new FormData(); form.append('file',this.file); if(this.caption) form.append('caption',this.caption); fetch('/users/api/profile/video/',{method:'POST',headers:{'X-CSRFToken':csrf},body:form}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Upload failed'; return;} const s=Alpine.store('profileModal'); if(s?.therapist) s.therapist.video_gallery=d.video_gallery||[]; this.video=(d.video_gallery||[])[0]||null; this.reset(); }).catch(()=> this.error='Network error').finally(()=> this.uploading=false); },

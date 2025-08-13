@@ -2,88 +2,108 @@
 {% load static %}
 {% block title %}Edit Profile{% endblock %}
 {% block content %}
+<script src="{% static 'profile_helpers.js' %}" defer></script>
 <script>
-  window.__initialProfile = JSON.parse("{{ initial_profile_json|escapejs }}");
-  // CSRF helper (Django)
-  function tcGetCookie(name){ const v=document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith(name+'=')); return v?decodeURIComponent(v.split('=')[1]):null; }
-  const TC_CSRF = tcGetCookie('csrftoken') || '{{ csrf_token }}';
-  document.addEventListener('alpine:init', () => {
-    Alpine.store('profileModal', Alpine.store('profileModal') || {
-      show:true,
-      contentVisible:true,
-      loading:false,
-      therapist: window.__initialProfile || {},
-      ids:[],
-      currentIndex:0,
-      lightboxImage:null,
-      next() {},
-      prev() {},
-      close() {}
-    });
-    Alpine.data('profileEdit', () => ({
+  // --- Profile Edit Page Bootstrap ---
+  // Minimal initial therapist data so Alpine bindings don't explode before async load.
+  window.__initialTherapist = {
+    id: {{ request.user.id|default:'null' }},
+    first_name: "{{ request.user.first_name|default:''|escapejs }}",
+    last_name: "{{ request.user.last_name|default:''|escapejs }}"
+  };
+
+  // Full initial profile JSON (includes related collections) passed from view for immediate rendering (avoids 404 fallbacks)
+  // Provides gallery_images, video_gallery, locations, specialties, etc. Used by various managers below.
+  window.__initialProfile = (function(){
+    try { return {{ initial_profile_json|safe }}; } catch(e){ return {}; }
+  })();
+
+  // Ensure Alpine store picks up richer initial data (will merge later via ensureLoaded())
+  if(window.__initialProfile && window.__initialProfile.id){
+    try { window.__initialTherapist = Object.assign({}, window.__initialProfile); } catch(_) {}
+  }
+
+  // CSRF fallback (in case TC_CSRF not injected yet by base template)
+  if(typeof window.TC_CSRF === 'undefined' || !window.TC_CSRF){
+    try { window.TC_CSRF = (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || ''; } catch(_) { window.TC_CSRF=''; }
+  }
+
+  // Helper accessible globally to invoke saveField from external listeners
+  window.__tcSaveProfileField = function(field, value){
+    if(window.__profileEdit && typeof window.__profileEdit.saveField === 'function'){
+      window.__profileEdit.saveField(field, value);
+    }
+  };
+
+  // Define primary Alpine component factory
+  window.profileEdit = function(){
+    return {
+      toast:{ show:false, message:'', _t:null },
+      completion:{ percent:0 },
       saving:false,
-      toast:{show:false,message:''},
-      completion: (window.__initialProfile && window.__initialProfile.completion) ? window.__initialProfile.completion : {percent: {{ completion_percent|default:0 }}, details: {{ completion_details|safe }} },
-      sectionDefs: [
-        { key:'photo', label:'Photo', fields:['profile_photo','profile_photo_url'] },
-        { key:'name', label:'Name', fields:['first_name','last_name'] },
-        { key:'practice', label:'Practice', fields:['practice_name','therapy_delivery_method'] },
-        { key:'availability', label:'Availability', fields:['accepting_new_clients'] },
-        { key:'license', label:'License', fields:['license_type'] },
-  { key:'intro', label:'Intro', fields:['intro_note'] },
-        { key:'identity', label:'Identity', fields:['race_ethnicities'] },
-      ],
-      init(){ window.__profileEdit = this; this.fetchProfile(); },
-      fetchProfile(){ fetch('/users/api/profile/me/').then(r=>r.json()).then(d=>{ this.applyData(d); }).catch(()=>this.notify('Failed to load profile')); },
-  applyData(d){ const s=Alpine.store('profileModal'); s.therapist = {...(s.therapist||{}), ...d}; this.completion = d.completion || this.completion; document.dispatchEvent(new CustomEvent('tc-profile-updated',{detail:{fields:Object.keys(d||{})}})); },
-      sectionStatus(){
-        const det = this.completion.details || {}; const out = {};
-        for(const def of this.sectionDefs){
-          // A section is filled if ALL its fields are truthy in completion details (or at least one for photo due to alternate key)
-          if(def.key === 'photo'){
-            out[def.key] = def.fields.some(f=> det[f]);
-          } else {
-            out[def.key] = def.fields.every(f=> det[f]);
-          }
-        }
-        return out;
+      init(){
+        // Compute completion periodically / on update events
+        document.addEventListener('tc-profile-updated', ()=> this.computeCompletion());
+        this.computeCompletion();
+        // Kick off full profile load (if not already populated)
+        this.ensureLoaded();
       },
-  label(key){ const map={ first_name:'First Name', last_name:'Last Name', profile_photo:'Profile Photo', profile_photo_url:'Profile Photo', practice_name:'Practice Name', therapy_delivery_method:'Delivery Method', license_type:'License Type', accepting_new_clients:'Availability', intro_note:'Intro Statement', personal_statement_01:'About Me', race_ethnicities:'Race/Ethnicity' }; return map[key] || key.replace(/_/g,' ').replace(/\b[a-z]/g,c=>c.toUpperCase()); },
-      saveField(field, value){
-        this.saving=true;
-        const s = Alpine.store('profileModal');
-        const body={}; body[field]=value;
-        // Optimistic update
-        const prev = s.therapist ? s.therapist[field] : undefined;
-        if(s.therapist){ s.therapist = {...s.therapist, [field]: value}; }
-        fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken': TC_CSRF}, body:JSON.stringify(body)})
-          .then(async r=>{ const data= await r.json(); if(!r.ok){ if(s.therapist){ s.therapist[field]=prev; } this.fieldError(field, data.errors && data.errors[field]); return; } this.applyData(data); this.notify('Saved'); })
-          .catch(()=>{ if(s.therapist){ s.therapist[field]=prev; } this.fieldError(field,'Network error'); })
-          .finally(()=>{ this.saving=false; });
+      notify(msg, isErr){ if(!msg) return; this.toast.message=msg; this.toast.show=true; clearTimeout(this.toast._t); this.toast._t=setTimeout(()=> this.toast.show=false, isErr? 4000:2600); },
+      computeCompletion(){
+        try {
+          const s = (window.Alpine && Alpine.store && Alpine.store('profileModal')) ? Alpine.store('profileModal') : null;
+          const t = (s && s.therapist) || {};
+          const fields = ['first_name','last_name','intro_note','personal_statement_01','therapy_types','specialties','locations','profile_photo_url'];
+          let filled=0; fields.forEach(f=>{ const v=t[f]; if(Array.isArray(v)){ if(v.length) filled++; } else if(typeof v==='string'){ if(v.trim()) filled++; } else if(v){ filled++; } });
+          this.completion.percent = Math.min(100, Math.round((filled/fields.length)*100));
+        } catch(_) {}
       },
-      fieldError(field,msg){ if(msg){ this.notify(msg,true); const el=document.querySelector('[data-field="'+field+'"]')?.closest('[data-edit-wrapper]'); if(el){ el.classList.add('ring-2','ring-red-400'); setTimeout(()=>el.classList.remove('ring-red-400'),4000); } } },
-      notify(message,error=false){ this.toast.message=message; this.toast.show=true; setTimeout(()=> this.toast.show=false, 2600); },
-      saveFields(payload){
-        // Multi-field optimistic PATCH (e.g., first_name + last_name)
-        this.saving = true;
-        const s = Alpine.store('profileModal');
-        const prev = {};
-        if(s.therapist){
-          for(const k in payload){ prev[k] = s.therapist[k]; }
-          s.therapist = {...s.therapist, ...payload};
-        }
-        fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken': TC_CSRF}, body: JSON.stringify(payload)})
-          .then(async r => { const data = await r.json(); if(!r.ok){ if(s.therapist){ for(const k in payload){ s.therapist[k] = prev[k]; } } const firstErrKey = data.errors && Object.keys(data.errors)[0]; if(firstErrKey){ this.fieldError(firstErrKey, data.errors[firstErrKey]); } return; } this.applyData(data); this.notify('Saved'); })
-          .catch(()=> { if(s.therapist){ for(const k in payload){ s.therapist[k] = prev[k]; } } this.notify('Network error', true); })
-          .finally(()=> { this.saving=false; });
-      }
-    }));
-    // Helper accessible globally to invoke saveField from external listeners
-    window.__tcSaveProfileField = function(field, value){
-      if(window.__profileEdit && typeof window.__profileEdit.saveField === 'function'){
-        window.__profileEdit.saveField(field, value);
+      applyData(d){
+        try {
+          const s = Alpine.store('profileModal');
+          if(s && s.therapist){ Object.assign(s.therapist, d); }
+          document.dispatchEvent(new CustomEvent('tc-profile-updated'));
+        } catch(e){ console.warn('applyData failed', e); }
+      },
+      saveField(field, value){ const payload={}; payload[field]=value; this.saveFields(payload); },
+      saveFields(payload){ if(!payload||this.saving) return; this.saving=true; fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken': (window.TC_CSRF||'')}, body: JSON.stringify(payload)})
+        .then(r=>r.json().then(d=>[r,d]))
+        .then(([r,d])=>{ if(!r.ok){ this.notify((d && (d.error||d.message))||'Save failed', true); return; } this.applyData(d); this.notify('Saved'); })
+        .catch(()=> this.notify('Network error', true))
+        .finally(()=> this.saving=false);
+      },
+      ensureLoaded(){
+        // If we already have richer data (locations or specialties), skip
+        const s = (window.Alpine && Alpine.store && Alpine.store('profileModal')) ? Alpine.store('profileModal') : null;
+  if(s && s.therapist && ( (s.therapist.locations && s.therapist.locations.length) || (s.therapist.specialties && s.therapist.specialties.length) )) return;
+  // Use valid endpoints: primary lightweight /me/, then update (returns full subset), then public full profile (for parity fields) as last resort
+  const userId = (window.__initialTherapist && window.__initialTherapist.id) ? window.__initialTherapist.id : null;
+  const endpoints = ['/users/api/profile/me/','/users/api/profile/update/'];
+  if(userId) endpoints.push(`/users/api/therapists/${userId}/profile_full/`);
+        const tryNext = (i)=>{
+          if(i>=endpoints.length) return; fetch(endpoints[i], {headers:{'Accept':'application/json'}})
+            .then(r=> r.ok ? r.json() : null)
+            .then(d=>{ if(d && typeof d==='object' && d.id){ this.applyData(d); this.computeCompletion(); } else { tryNext(i+1); } })
+            .catch(()=> tryNext(i+1));
+        };
+        tryNext(0);
       }
     };
+  };
+
+  // Initialize Alpine store early when Alpine boots
+  document.addEventListener('alpine:init', () => {
+    try {
+      if(!Alpine.store('profileModal')){
+        Alpine.store('profileModal', {
+          currentUserId: window.__initialTherapist.id || null,
+          show:false,
+            therapist: JSON.parse(JSON.stringify(window.__initialTherapist||{})),
+          therapistIds:[], currentIndex:-1, loading:false, error:null, lightboxImage:null,
+          close(){ this.show=false; }
+        });
+      }
+    } catch(e){ console.error('Failed initializing profileModal store', e); }
   });
   // Gallery manager available before partial include so x-data can resolve
   function galleryManager(){
@@ -101,22 +121,79 @@
       remove(img){ if(!confirm('Delete this image?')) return; fetch('/users/api/profile/gallery/'+img.id+'/', { method:'DELETE', headers:{'X-CSRFToken':csrf} }).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Delete failed'; return; } this.images=d.gallery_images||[]; const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.gallery_images=this.images; } }).catch(()=> this.error='Network error'); }
     };
   }
-  // Single video manager (one intro video)
+  // Intro video manager component (single video)
   function videoManager(){
     const csrf = TC_CSRF;
+    const initial = (window.__initialProfile && window.__initialProfile.video_gallery && window.__initialProfile.video_gallery.length) ? window.__initialProfile.video_gallery[0] : null;
     return {
-  video: (window.__initialProfile && window.__initialProfile.video_gallery && window.__initialProfile.video_gallery[0]) ? window.__initialProfile.video_gallery[0] : null,
-  file:null, caption:'', uploading:false, progress:0, error:'', recording:false, mediaRecorder:null, chunks:[], stream:null, drag:false, previewUrl:null,
-      reset(){ this.file=null; this.caption=''; this.error=''; this.progress=0; if(this.$refs.file) this.$refs.file.value=''; },
-      onFile(e){ this.file = e.target.files[0]; },
-      startRecording(){ if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ this.error='Recording not supported'; return; } this.error=''; if(this.previewUrl){ try{ URL.revokeObjectURL(this.previewUrl); }catch(_){} } this.previewUrl=null; navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(str=>{ this.stream=str; this.mediaRecorder=new MediaRecorder(str); this.chunks=[]; this.mediaRecorder.ondataavailable=ev=>{ if(ev.data.size>0) this.chunks.push(ev.data); }; this.mediaRecorder.onstop=()=>{ const blob=new Blob(this.chunks,{type:'video/webm'}); this.file = new File([blob], 'recording.webm', {type:'video/webm'}); if(this.previewUrl){ try{ URL.revokeObjectURL(this.previewUrl); }catch(_){} } this.previewUrl = URL.createObjectURL(blob); this.stopStream(); }; this.recording=true; // ensure preview element exists before assigning
-        this.$nextTick(()=>{ if(this.$refs.livePreview){ try{ this.$refs.livePreview.srcObject = str; }catch(_){ /* ignore */ } } });
-        this.mediaRecorder.start(); }).catch(()=> this.error='Permission denied'); },
-      stopRecording(){ if(this.mediaRecorder && this.recording){ this.mediaRecorder.stop(); this.recording=false; } },
-      stopStream(){ if(this.stream){ this.stream.getTracks().forEach(t=>t.stop()); this.stream=null; } },
-      upload(){ if(!this.file){ this.error='No video selected'; return; } this.error=''; this.uploading=true; const form=new FormData(); form.append('file', this.file); if(this.caption) form.append('caption', this.caption); fetch('/users/api/profile/video/', {method:'POST', headers:{'X-CSRFToken':csrf}, body:form}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Upload failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.video_gallery=d.video_gallery||[]; } this.video = (d.video_gallery && d.video_gallery[0]) ? d.video_gallery[0] : null; this.reset(); }).catch(()=> this.error='Network error').finally(()=> this.uploading=false); },
-      updateCaption(){ if(!this.video) return; fetch('/users/api/profile/video/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify({caption:this.video.caption||''})}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Save failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.video_gallery=d.video_gallery||[]; } this.video = (d.video_gallery && d.video_gallery[0]) ? d.video_gallery[0] : null; }).catch(()=> this.error='Network error'); },
-      remove(){ if(!confirm('Delete video?')) return; fetch('/users/api/profile/video/', {method:'DELETE', headers:{'X-CSRFToken':csrf}}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Delete failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.video_gallery=d.video_gallery||[]; } this.video=null; }).catch(()=> this.error='Network error'); }
+      // state
+      video: initial,
+      file: null,
+      caption: '',
+      recording: false,
+      previewUrl: '',
+      stream: null,
+      recorder: null,
+      chunks: [],
+      drag:false,
+      trackFailed:false,
+      videoLoadError:false,
+      error:'',
+      uploading:false,
+      confirmDelete:false,
+      deleting:false,
+  init(){ if(this.video){ this.caption=this.video.caption||''; this.verifyVideo(); } },
+      notify(msg, isErr=false){ if(window.__profileEdit){ window.__profileEdit.notify(msg, isErr); } },
+      onFile(e){ const f=e.target.files[0]; if(f){ this.setFile(f); } },
+      setFile(f){ if(!f) return; this.resetRecordingOnly(); this.file=f; this.previewUrl = URL.createObjectURL(f); },
+      startRecording(){ if(this.recording) return; this.error=''; navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(stream=>{
+          this.stream=stream; this.trackFailed=false;
+          const v=this.$refs.livePreview; if(v){ v.srcObject=stream; }
+          const types=['video/mp4;codecs=avc1,mp4a.40.2','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+          let sel=''; for(const t of types){ if(MediaRecorder.isTypeSupported(t)){ sel=t; break; } }
+          try { this.recorder = new MediaRecorder(stream, sel? {mimeType:sel}:{}) } catch(e){ this.recorder = new MediaRecorder(stream); }
+          this.chunks=[]; this.recorder.ondataavailable = ev=> { if(ev.data && ev.data.size) this.chunks.push(ev.data); };
+          this.recorder.onstop = ()=> { const blob=new Blob(this.chunks, {type: this.recorder.mimeType || 'video/webm'}); const ext = (/mp4/.test(blob.type)?'mp4':'webm'); this.file = new File([blob], 'intro-'+Date.now()+'.'+ext, {type: blob.type}); this.previewUrl = URL.createObjectURL(blob); };
+          // detect track failure
+          stream.getVideoTracks().forEach(tr=> tr.addEventListener('ended', ()=>{ if(this.recording){ this.trackFailed=true; this.stopRecording(); }}));
+          this.recording=true; this.recorder.start();
+        }).catch(()=>{ this.error='Camera/mic permission denied'; this.notify('Camera access blocked', true); }); },
+      stopRecording(){ if(!this.recording) return; try { this.recorder && this.recorder.state!=='inactive' && this.recorder.stop(); } catch(_){} this.stopStream(); this.recording=false; },
+      stopStream(){ if(this.stream){ this.stream.getTracks().forEach(t=> t.stop()); this.stream=null; } },
+      resetRecordingOnly(){ if(this.recording){ this.stopRecording(); } this.stopStream(); this.recorder=null; this.chunks=[]; },
+      reset(){ this.resetRecordingOnly(); if(this.previewUrl){ URL.revokeObjectURL(this.previewUrl); } this.file=null; this.previewUrl=''; this.caption=''; this.error=''; },
+      upload(){ if(!this.file) return; if(this.file.size > 60*1024*1024){ this.error='File too large (60MB max)'; return; } this.uploading=true; this.error=''; const fd=new FormData(); fd.append('file', this.file); if(this.caption) fd.append('caption', this.caption); fetch('/users/api/profile/video/', {method:'POST', headers:{'X-CSRFToken':csrf}, body:fd}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Upload failed'; this.notify(this.error,true); return; } this.applyServerData(d); this.reset(); this.notify('Video uploaded'); }).catch(()=>{ this.error='Network error'; this.notify(this.error,true); }).finally(()=> this.uploading=false); },
+      updateCaption(){ if(!this.video) return; const cap=(this.video.caption||'').slice(0,128); fetch('/users/api/profile/video/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify({caption:cap})}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.notify(d.error||'Save failed', true); return; } this.applyServerData(d); this.notify('Caption saved'); }).catch(()=> this.notify('Network error', true)); },
+      openDelete(){ if(!this.video) return; this.confirmDelete=true; this.deleting=false; },
+      cancelDelete(){ if(this.deleting) return; this.confirmDelete=false; },
+      confirmDeleteAction(){ if(!this.video || this.deleting) return; this.deleting=true; fetch('/users/api/profile/video/', {method:'DELETE', headers:{'X-CSRFToken':csrf}}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.notify(d.error||'Delete failed', true); return; } this.applyServerData(d); this.video=null; this.confirmDelete=false; this.notify('Video deleted'); }).catch(()=> this.notify('Network error', true)).finally(()=> this.deleting=false); },
+  // Alias for legacy partials still using @click="remove()" to delete video
+  remove(){ this.openDelete(); },
+      applyServerData(d){ if(window.__profileEdit){ window.__profileEdit.applyData(d); } const list = (d && d.video_gallery)||[]; this.video = list.length? list[0]: null; if(this.video){ this.caption=this.video.caption||''; this.videoLoadError=false; this.verifyVideo(); } },
+      verifyVideo(){
+        if(!this.video || !this.video.video_url) return;
+        // Probe video availability with HEAD, but ignore CORS blocks (common in dev if bucket CORS not set for localhost).
+        // We only set videoLoadError here for definite failures (HTTP status >=400). The <video> element's @error handler
+        // will catch true playback failures. A CORS-blocked fetch throws TypeError or returns opaque; we treat that as inconclusive.
+        try {
+          const baseUrl = this.video.video_url;
+            const probeUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'probe=' + Date.now();
+          fetch(probeUrl, { method:'HEAD', mode:'no-cors' })
+            .then(r=> {
+              if(r.type === 'opaque') { return; } // can't inspect; assume okay
+              if(!r.ok) {
+                this.videoLoadError = true;
+                console.warn('Intro video HEAD check failed', r.status);
+              }
+            })
+            .catch(err => {
+              // Likely CORS (No Access-Control-Allow-Origin). Defer to element events instead of marking error.
+              console.warn('Intro video HEAD probe error (ignored, relying on element events):', err && err.message);
+            });
+        } catch(err) {
+          console.warn('Intro video verify exception (ignored):', err && err.message);
+        }
+      },
     };
   }
   // Location manager (simple CRUD)
@@ -372,8 +449,10 @@
     };
   }
   // qualificationsManager now provided by profile_helpers.js
+
+  // Expose a hook after defining managers so other inline scripts (below) can rely on them existing
 </script>
-<div x-data="profileEdit" x-init="init()" class="relative py-6 bg-[#ECEBE8] min-h-screen">
+<div x-data="profileEdit()" x-init="window.__profileEdit = $data; init()" class="relative py-6 bg-[#ECEBE8] min-h-screen">
   <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#E3E2DF] via-[#F5F4F3] to-[#E0DFDC]"></div>
   <div class="relative max-w-7xl mx-auto px-4">
     <div class="mb-6">
@@ -390,6 +469,7 @@
     <div>
   {% include 'partials/profile_modal.html' with standalone=1 editable=1 hide_contact=1 %}
     </div>
+  <!-- Intro Video section removed (now embedded in About section) -->
   <!-- Toast -->
   <div x-show="toast.show" x-transition class="fixed bottom-4 right-4 bg-[#116466] text-white text-sm px-4 py-2 rounded shadow-lg" x-text="toast.message"></div>
   </div>
@@ -925,24 +1005,39 @@
       pop.style.left = left + 'px';
     };
     repositionRT();
+    const specs = {
+      personal_statement_q1: { title: 'Personal Statement 1', helper: 'Introduce yourself, your style & what clients can expect in early sessions. Aim for a warm, concise overview.', min:80, max:650, target:'Target 120–400 chars'},
+      personal_statement_q2: { title: 'Personal Statement 2', helper: 'Who you help & common concerns. Mention populations, approaches or outcomes you often support.', min:80, max:650, target:'Target 120–400 chars'},
+      personal_statement_q3: { title: 'Personal Statement 3', helper: 'Your philosophy / values & an inviting encouragement to reach out.', min:80, max:650, target:'Target 120–400 chars'},
+      intro_note: { title: 'Introduction', helper: 'Short intro that appears near top of profile.', min:40, max:400, target:'Target 80–220 chars'}
+    };
+    const spec = specs[field] || { title:'Edit Text', helper:'', min:0, max:8000, target:'' };
     pop.innerHTML = `
       <div class="flex items-center justify-between px-4 py-3 border-b border-[#BEE3DB] bg-[#F5F4F3] rounded-t-2xl">
-        <h3 class="text-sm font-semibold text-[#555B6E]">${field==='personal_statement_01' ? 'Edit About Me' : (field==='intro_note' ? 'Edit Introduction' : 'Edit Text')}</h3>
+        <h3 class="text-sm font-semibold text-[#555B6E]">${spec.title}</h3>
         <div class="flex items-center gap-2 text-xs">
           <button type="button" data-action="bold" class="px-2 py-1 rounded bg-white ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2] font-semibold">B</button>
           <button type="button" data-action="italic" class="px-2 py-1 rounded bg-white ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2] italic">I</button>
           <button type="button" data-action="ul" class="px-2 py-1 rounded bg-white ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2]">• List</button>
           <button type="button" data-action="clear" class="px-2 py-1 rounded bg-white ring-1 ring-[#BEE3DB] hover:bg-[#FFE8E5] text-[#9b4d49]">Clear</button>
-          <button type="button" data-action="close" class="ml-4 text-[#9b4d49] hover:underline">Close</button>
+          <button type="button" data-action="close" class="ml-2 text-[#9b4d49] hover:underline">Close</button>
         </div>
       </div>
-      <div class="p-4 overflow-y-auto max-h-[300px] bg-white">
-        <div class="border border-[#BEE3DB] rounded-lg p-3 bg-white min-h-[150px] text-sm leading-relaxed focus:outline-none prose prose-sm max-w-none" contenteditable="true" data-editor></div>
-        <p class="mt-2 text-[10px] text-[#555B6E]">Formatting allowed: bold, italic, unordered lists. Other formatting will be stripped.</p>
+      <div class="p-4 overflow-y-auto max-h-[300px] bg-white flex flex-col gap-3">
+        <div class="text-[11px] leading-snug text-[#555B6E] bg-[#F6FBFA] border border-[#BEE3DB] rounded-md px-3 py-2">
+          <p class="font-medium mb-1">Guidance</p>
+          <p>${spec.helper}</p>
+          <p class="mt-1 italic text-[10px] text-[#89B0AE]">${spec.target} • Min ${spec.min} / Max ${spec.max}</p>
+        </div>
+        <div class="border border-[#BEE3DB] rounded-lg p-3 bg-white min-h-[160px] text-sm leading-relaxed focus:outline-none prose prose-sm max-w-none" contenteditable="true" data-editor></div>
+        <div class="flex items-center justify-between mt-1">
+          <p class="text-[10px] text-[#555B6E]">Allowed: bold, italic, lists. Other formatting is stripped.</p>
+          <p class="text-[10px] font-medium" data-char>0 / ${spec.max}</p>
+        </div>
       </div>
       <div class="flex items-center justify-between px-4 py-3 border-t border-[#BEE3DB] bg-[#F5F4F3] rounded-b-2xl">
         <button type="button" data-action="cancel" class="px-4 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#555B6E] text-xs font-medium hover:bg-[#E5F4F2]">Cancel</button>
-        <button type="button" data-action="save" class="px-5 py-1.5 rounded-full bg-[#116466] text-white text-xs font-semibold hover:bg-[#0d4c4d]">Save</button>
+        <button type="button" data-action="save" class="px-5 py-1.5 rounded-full bg-[#116466] text-white text-xs font-semibold hover:bg-[#0d4c4d] disabled:opacity-40 disabled:cursor-not-allowed">Save</button>
       </div>`;
     document.body.appendChild(pop);
     // Final viewport-aware adjustment after content renders
@@ -973,6 +1068,17 @@
     };
     if(current){ if(/<\w+/.test(current)) editor.innerHTML=current; else editor.innerHTML='<p>'+current.replace(/\n+/g,'</p><p>')+'</p>'; } else { editor.innerHTML=''; }
     const exec = (cmd) => { editor.focus(); document.execCommand(cmd,false,null); };
+    const plainLength = (html) => html.replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim().length;
+    const countEl = () => pop.querySelector('[data-char]');
+    const saveBtn = () => pop.querySelector('button[data-action="save"]');
+    const updateCount = () => {
+      const cleaned = sanitize(editor.innerHTML);
+      const len = plainLength(cleaned);
+      const ce = countEl(); if(ce){ ce.textContent = len + ' / ' + spec.max; ce.classList.toggle('text-[#9b4d49]', (len<spec.min || len>spec.max)); }
+      const sb = saveBtn(); if(sb){ sb.disabled = (len<spec.min || len>spec.max); }
+    };
+    editor.addEventListener('input', updateCount);
+    setTimeout(updateCount, 30);
     pop.addEventListener('click', ev => {
       const btn = ev.target.closest('button[data-action]'); if(!btn) return; const act = btn.getAttribute('data-action');
       if(act==='close' || act==='cancel'){ pop.remove(); return; }
@@ -980,7 +1086,7 @@
       if(act==='italic'){ exec('italic'); return; }
       if(act==='ul'){ exec('insertUnorderedList'); return; }
       if(act==='clear'){ editor.innerHTML=''; return; }
-      if(act==='save'){ const cleaned = sanitize(editor.innerHTML); window.__tcSaveProfileField(field, cleaned); pop.remove(); }
+      if(act==='save'){ const cleaned = sanitize(editor.innerHTML); const len = plainLength(cleaned); if(len<spec.min || len>spec.max){ updateCount(); return; } window.__tcSaveProfileField(field, cleaned); pop.remove(); }
     });
     const closeOnEsc = (ev) => { if(ev.key==='Escape'){ pop.remove(); window.removeEventListener('keydown', closeOnEsc, true);} };
     setTimeout(()=> window.addEventListener('keydown', closeOnEsc, true), 0);
@@ -988,5 +1094,6 @@
     const origRemove = pop.remove.bind(pop);
     pop.remove = () => { window.removeEventListener('scroll', repositionRT, true); window.removeEventListener('resize', repositionRT, true); origRemove(); };
   });
+  // (Moved intro video UI inside block so Alpine scope & functions are guaranteed to exist when parsed)
 </script>
 {% endblock %}

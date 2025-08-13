@@ -15,8 +15,9 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib.sitemaps.views import sitemap
 from users.sitemaps import TherapistProfileSitemap
 from . import views
@@ -40,3 +41,8 @@ urlpatterns = [
     path('about/', views.about_page, name='about_page'),
     path('', include('users.urls_blog')),
 ]
+
+# Serve media files in development (when not using S3)
+if settings.DEBUG and getattr(settings, 'MEDIA_URL', None) and getattr(settings, 'MEDIA_ROOT', None):
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

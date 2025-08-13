@@ -1,13 +1,11 @@
-{# General (top) section with adaptive styling for modal vs standalone #}
-{% if not standalone %}
-<div class="mx-auto w-full max-w-[1200px] px-4 md:px-6 mt-4 md:mt-6 mb-6 md:mb-8"
+{# General (top) section with adaptive styling for modal vs standalone. Previously wrapper showed only in modal; now always wrap so edit (standalone) view also shows boxed section. #}
+<div class="mx-auto w-full max-w-[1200px] px-4 md:px-6 {% if standalone %}mt-6 md:mt-8{% else %}mt-4 md:mt-6{% endif %} mb-6 md:mb-8"
      x-data="{ editable: {{ editable|default:0|yesno:'true,false' }} }"
      x-show="editable || $store.profileModal.therapist.profile_photo_url || $store.profileModal.therapist.title || $store.profileModal.therapist.first_name || $store.profileModal.therapist.last_name || $store.profileModal.therapist.license_type || $store.profileModal.therapist.intro_note || $store.profileModal.therapist.intro_statement || ($store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length) || ($store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length) || ($store.profileModal.therapist.top_specialties && $store.profileModal.therapist.top_specialties.length) || ($store.profileModal.therapist.locations && $store.profileModal.therapist.locations.length) || $store.profileModal.therapist.city || $store.profileModal.therapist.state"
      x-cloak>
-  <div class="rounded-2xl bg-white/90 ring-1 ring-[#BEE3DB] shadow relative overflow-hidden" style="box-shadow:0 8px 32px -8px #555B6E33;">
+  <div class="rounded-2xl bg-white/95 ring-2 ring-[#BEE3DB] shadow-lg relative overflow-hidden border border-white/60" style="box-shadow:0 10px 36px -10px #555B6E40;">
     <div class="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_30%_20%,#E5F4F2,transparent_60%),radial-gradient(circle_at_80%_70%,#FFDDD0,transparent_65%)]"></div>
     <div class="relative flex-1 flex flex-col gap-4 min-w-0 z-10 p-4 md:p-6">
-{% endif %}
 <div class="flex-1 flex flex-col gap-4 min-w-0 relative z-10">
             {% if standalone and editable %}
             <div class="flex flex-col gap-3 md:gap-4">
@@ -233,9 +231,7 @@
       </template>
     </div>
   </div>
-{% if not standalone %}
-    </div><!-- inner content -->
+      </div><!-- inner content -->
+    </div>
   </div>
-</div>
-{% endif %}
-</div>
+  </div>
