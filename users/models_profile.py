@@ -184,6 +184,20 @@ class TherapistProfile(models.Model):
     # Optional override if licensed name differs from profile display name
     license_first_name = models.CharField(max_length=64, blank=True)
     license_last_name = models.CharField(max_length=64, blank=True)
+    # Automated license verification fields
+    LICENSE_STATUS_CHOICES = [
+        ("unverified", "Unverified"),
+        ("pending", "Pending"),
+        ("active_good_standing", "Active / Good Standing"),
+        ("not_found", "Not Found"),
+        ("expired", "Expired"),
+        ("disciplinary_flag", "Disciplinary Flag"),
+        ("error", "Verification Error"),
+    ]
+    license_status = models.CharField(max_length=32, choices=LICENSE_STATUS_CHOICES, default="unverified", blank=True)
+    license_last_verified_at = models.DateTimeField(blank=True, null=True)
+    license_verification_source_url = models.CharField(max_length=512, blank=True)
+    license_verification_raw = models.JSONField(blank=True, null=True, default=dict, help_text="Raw parsed payload from state site/API (sanitized)")
     # Explicit start year of professional practice (optional override for derived years_in_practice)
     year_started_practice = models.CharField(max_length=4, blank=True)
     date_of_birth = models.DateField(blank=True, null=True)
@@ -374,4 +388,13 @@ class ProfessionalInsurance(models.Model):
     malpractice_expiration_date = models.CharField(max_length=7, blank=True)
     def __str__(self):
         return self.npi_number
+
+class LicenseVerificationLog(models.Model):
+    therapist = models.ForeignKey('TherapistProfile', on_delete=models.CASCADE, related_name='license_verification_logs')
+    status = models.CharField(max_length=32)
+    message = models.CharField(max_length=512, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    raw = models.JSONField(blank=True, null=True, default=dict)
+    def __str__(self):
+        return f"{self.therapist_id} {self.status} {self.created_at:%Y-%m-%d}" 
 
