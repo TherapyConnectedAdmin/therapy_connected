@@ -248,14 +248,18 @@ def payment(request):
             pass
 
     if request.method == 'POST':
+        # Collect payment method & customer now, defer actual subscription activation
         payment_method_id = request.POST.get('payment_method_id')
         cardholder = request.POST.get('cardholder') or request.user.email
         user = request.user
-        # Create customer
+        # Create or reuse stripe customer (create new every time for now)
         customer = stripe.Customer.create(email=user.email, name=cardholder)
-        # Attach payment method
-        stripe.PaymentMethod.attach(payment_method_id, customer=customer.id)
-        # Update / create subscription record
+        # Attach the payment method so it can be used later when we actually create the subscription
+        try:
+            stripe.PaymentMethod.attach(payment_method_id, customer=customer.id)
+        except Exception:
+            messages.error(request, 'Unable to attach payment method. Please try again.')
+            return redirect('payment')
         sub = Subscription.objects.filter(user=user).last()
         if sub and selected_plan_id:
             try:
@@ -265,18 +269,11 @@ def payment(request):
                 sub.interval = interval
                 sub.stripe_customer_id = customer.id
                 sub.stripe_payment_method_id = payment_method_id
-                price_id = plan.stripe_plan_id_monthly if interval == 'monthly' else plan.stripe_plan_id_annual
-                stripe_sub = stripe.Subscription.create(
-                    customer=customer.id,
-                    items=[{'price': price_id}],
-                    default_payment_method=payment_method_id,
-                    expand=["latest_invoice.payment_intent"],
-                )
-                sub.stripe_subscription_id = stripe_sub.id
+                # NOTE: stripe_subscription_id intentionally left blank until profile + license validated
                 sub.save()
             except SubscriptionType.DoesNotExist:
                 pass
-        # Move onboarding forward
+        # Advance onboarding but keep user inactive pending profile completion & license validation
         user.onboarding_status = 'pending_profile_completion'
         user.save(update_fields=['onboarding_status'])
         return redirect('edit_profile')
@@ -1168,6 +1165,12 @@ def api_profile_update(request):
             # Use db_transaction alias to avoid any accidental shadowing
             with db_transaction.atomic():
                 profile.save()
+            # Attempt deferred subscription activation (license + minimal profile requirements)
+            try:
+                _attempt_subscription_activation(request.user)
+            except Exception:
+                # Silently ignore activation errors; user can continue editing
+                pass
         return JsonResponse(_profile_json(profile))
     except Exception as ex:
         traceback.print_exc()
@@ -1863,4 +1866,51 @@ def api_full_profile(request, user_id):
     except Exception:
         pass
     return JsonResponse(data, safe=False)
+
+# --- Deferred Subscription Activation Helper ---
+def _attempt_subscription_activation(user):
+    """If user has passed payment step (customer + payment method stored) and
+    profile & license appear valid, create the actual Stripe subscription and
+    mark onboarding_status active.
+
+    Silent no-op if prerequisites not met.
+    """
+    from django.conf import settings as _settings
+    from users.models_profile import TherapistProfile
+    from .models import Subscription
+    import stripe as _stripe
+    if getattr(user, 'onboarding_status', '') != 'pending_profile_completion':
+        return
+    profile = TherapistProfile.objects.filter(user=user).first()
+    if not profile:
+        return
+    # Basic validation: require license_type, license_number, license_state (2 chars), at least first & last name
+    if not (profile.license_type and profile.license_number and profile.license_state and len(profile.license_state) == 2):
+        return
+    if not (profile.first_name and profile.last_name):
+        return
+    # Ensure there is a subscription record with stored customer + payment method but no stripe_subscription_id yet
+    sub = Subscription.objects.filter(user=user).exclude(stripe_customer_id__isnull=True).exclude(stripe_payment_method_id__isnull=True).filter(stripe_subscription_id__isnull=True).last()
+    if not sub or not sub.subscription_type:
+        return
+    # Create subscription in Stripe
+    price_id = sub.subscription_type.stripe_plan_id_monthly if sub.interval == 'monthly' else sub.subscription_type.stripe_plan_id_annual
+    if not price_id:
+        return
+    _stripe.api_key = _settings.STRIPE_SECRET_KEY
+    try:
+        stripe_sub = _stripe.Subscription.create(
+            customer=sub.stripe_customer_id,
+            items=[{'price': price_id}],
+            default_payment_method=sub.stripe_payment_method_id,
+            expand=["latest_invoice.payment_intent"],
+        )
+        sub.stripe_subscription_id = stripe_sub.id
+        sub.save(update_fields=['stripe_subscription_id'])
+        # Activate user
+        user.onboarding_status = 'active'
+        user.save(update_fields=['onboarding_status'])
+    except Exception:
+        # Leave user pending; they'll stay in pending_profile_completion until next successful attempt
+        return
 
