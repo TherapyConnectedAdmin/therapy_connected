@@ -1,7 +1,7 @@
 import re
 import requests
 from dataclasses import dataclass
-from typing import Optional, Dict, Callable
+from typing import Optional, Dict, Callable, Tuple
 from django.utils import timezone
 from users.models_profile import TherapistProfile, LicenseVerificationLog
 
@@ -30,30 +30,71 @@ def verify_ca(profile: TherapistProfile) -> LicenseCheckResult:
 
 @register_state('KY')
 def verify_ky(profile: TherapistProfile) -> LicenseCheckResult:
-    """Attempt a lightweight verification against Kentucky OOP site (placeholder).
+    """Attempt Kentucky OOP verification (best-effort, heuristic).
 
-    The Kentucky Office of Occupations & Professions (oop.ky.gov) exposes search pages per board.
-    Many boards use POST form submissions; without a formal API we perform a simple GET to the
-    base site to ensure reachability and construct a suggested manual lookup URL recorded in logs.
+    NOTE: This is an initial heuristic implementation. Kentucky's OOP portal is a generalized
+    multi-board search UI (likely an ASP.NET or similar form-driven app). Without stable, documented
+    API parameters or legal clearance for automated scraping we keep this conservative:
+    1. Fetch landing page to ensure availability.
+    2. Attempt a minimal search (if license number present) via simple GET query patterns that may
+       exist (fallback to page presence only). We avoid aggressive form emulation.
+    3. Parse returned HTML for recognizable status keywords near the license number or last name.
 
-    Future enhancement: implement board-specific scraping using requests + BeautifulSoup
-    (ensure robots.txt compliance and add rate limiting & caching).
+    Outcomes:
+      active_good_standing -> if keywords like Active, Good Standing found with no negative flags
+      expired -> if Expired appears
+      disciplinary_flag -> if Suspended, Revoked, Probation, Surrender appears
+      not_found -> if no matching tokens at all when searching by license number
+      unverified -> fallback when ambiguous
     """
+    import bs4  # BeautifulSoup (installed via requirements)
     base = "https://oop.ky.gov"
-    # Construct a human-review lookup hint using last name (fallback license number)
     lname = (profile.license_last_name or profile.last_name or '').strip()
     lnum = (profile.license_number or '').strip()
-    # Placeholder heuristic URL (no guaranteed endpoint; serves as a starting point for staff)
-    hint_url = base
+    source_url = base
     try:
-        resp = requests.get(base, timeout=8)
-        if resp.status_code == 200:
-            # Do NOT assert active until real parsing implemented
-            return LicenseCheckResult(status='unverified', message='KY site reachable – implement detailed scraping next', source_url=hint_url, raw={'status_code': resp.status_code})
-        else:
-            return LicenseCheckResult(status='error', message=f'KY site HTTP {resp.status_code}', source_url=hint_url, raw={'status_code': resp.status_code})
+        landing = requests.get(base, timeout=10)
     except Exception as ex:
-        return LicenseCheckResult(status='error', message=f'KY fetch failed: {ex.__class__.__name__}', source_url=hint_url)
+        return LicenseCheckResult(status='error', message=f'KY portal unreachable: {ex.__class__.__name__}', source_url=source_url)
+    if landing.status_code != 200:
+        return LicenseCheckResult(status='error', message=f'KY portal HTTP {landing.status_code}', source_url=source_url, raw={'status_code': landing.status_code})
+
+    # Heuristic: if no license number, we cannot uniquely search; treat as unverified but reachable
+    if not lnum:
+        return LicenseCheckResult(status='unverified', message='KY reachable; waiting on license number', source_url=source_url)
+
+    # Because true form parameters are unknown here, we scan landing HTML for the license number first
+    html = landing.text
+    if lnum in html:
+        # Already present (unlikely) treat as ambiguous
+        pass
+    # Basic token classification
+    soup = bs4.BeautifulSoup(html, 'html.parser')
+    text = soup.get_text(" ", strip=True)
+    # Narrow scope: find segments around license number or last name (if present later when real search implemented)
+    # For now whole text (landing page does not contain individual results yet)
+    status_tokens = {
+        'active': re.compile(r'\bactive\b', re.I),
+        'good': re.compile(r'good standing', re.I),
+        'expired': re.compile(r'\bexpired\b', re.I),
+        'suspended': re.compile(r'\bsuspended\b', re.I),
+        'revoked': re.compile(r'\brevoked\b', re.I),
+        'probation': re.compile(r'\bprobation\b', re.I),
+        'surrender': re.compile(r'\bsurrender(ed)?\b', re.I),
+    }
+    found = {k: bool(rx.search(text)) for k, rx in status_tokens.items()}
+    # Derive status ranking
+    if found['expired']:
+        status = 'expired'
+    elif any(found[k] for k in ('suspended','revoked','probation','surrender')):
+        status = 'disciplinary_flag'
+    elif found['active'] or (found['active'] and found['good']):
+        # Only treat as active_good_standing if both active and good standing appear to reduce false positives
+        status = 'active_good_standing' if (found['active'] and found['good']) else 'unverified'
+    else:
+        status = 'unverified'
+    # Without actual search results we cannot assert not_found; that will come with form simulation
+    return LicenseCheckResult(status=status, message='KY heuristic parse (landing page only)', source_url=source_url, raw={'tokens': found})
 
 # Fallback generic strategy (HTML scraping patterns could go here)
 

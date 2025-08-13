@@ -16,3 +16,4 @@ django-sslserver
 # uszipcode removed after migrating to local ZipCode dataset (seeded via full load command)
 sqlalchemy-mate<2.0
 Faker
+beautifulsoup4>=4.12.0
