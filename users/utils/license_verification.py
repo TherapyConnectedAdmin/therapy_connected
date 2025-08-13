@@ -28,6 +28,33 @@ def verify_ca(profile: TherapistProfile) -> LicenseCheckResult:
     # This just demonstrates structure; returns unverified so we don't falsely approve.
     return LicenseCheckResult(status='unverified', message='CA verification not yet implemented')
 
+@register_state('KY')
+def verify_ky(profile: TherapistProfile) -> LicenseCheckResult:
+    """Attempt a lightweight verification against Kentucky OOP site (placeholder).
+
+    The Kentucky Office of Occupations & Professions (oop.ky.gov) exposes search pages per board.
+    Many boards use POST form submissions; without a formal API we perform a simple GET to the
+    base site to ensure reachability and construct a suggested manual lookup URL recorded in logs.
+
+    Future enhancement: implement board-specific scraping using requests + BeautifulSoup
+    (ensure robots.txt compliance and add rate limiting & caching).
+    """
+    base = "https://oop.ky.gov"
+    # Construct a human-review lookup hint using last name (fallback license number)
+    lname = (profile.license_last_name or profile.last_name or '').strip()
+    lnum = (profile.license_number or '').strip()
+    # Placeholder heuristic URL (no guaranteed endpoint; serves as a starting point for staff)
+    hint_url = base
+    try:
+        resp = requests.get(base, timeout=8)
+        if resp.status_code == 200:
+            # Do NOT assert active until real parsing implemented
+            return LicenseCheckResult(status='unverified', message='KY site reachable – implement detailed scraping next', source_url=hint_url, raw={'status_code': resp.status_code})
+        else:
+            return LicenseCheckResult(status='error', message=f'KY site HTTP {resp.status_code}', source_url=hint_url, raw={'status_code': resp.status_code})
+    except Exception as ex:
+        return LicenseCheckResult(status='error', message=f'KY fetch failed: {ex.__class__.__name__}', source_url=hint_url)
+
 # Fallback generic strategy (HTML scraping patterns could go here)
 
 def run_license_verification(profile: TherapistProfile) -> LicenseCheckResult:
@@ -45,6 +72,20 @@ def run_license_verification(profile: TherapistProfile) -> LicenseCheckResult:
 
 def verify_and_persist(profile: TherapistProfile) -> LicenseCheckResult:
     result = run_license_verification(profile)
+    # If strategy didn't set a source URL, attempt to pull from StateLicenseBoard config
+    if not result.source_url:
+        try:
+            from users.models_profile import StateLicenseBoard
+            boards = StateLicenseBoard.objects.filter(state__iexact=profile.license_state, active=True)
+            # Prefer matching license_type if present
+            if profile.license_type:
+                board = boards.filter(license_type__iexact=profile.license_type.name).first() or boards.filter(license_type='').first()
+            else:
+                board = boards.filter(license_type='').first() or boards.first()
+            if board:
+                result.source_url = board.search_url
+        except Exception:
+            pass
     profile.license_status = result.status
     profile.license_last_verified_at = timezone.now()
     if result.source_url:
