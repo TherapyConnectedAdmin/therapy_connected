@@ -1,16 +1,14 @@
 {# Extracted modal About Me body #}
-<div class="pointer-events-none absolute inset-0 opacity-45 mix-blend-normal bg-[radial-gradient(circle_at_22%_18%,#E5F4F2,transparent_55%),radial-gradient(circle_at_82%_74%,#FFDDD0,transparent_62%)]"></div>
-<div class="flex items-start gap-4 flex-wrap"
+<div class="pointer-events-none absolute inset-0 opacity-45 mix-blend-normal z-0 bg-[radial-gradient(circle_at_22%_18%,#E5F4F2,transparent_55%),radial-gradient(circle_at_82%_74%,#FFDDD0,transparent_62%)]"></div>
+<div class="flex items-start gap-4 flex-wrap relative z-10"
     x-data="{ hasVideo: ($store.profileModal.therapist.video_gallery && $store.profileModal.therapist.video_gallery.length) }"
     x-init="$watch('$store.profileModal.therapist.video_gallery', v => hasVideo = (v && v.length))">
-  <div class="flex items-center gap-3 mb-4" :class="!hasVideo ? 'mb-2' : 'mb-4'">
-    <div class="w-8 h-8 rounded-xl bg-[#116466]/10 flex items-center justify-center ring-1 ring-[#BEE3DB] shadow-inner">
-      <svg class="w-4.5 h-4.5 text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5Z"/><path d="M3.5 22c1.4-3.9 5-6.5 8.5-6.5s7.1 2.6 8.5 6.5"/></svg>
-    </div>
-    <div class="flex flex-col">
-      <h2 class="text-[20px] md:text-[22px] font-semibold tracking-tight text-[#2e4a49] leading-snug">About Me</h2>
-      <span class="hidden md:inline text-[11px] font-medium text-[#89B0AE]">Share connection, values & style</span>
-    </div>
+  <div class="flex flex-col gap-1 mb-4" :class="!hasVideo ? 'mb-2' : 'mb-4'">
+    <h2 class="text-[22px] md:text-[24px] font-extrabold tracking-tight text-[#2e4a49] flex items-center gap-2">
+      <svg class="w-7 h-7 text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M3.5 22c1.4-3.9 5-6.5 8.5-6.5s7.1 2.6 8.5 6.5"/></svg>
+      About Me
+    </h2>
+    <p class="text-[11px] font-medium tracking-wide text-[#587a79] uppercase">Share connection, values & style</p>
   </div>
 </div>
 <!-- Intro Video (modal first) unified editable block (now boxed like gallery). Wrapper ends BEFORE personal statements. -->
@@ -108,42 +106,74 @@
     </div>
   </div>
 </div><!-- /video wrapper -->
-<!-- Personal Statement 1 (moves to top when no video because video block not rendered) -->
+<!-- Personal Statement 1 (styled like Therapy Types Note) -->
 <div x-show="editable || $store.profileModal.therapist.personal_statement_q1" x-cloak>
-  <div class="mb-8 rounded-xl p-5 md:p-6 bg-white/85 backdrop-blur-sm ring-2 ring-[#BEE3DB] shadow-lg relative overflow-hidden group max-w-[900px] mx-auto w-full" style="box-shadow:0 6px 24px -8px #555B6E33;">
-    <div class="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_18%_24%,#E5F4F2,transparent_60%),radial-gradient(circle_at_82%_78%,#FFDDD0,transparent_65%)] mix-blend-normal"></div>
-    <div class="group relative cursor-pointer" data-edit-wrapper data-field="personal_statement_q1" x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }" role="button" tabindex="0" @click.stop="can_edit && $dispatch('edit-rich-text',{field:'personal_statement_q1',current:$store.profileModal.therapist.personal_statement_q1||'', el: $el})">
+  <div class="mb-4" data-edit-wrapper data-field="personal_statement_q1">
+    <div class="relative">
       <template x-if="$store.profileModal.therapist.personal_statement_q1">
-        <div class="text-[15px] md:text-[16px] leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q1"></div>
+        <div class="text-sm md:text-[15px] leading-relaxed font-light text-[#2e4a49] whitespace-pre-line bg-white/70 rounded-xl border border-[#BEE3DB] p-4 pr-10" x-html="$store.profileModal.therapist.personal_statement_q1"></div>
       </template>
       <template x-if="!$store.profileModal.therapist.personal_statement_q1">
-        <div class="flex flex-col gap-1" :class="can_edit ? 'animate-pulse' : ''">
-          <p class="text-[#116466] font-semibold text-sm tracking-wide">Personal Statement 1</p>
-          <p class="italic text-[#89B0AE] text-[12px] leading-snug">Briefly introduce yourself, your approach & how early sessions feel. (120–400 chars)</p>
-          <p class="italic text-[#89B0AE] text-[11px]">Click to start…</p>
+        <div>
+          <button type="button" x-show="editable" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q1',current:'', el:$el})" class="w-full text-left group">
+            <div class="p-4 rounded-lg border-2 border-dashed border-[#BEE3DB] bg-white/40 hover:bg-white/70 transition">
+              <p class="text-[12px] text-[#89B0AE] group-hover:text-[#555B6E]">Briefly introduce yourself, your approach, and how early sessions feel. (120–400 chars)</p>
+            </div>
+          </button>
+          <p x-show="!editable" class="italic text-[12px] text-[#89B0AE]">No personal statement.</p>
         </div>
       </template>
-      {% if editable %}<button type="button" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-1 rounded bg-[#116466] text-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q1',current:$store.profileModal.therapist.personal_statement_q1||'', el: $el})">Edit</button>{% endif %}
+      {% if editable %}
+      <button type="button" class="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[#116466] ring-1 ring-[#BEE3DB] hover:bg-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q1',current:$store.profileModal.therapist.personal_statement_q1||'', el: $el})">Edit</button>
+      {% endif %}
     </div>
   </div>
+  
 </div>
 <!-- Image Gallery (modal third) - modern compact grid -->
 <div x-show="editable || ($store.profileModal.therapist.gallery_images && $store.profileModal.therapist.gallery_images.length)" x-cloak>
   {% if editable %}
-  <div class="mb-10 rounded-xl p-4 md:p-5 bg-white/70 ring-1 ring-[#BEE3DB] shadow-sm flex flex-col gap-4" x-data="galleryManager()" x-init="images=(Alpine.store('profileModal')?.therapist?.gallery_images||[]).slice()">
+  <div class="mb-10 rounded-xl p-4 md:p-5 bg-white/70 ring-1 ring-[#BEE3DB] shadow-sm flex flex-col gap-4" x-data="galleryManager()" x-init="images=(Alpine.store('profileModal')?.therapist?.gallery_images||[]).slice()" x-on:keydown.escape="confirm.show && cancelDelete()">
     <div class="flex items-center justify-between flex-wrap gap-3">
       <h3 class="text-sm font-bold tracking-wide text-[#555B6E]">Image Gallery</h3>
       <span class="text-[10px] font-medium text-[#89B0AE]" x-text="images.length + ' / 12'"></span>
     </div>
     <div class="grid md:grid-cols-5 gap-4">
       <div class="md:col-span-2 flex flex-col gap-3">
-        <div class="relative border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center gap-3 bg-white/60" :class="drag ? 'border-[#116466] bg-[#E5F4F2]/60' : 'border-[#BEE3DB]'" @dragover.prevent="drag=true" @dragleave.prevent="drag=false" @drop.prevent="onDrop($event)">
-          <svg class="w-8 h-8 text-[#116466]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 0 1 4-4h1.26a8 8 0 1 1 7.48 5.5H17a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Zm8-5v6m0 0 2-2m-2 2-2-2"/></svg>
-          <p class="text-[11px] leading-snug text="#555B6E]">Drop image or <button type="button" class="underline text-[#116466] font-semibold" @click="$refs.galFile.click()">browse</button><br/>JPG/PNG ≤ 5MB.</p>
-          <input type="file" x-ref="galFile" accept="image/*" class="hidden" @change="onFile($event)" />
-          <template x-if="file"><p class="text-[10px] text-[#116466] truncate max-w-[140px]" x-text="file.name"></p></template>
-          <template x-if="error"><p class="text-[10px] text-[#9b4d49]" x-text="error"></p></template>
+        <div class="relative border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center text-center gap-3 bg-gradient-to-br from-[#F6FBFA] to-white group transition cursor-pointer overflow-hidden" :class="drag ? 'border-[#116466] ring-2 ring-[#116466]/40 shadow-md' : 'border-[#BEE3DB]'" @click="$refs.galFile.click()" @dragover.prevent="drag=true" @dragleave.prevent="drag=false" @drop.prevent="onDrop($event)">
+          <!-- Soft background effect (kept subtle on hover) -->
+          <div class="absolute inset-0 pointer-events-none z-0 opacity-40 group-hover:opacity-60 transition duration-300 bg-[radial-gradient(circle_at_28%_30%,#E5F4F299,transparent_65%),radial-gradient(circle_at_80%_78%,#BEE3DB55,transparent_70%)]"></div>
+          <!-- Foreground content wrapper ensures text stays above -->
+          <div class="relative z-10 flex flex-col items-center justify-center gap-3">
+            <svg class="w-9 h-9 text-[#116466] drop-shadow-sm" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 0 1 4-4h1.26a8 8 0 1 1 7.48 5.5H17a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Zm8-5v6m0 0 2-2m-2 2-2-2"/></svg>
+            <p class="text-[11px] leading-snug text-[#2e4a49] font-medium"><span class="hidden sm:inline">Drag & Drop</span><span class="sm:hidden">Tap</span> or <span class="text-[#116466] underline">Browse</span><br/><span class="font-normal text-[#89B0AE]">JPG / PNG up to 5MB</span></p>
+            <div class="flex gap-2">
+              <button type="button" class="px-2.5 py-1.5 rounded-full text-[10px] font-semibold bg-[#116466] text-white hover:bg-[#0d4c4d] shadow" @click.stop="$refs.galFile.click()">Choose File</button>
+              <button type="button" class="px-2.5 py-1.5 rounded-full text-[10px] font-semibold bg-white ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2]" @click.stop="capturing ? stopCamera() : startCamera()" x-text="capturing ? 'Stop Camera' : 'Use Camera'"></button>
+            </div>
+            <template x-if="file && !usingSnapshot"><p class="text-[10px] text-[#116466] truncate max-w-[160px]" x-text="file.name"></p></template>
+            <template x-if="error"><p class="text-[10px] text-[#9b4d49]" x-text="error"></p></template>
+            <template x-if="camError"><p class="text-[10px] text-[#9b4d49]" x-text="camError"></p></template>
+          </div>
+          <input type="file" x-ref="galFile" accept="image/*" capture="environment" class="hidden" @change="onFile($event)" />
         </div>
+        <div x-show="capturing" x-cloak class="relative rounded-lg overflow-hidden ring-1 ring-[#BEE3DB] bg-black/70 flex flex-col items-center gap-2 p-3">
+          <video x-ref="camVideo" autoplay playsinline class="w-full rounded-md max-h-64 object-contain bg-black"></video>
+          <div class="flex gap-2 pt-1">
+            <button type="button" @click="takeSnapshot()" class="px-3 py-1.5 rounded-full bg-[#FF9950] hover:bg-[#ff8833] text-white text-[11px] font-semibold">Capture</button>
+            <button type="button" @click="stopCamera()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-medium hover:bg-[#E5F4F2]">Cancel</button>
+          </div>
+        </div>
+        <template x-if="usingSnapshot && snapshotData">
+          <div class="relative rounded-lg overflow-hidden ring-1 ring-[#116466] bg-white flex flex-col items-center gap-2 p-3">
+            <img :src="snapshotData" alt="Snapshot preview" class="w-full max-h-64 object-contain" />
+            <div class="flex gap-2">
+              <button type="button" @click="upload()" :disabled="uploading" class="px-3 py-1.5 rounded-full bg-[#116466] text-white text-[11px] font-semibold hover:bg-[#0d4c4d] disabled:opacity-40">Upload Snapshot</button>
+              <button type="button" @click="retake()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-medium hover:bg-[#E5F4F2]">Retake</button>
+              <button type="button" @click="discardSnapshot()" class="px-3 py-1.5 rounded-full bg-[#FFE8E5] text-[#9b4d49] text-[11px] font-medium hover:bg-[#FFD5CF]">Discard</button>
+            </div>
+          </div>
+        </template>
         <input type="text" x-model="caption" maxlength="80" placeholder="Caption (optional)" class="w-full rounded-md border border-[#BEE3DB] bg-white px-2 py-1.5 text-[12px] focus:border-[#116466] focus:ring-[#116466]" />
         <label class="inline-flex items-center gap-2 text-[11px] text-[#555B6E]"><input type="checkbox" x-model="is_primary" class="accent-[#116466]"/> Primary Image</label>
         <div class="flex gap-2 pt-1">
@@ -164,13 +194,37 @@
               </div>
               <div class="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition">
                 <button type="button" @click="setPrimary(img)" x-show="!img.is_primary" class="px-1.5 py-0.5 rounded bg-white text-[9px] font-semibold text-[#116466] ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2]">Primary</button>
-                <button type="button" @click="remove(img)" class="px-1.5 py-0.5 rounded bg-[#FFE8E5] text-[9px] font-semibold text-[#9b4d49] hover:bg-[#FFD5CF]">Del</button>
+                <button type="button" @click.stop.prevent="openDelete(img)" class="px-1.5 py-0.5 rounded bg-[#FFE8E5] text-[9px] font-semibold text-[#9b4d49] hover:bg-[#FFD5CF]">Del</button>
               </div>
               <div class="p-1">
                 <input type="text" x-model="img.caption" @change="saveMeta(img)" maxlength="60" placeholder="Caption" class="w-full bg-white/80 rounded border border-[#BEE3DB] px-1 py-0.5 text-[10px] focus:border-[#116466] focus:ring-[#116466]" />
               </div>
             </div>
           </template>
+        </div>
+      </div>
+    </div>
+    <!-- Delete Confirmation Modal (correctly inside galleryManager scope) -->
+    <div x-show="confirm.show" x-cloak x-trap.noscroll="confirm.show" class="fixed inset-0 z-[120] flex items-center justify-center" data-gallery-delete-modal @keydown.enter.prevent="!confirm.deleting && confirmDeleteAction()" @keydown.escape.stop.prevent="cancelDelete()">
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="cancelDelete()"></div>
+      <div class="relative w-[360px] max-w-[92%] bg-white rounded-2xl shadow-xl ring-2 ring-[#BEE3DB] p-5 flex flex-col gap-4 focus:outline-none" role="dialog" aria-modal="true" aria-labelledby="gallery-del-title">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-full bg-[#FFE8E5] flex items-center justify-center text-[#9b4d49] shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3Z"/></svg>
+          </div>
+          <div class="flex flex-col">
+            <h4 id="gallery-del-title" class="text-sm font-semibold text-[#555B6E] tracking-wide">Delete image?</h4>
+            <p class="text-[11px] text-[#556] leading-snug">This will permanently remove the image and its caption. This action cannot be undone.</p>
+            <template x-if="confirm.error"><p class="text-[11px] text-[#9b4d49] mt-1" x-text="confirm.error"></p></template>
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-1">
+          <button type="button" @click="cancelDelete()" :class="confirm.deleting ? 'pointer-events-none opacity-40' : ''" class="px-3 py-1.5 rounded-full text-[11px] font-medium bg-white ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2]">Cancel</button>
+          <button type="button" @click="confirmDeleteAction()" :class="confirm.deleting ? 'pointer-events-none opacity-40' : ''" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-[#9b4d49] text-white hover:bg-[#873f3b] flex items-center gap-1">
+            <svg x-show="!confirm.deleting" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h12m-9 0v-.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V6m0 0 1 12.5A2 2 0 0 1 14 21H10a2 2 0 0 1-2-2.5L9 6"/></svg>
+            <svg x-show="confirm.deleting" class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="#fff" stroke-width="3"></circle><path class="opacity-90" fill="#fff" d="M4 12a8 8 0 0 1 8-8v3.5A4.5 4.5 0 0 0 7.5 12H4Z"/></svg>
+            <span x-text="confirm.deleting ? 'Deleting…' : 'Delete'"></span>
+          </button>
         </div>
       </div>
     </div>
@@ -204,42 +258,49 @@
   </template>
   {% endif %}
   </div>
-</div>
-<!-- Personal Statement 2 (restored inside About section for unified background) -->
+<!-- Personal Statement 2 (styled like Therapy Types Note) -->
 <div x-show="editable || $store.profileModal.therapist.personal_statement_q2" x-cloak>
-  <div class="mb-8 rounded-xl p-5 md:p-6 bg-white/85 backdrop-blur-sm ring-2 ring-[#BEE3DB] shadow-lg relative overflow-hidden group max-w-[900px] mx-auto w-full" style="box-shadow:0 6px 24px -8px #555B6E33;">
-    <div class="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_18%_18%,#E5F4F2,transparent_60%),radial-gradient(circle_at_78%_82%,#FFDDD0,transparent_65%)]"></div>
-    <div class="group relative cursor-pointer" data-edit-wrapper data-field="personal_statement_q2" x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }" role="button" tabindex="0" @click.stop="can_edit && $dispatch('edit-rich-text',{field:'personal_statement_q2',current:$store.profileModal.therapist.personal_statement_q2||'', el: $el})">
+  <div class="mb-4" data-edit-wrapper data-field="personal_statement_q2">
+    <div class="relative">
       <template x-if="$store.profileModal.therapist.personal_statement_q2">
-        <div class="text-[15px] md:text-[16px] leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q2"></div>
+        <div class="text-sm md:text-[15px] leading-relaxed font-light text-[#2e4a49] whitespace-pre-line bg-white/70 rounded-xl border border-[#BEE3DB] p-4 pr-10" x-html="$store.profileModal.therapist.personal_statement_q2"></div>
       </template>
       <template x-if="!$store.profileModal.therapist.personal_statement_q2">
-        <div class="flex flex-col gap-1" :class="can_edit ? 'animate-pulse' : ''">
-          <p class="text-[#116466] font-semibold text-sm tracking-wide">Personal Statement 2</p>
-          <p class="italic text-[#89B0AE] text-[12px] leading-snug">Who you help & common concerns / populations. (120–400 chars)</p>
-          <p class="italic text-[#89B0AE] text-[11px]">Click to start…</p>
+        <div>
+          <button type="button" x-show="editable" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q2',current:'', el:$el})" class="w-full text-left group">
+            <div class="p-4 rounded-lg border-2 border-dashed border-[#BEE3DB] bg-white/40 hover:bg-white/70 transition">
+              <p class="text-[12px] text-[#89B0AE] group-hover:text-[#555B6E]">Who you help and common concerns/populations. (120–400 chars)</p>
+            </div>
+          </button>
+          <p x-show="!editable" class="italic text-[12px] text-[#89B0AE]">No personal statement.</p>
         </div>
       </template>
-      {% if editable %}<button type="button" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-1 rounded bg-[#116466] text-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q2',current:$store.profileModal.therapist.personal_statement_q2||'', el: $el})">Edit</button>{% endif %}
+      {% if editable %}
+      <button type="button" class="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[#116466] ring-1 ring-[#BEE3DB] hover:bg-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q2',current:$store.profileModal.therapist.personal_statement_q2||'', el: $el})">Edit</button>
+      {% endif %}
     </div>
   </div>
 </div>
-<!-- Personal Statement 3 (restored) -->
+<!-- Personal Statement 3 (styled like Therapy Types Note) -->
 <div x-show="editable || $store.profileModal.therapist.personal_statement_q3" x-cloak>
-  <div class="mb-4 rounded-xl p-5 md:p-6 bg-white/85 backdrop-blur-sm ring-2 ring-[#BEE3DB] shadow-lg relative overflow-hidden group max-w-[900px] mx-auto w-full" style="box-shadow:0 6px 24px -8px #555B6E33;">
-    <div class="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_24%_24%,#E5F4F2,transparent_60%),radial-gradient(circle_at_78%_78%,#FFDDD0,transparent_65%)]"></div>
-    <div class="group relative cursor-pointer" data-edit-wrapper data-field="personal_statement_q3" x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }" role="button" tabindex="0" @click.stop="can_edit && $dispatch('edit-rich-text',{field:'personal_statement_q3',current:$store.profileModal.therapist.personal_statement_q3||'', el: $el})">
+  <div class="mb-4" data-edit-wrapper data-field="personal_statement_q3">
+    <div class="relative">
       <template x-if="$store.profileModal.therapist.personal_statement_q3">
-        <div class="text-[15px] md:text-[16px] leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q3"></div>
+        <div class="text-sm md:text-[15px] leading-relaxed font-light text-[#2e4a49] whitespace-pre-line bg-white/70 rounded-xl border border-[#BEE3DB] p-4 pr-10" x-html="$store.profileModal.therapist.personal_statement_q3"></div>
       </template>
       <template x-if="!$store.profileModal.therapist.personal_statement_q3">
-        <div class="flex flex-col gap-1" :class="can_edit ? 'animate-pulse' : ''">
-          <p class="text-[#116466] font-semibold text-sm tracking-wide">Personal Statement 3</p>
-          <p class="italic text-[#89B0AE] text-[12px] leading-snug">Your values / philosophy & an invitation to connect. (120–400 chars)</p>
-          <p class="italic text-[#89B0AE] text-[11px]">Click to start…</p>
+        <div>
+          <button type="button" x-show="editable" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q3',current:'', el:$el})" class="w-full text-left group">
+            <div class="p-4 rounded-lg border-2 border-dashed border-[#BEE3DB] bg-white/40 hover:bg-white/70 transition">
+              <p class="text-[12px] text-[#89B0AE] group-hover:text-[#555B6E]">Your values/philosophy and an invitation to connect. (120–400 chars)</p>
+            </div>
+          </button>
+          <p x-show="!editable" class="italic text-[12px] text-[#89B0AE]">No personal statement.</p>
         </div>
       </template>
-      {% if editable %}<button type="button" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-1 rounded bg-[#116466] text-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q3',current:$store.profileModal.therapist.personal_statement_q3||'', el: $el})">Edit</button>{% endif %}
+      {% if editable %}
+      <button type="button" class="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[#116466] ring-1 ring-[#BEE3DB] hover:bg-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q3',current:$store.profileModal.therapist.personal_statement_q3||'', el: $el})">Edit</button>
+      {% endif %}
     </div>
   </div>
 </div>

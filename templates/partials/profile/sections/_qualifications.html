@@ -1,19 +1,88 @@
 {# Qualifications & Education Section Partial - standardized wrapper (standalone edit page only) #}
 <div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
   <section id="section-qualifications" class="tc-section relative p-5 md:p-7 mt-4 md:mt-6 mb-6 md:mb-8 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg" style="box-shadow:0 6px 28px -10px #25454433;" x-data="qualificationsManager()" x-init="init()" x-cloak>
-    <div class="flex items-start justify-between mb-4">
-      <div>
-        <h2 class="text-xl md:text-[22px] font-semibold tracking-tight text-[#555B6E] mb-1">Qualifications &amp; Education</h2>
-        <p class="text-[10px] text-[#89B0AE] leading-snug max-w-2xl">Document your professional license, credentials, and education history. This section is only visible while editing.</p>
+    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+      <div class="flex flex-col gap-1">
+        <h2 class="text-[22px] md:text-[24px] font-extrabold tracking-tight text-[#2e4a49] flex items-center gap-2">
+          <svg class="w-7 h-7 text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M8 6v-.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V6m1 0 1 12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2l1-12"/></svg>
+          Qualifications &amp; Education
+        </h2>
+        <p class="text-[11px] font-medium tracking-wide text-[#587a79] uppercase">License, credentials & training</p>
+        <p class="text-[11px] text-[#89B0AE]">Only visible while editing.</p>
       </div>
     </div>
-    <div class="text-sm text-[#555B6E] space-y-8">
+  <div class="text-sm text-[#555B6E] space-y-8">
     {# License Editor #}
-    <div x-data="{ editing:false, showLicenseNameOverride:false, form:{ license_type:'', license_number:'', license_state:'', license_expiration:'', license_first_name:'', license_last_name:'' }, states:['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'], init(){ this.sync(); }, sync(){ const t=$store.profileModal.therapist||{}; this.form.license_type=t.license_type||''; this.form.license_number=t.license_number||''; this.form.license_state=t.license_state||''; this.form.license_expiration=t.license_expiration||''; this.form.license_first_name=t.license_first_name||''; this.form.license_last_name=t.license_last_name||''; this.showLicenseNameOverride = !!(this.form.license_first_name || this.form.license_last_name); }, save(){ if(this.saving) return; this.error=''; const payload={}; for(const k in this.form){ if(this.form[k]!==($store.profileModal.therapist[k]||'')) payload[k]=this.form[k]; } if(!this.showLicenseNameOverride){ if(this.form.license_first_name || this.form.license_last_name){ this.form.license_first_name=''; this.form.license_last_name=''; payload.license_first_name=''; payload.license_last_name=''; } } if(Object.keys(payload).length===0){ this.editing=false; return; } this.saving=true; fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken': TC_CSRF}, body: JSON.stringify(payload)}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && Object.values(d.errors)[0]) || d.error || 'Save failed'; return; } if(window.__profileEdit){ window.__profileEdit.applyData(d); window.__profileEdit.notify('Saved'); } this.editing=false; this.sync(); }).catch(()=> this.error='Network error').finally(()=> this.saving=false); }, cancel(){ this.editing=false; this.sync(); }, editing:false, error:'', saving:false, differentName(){ const t=$store.profileModal.therapist||{}; return this.showLicenseNameOverride || ( (t.first_name||'').trim() !== (t.license_first_name||'').trim() ) || ( (t.last_name||'').trim() !== (t.license_last_name||'').trim() ); } }" class="space-y-2">
+  <div x-data="{ editing:false, showLicenseNameOverride:false, pollTimer:null, clearConfirm:false, clearing:false, form:{ license_type:'', license_number:'', license_state:'', license_expiration:'', license_first_name:'', license_last_name:'' }, states:['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'], init(){ this.sync(); }, sync(){ const t=$store.profileModal.therapist||{}; this.form.license_type=t.license_type||''; this.form.license_number=t.license_number||''; this.form.license_state=t.license_state||''; this.form.license_expiration=t.license_expiration||''; this.form.license_first_name=t.license_first_name||''; this.form.license_last_name=t.license_last_name||''; this.showLicenseNameOverride = !!(this.form.license_first_name || this.form.license_last_name); }, startPolling(){ if(this.pollTimer) clearInterval(this.pollTimer); const self=this; let attempts=0; this.pollTimer=setInterval(()=>{ attempts++; fetch('/users/api/profile/me/', {headers:{'Accept':'application/json'}}).then(r=>r.ok?r.json():null).then(d=>{ if(!d||!d.license_status) return; const s=Alpine.store('profileModal'); if(s&&s.therapist){ Object.assign(s.therapist, { license_status:d.license_status, license_status_message:d.license_status_message, license_last_verified_at:d.license_last_verified_at }); } if(['active_good_standing','not_found','expired','disciplinary_flag','error','unverified'].includes(d.license_status)){ clearInterval(self.pollTimer); self.pollTimer=null; } if(attempts>20){ clearInterval(self.pollTimer); self.pollTimer=null; } }).catch(()=>{}); }, 3000); }, save(){ if(this.saving) return; this.error=''; // Preserve current license_type (chosen via global select popover)
+        this.form.license_type = $store.profileModal.therapist.license_type || this.form.license_type;
+        // Validation: required base fields
+        const licenseTypeVal = $store.profileModal.therapist.license_type || this.form.license_type;
+        const num = (this.form.license_number||'').trim();
+        const st = (this.form.license_state||'').trim();
+        const exp = (this.form.license_expiration||'').trim();
+        const fn = (this.form.license_first_name||'').trim();
+        const ln = (this.form.license_last_name||'').trim();
+        const errors = [];
+        if(!licenseTypeVal) errors.push('License Type is required');
+        if(!num) errors.push('License Number is required');
+        if(!st) errors.push('License State is required');
+        if(!exp) errors.push('License Expiration is required');
+        else if(!/^(0[1-9]|1[0-2])\/\d{4}$/.test(exp)) errors.push('Expiration must be MM/YYYY');
+        if(this.showLicenseNameOverride){
+          if(!fn || !ln) errors.push('Licensed first & last name required when names differ');
+        }
+        if(errors.length){ this.error = errors[0]; return; }
+        const payload={}; for(const k in this.form){ if(k==='license_type') continue; if(this.form[k]!==($store.profileModal.therapist[k]||'')) payload[k]=this.form[k]; }
+        if(!this.showLicenseNameOverride){ if(this.form.license_first_name || this.form.license_last_name){ this.form.license_first_name=''; this.form.license_last_name=''; payload.license_first_name=''; payload.license_last_name=''; } }
+        if(Object.keys(payload).length===0){ this.editing=false; return; }
+        this.saving=true; fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken': TC_CSRF}, body: JSON.stringify(payload)})
+          .then(r=>r.json().then(d=>[r,d]))
+          .then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && Object.values(d.errors)[0]) || d.error || 'Save failed'; return; } if(window.__profileEdit){ window.__profileEdit.applyData(d); window.__profileEdit.notify('Saved'); } if(payload.license_number || payload.license_state){ this.startPolling(); } this.editing=false; this.sync(); })
+          .catch(()=> this.error='Network error')
+          .finally(()=> this.saving=false); }, cancel(){ this.editing=false; this.sync(); }, openClearConfirm(){ this.clearConfirm=true; }, closeClearConfirm(){ if(this.clearing) return; this.clearConfirm=false; }, performClear(){ if(this.clearing) return; this.clearing=true; const payload={ license_type:null, license_number:'', license_state:'', license_expiration:'', license_first_name:'', license_last_name:'' }; fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken': TC_CSRF}, body: JSON.stringify(payload)}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ window.__profileEdit && window.__profileEdit.notify((d.error||'Clear failed'), true); return; } window.__profileEdit && window.__profileEdit.applyData(d); window.__profileEdit && window.__profileEdit.notify('License cleared'); this.sync(); this.clearConfirm=false; }).catch(()=> window.__profileEdit && window.__profileEdit.notify('Network error', true)).finally(()=> this.clearing=false); }, editing:false, error:'', saving:false, differentName(){ const t=$store.profileModal.therapist||{}; return this.showLicenseNameOverride || ( (t.first_name||'').trim() !== (t.license_first_name||'').trim() ) || ( (t.last_name||'').trim() !== (t.license_last_name||'').trim() ); } }" class="space-y-2">
       <div class="flex items-center justify-between">
         <div class="font-semibold text-[#116466]">Professional License</div>
-        <div class="flex items-center gap-2" x-show="!editing">
+        <div class="flex items-center gap-3" x-show="!editing">
+          <template x-if="$store.profileModal.therapist.license_status">
+            <div class="relative" x-data="{open:false}" @mouseenter="open=true" @mouseleave="open=false">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ring-1" :class="{
+                'bg-[#E5F4F2] ring-[#BEE3DB] text-[#116466]': $store.profileModal.therapist.license_status==='active_good_standing',
+                'bg-[#FFF7E6] ring-[#F5D27A] text-[#c27803]': $store.profileModal.therapist.license_status==='pending',
+                'bg-[#FFE8E5] ring-[#FFB3A8] text-[#9b4d49]': ['expired','disciplinary_flag','error'].includes($store.profileModal.therapist.license_status),
+                'bg-white ring-[#BEE3DB] text-[#555B6E]': ['unverified','not_found'].includes($store.profileModal.therapist.license_status),
+              }">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" :class="{'animate-spin': $store.profileModal.therapist.license_status==='pending'}">
+                  <circle cx="10" cy="10" r="8" class="opacity-25" />
+                  <path d="M4 10a6 6 0 0 1 6-6" class="origin-center" x-show="$store.profileModal.therapist.license_status==='pending'"></path>
+                  <path d="M6 10l3 3 5-6" stroke-linecap="round" stroke-linejoin="round" x-show="$store.profileModal.therapist.license_status==='active_good_standing'"></path>
+                  <path d="M6 6l8 8M6 14l8-8" stroke-linecap="round" x-show="['expired','disciplinary_flag','error'].includes($store.profileModal.therapist.license_status)"></path>
+                </svg>
+                <span x-text="(() => { const t=$store.profileModal.therapist; const m=t.license_status; const state=(t.license_state||'').toUpperCase(); const autoSet=new Set(t.license_automated_states||[]); const manual=!autoSet.has(state) && state && t.license_number; const map={active_good_standing:'Active', pending:'Verifying…', unverified: manual ? 'Manual' : 'Unverified', not_found:'Not Found', expired:'Expired', disciplinary_flag:'Flagged', error:'Error'}; return map[m]||m; })()"></span>
+              </span>
+              <div x-show="open && $store.profileModal.therapist.license_status_message" x-transition class="absolute left-0 mt-1 w-64 text-[10px] p-2 rounded-md shadow-lg bg-white ring-1 ring-[#BEE3DB] text-[#555B6E] z-10" x-text="$store.profileModal.therapist.license_status_message"></div>
+            </div>
+          </template>
           <button type="button" @click="editing=true" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-semibold text-[#116466] hover:bg-[#E5F4F2]">Edit</button>
+          <button type="button" @click="openClearConfirm()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-red-200 text-[11px] font-semibold text-red-600 hover:bg-red-50" x-show="$store.profileModal.therapist.license_number || $store.profileModal.therapist.license_state">Clear</button>
+        </div>
+      </div>
+      <!-- Styled Clear Confirmation Modal -->
+      <div x-show="clearConfirm" x-transition class="fixed inset-0 z-40 flex items-center justify-center">
+        <div class="absolute inset-0 bg-[#254544]/40 backdrop-blur-[2px]" @click="closeClearConfirm()"></div>
+        <div class="relative z-50 w-full max-w-sm mx-auto bg-white rounded-xl shadow-xl ring-1 ring-[#BEE3DB] p-5 space-y-4" role="dialog" aria-modal="true">
+          <div class="flex items-start gap-3">
+            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-50 flex items-center justify-center ring-1 ring-red-200">
+              <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2h-3.382a1 1 0 01-.894-.553L13.618 3.553A1 1 0 0012.724 3h-1.448a1 1 0 00-.894.553L8.276 4.447A1 1 0 017.382 5H4a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-sm font-semibold text-[#2e4a49] mb-1">Clear License Information?</h3>
+              <p class="text-xs text-[#555B6E]/80 leading-snug">This will remove the saved license number, state, type, expiration and reset verification status to Unverified. You can re-enter later.</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-2 pt-1">
+            <button type="button" @click="closeClearConfirm()" :disabled="clearing" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-medium hover:bg-[#E5F4F2] disabled:opacity-40">Cancel</button>
+            <button type="button" @click="performClear()" :disabled="clearing" class="px-3 py-1.5 rounded-full bg-red-600 text-white text-[11px] font-semibold hover:bg-red-500 disabled:opacity-50" x-text="clearing ? 'Clearing…' : 'Yes, Clear'"></button>
+          </div>
         </div>
       </div>
       <div x-show="!editing" class="text-[#2e4a49] text-sm space-y-0.5">
@@ -31,7 +100,7 @@
         <div class="grid md:grid-cols-6 gap-3">
           <div class="md:col-span-2">
             <label class="block text-[11px] font-semibold mb-1">License Type</label>
-            <button type="button" @click="$dispatch('edit-select',{field:'license_type', value: form.license_type, el:$el})" class="w-full text-left border border-[#BEE3DB] rounded-md px-2 py-1.5 text-[13px] bg-white hover:bg-[#F5F4F3]" x-text="form.license_type || 'Select License Type'"></button>
+            <button type="button" @click="$dispatch('edit-select',{field:'license_type', value: $store.profileModal.therapist.license_type || '', el:$el})" class="w-full text-left border border-[#BEE3DB] rounded-md px-2 py-1.5 text-[13px] bg-white hover:bg-[#F5F4F3]" x-text="$store.profileModal.therapist.license_type || 'Select License Type'"></button>
           </div>
           <div>
             <label class="block text-[11px] font-semibold mb-1">Number</label>
@@ -153,14 +222,13 @@
             <span class="opacity-70">—</span>
             <span x-text="e.school"></span>
             <span class="opacity-70" x-show="e.year_graduated">(<span x-text="e.year_graduated"></span>)</span>
-            <span class="text-[11px] ml-1 opacity-60" x-show="e.year_began_practice">• Began Practice <span x-text="e.year_began_practice"></span></span>
             <button type="button" @click="editEducation(e)" class="opacity-0 group-hover:opacity-100 ml-2 text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2]">Edit</button>
             <button type="button" @click="deleteEducation(e)" class="opacity-0 group-hover:opacity-100 text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#FFB3A8] text-[#9b4d49] hover:bg-[#FFE8E5]">Delete</button>
           </li>
         </template>
       </ul>
       <form x-show="addingEducation" @submit.prevent="saveEducation()" class="mt-3 space-y-3 bg-white/60 rounded-lg p-3 ring-1 ring-[#BEE3DB]">
-        <div class="grid md:grid-cols-5 gap-3">
+        <div class="grid md:grid-cols-4 gap-3">
           <div class="md:col-span-2">
             <label class="block text-[11px] font-semibold mb-1">School</label>
             <input type="text" x-model="eduForm.school" maxlength="64" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" required />
@@ -172,10 +240,6 @@
           <div>
             <label class="block text-[11px] font-semibold mb-1">Year Graduated</label>
             <input type="text" x-model="eduForm.year_graduated" maxlength="4" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" required />
-          </div>
-          <div>
-            <label class="block text-[11px] font-semibold mb-1">Year Began Practice</label>
-            <input type="text" x-model="eduForm.year_began_practice" maxlength="4" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" />
           </div>
         </div>
         <div class="flex items-center gap-2 pt-1">

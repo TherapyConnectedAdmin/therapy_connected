@@ -178,7 +178,8 @@ class TherapistProfile(models.Model):
     specialties_note = models.TextField(max_length=500, blank=True)
     mental_health_role = models.CharField(max_length=16, blank=True)
     license_type = models.ForeignKey('LicenseType', on_delete=models.SET_NULL, blank=True, null=True, related_name='therapists')
-    license_number = models.CharField(max_length=32, blank=True, unique=True)
+    # Relaxed: license numbers can repeat across states; enforce (state, number) uniqueness at application level
+    license_number = models.CharField(max_length=32, blank=True, db_index=True)
     license_expiration = models.CharField(max_length=7, blank=True)
     license_state = models.CharField(max_length=2, blank=True)
     # Optional override if licensed name differs from profile display name

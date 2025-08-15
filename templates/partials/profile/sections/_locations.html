@@ -1,11 +1,39 @@
 {% load therapist_extras %}
 {% if editable %}
+<script>
+// Ensure time picker helper available in editable mode
+window.tcTimePicker = window.tcTimePicker || function tcTimePicker(row, start){
+  return {
+    row,start, open:false, query:'',
+    options: Array.from({length: 24*4}, (_,i)=>{ // 15 min increments
+      const totalMinutes = i*15;
+      const h = Math.floor(totalMinutes/60);
+      const m = totalMinutes%60;
+      const v = String(h).padStart(2,'0')+ ':' + String(m).padStart(2,'0');
+      const hr12 = ((h + 11) % 12) + 1;
+      const ampm = h>=12 ? 'PM':'AM';
+      const l = hr12 + ':' + String(m).padStart(2,'0') + ' ' + ampm;
+      return {v,l};
+    }),
+    label(){ return this.row[this.start] ? this.toLabel(this.row[this.start]) : 'Select time'; },
+    toLabel(v){ if(!v) return ''; const [h,m] = v.split(':').map(n=>parseInt(n)); const hr12 = ((h + 11) % 12) + 1; const ampm = h>=12? 'PM':'AM'; return hr12 + ':' + String(m).padStart(2,'0') + ' ' + ampm; },
+    toggle(){ this.open=!this.open; if(this.open){ this.$nextTick(()=>{ const el=this.$el.querySelector('input'); el && el.focus(); }); }},
+    select(v){ this.row[this.start]=v; this.open=false; },
+    clear(){ this.row[this.start]=''; this.query=''; },
+    quick(v){ this.select(v); },
+    filtered(){ const q=this.query.trim().toLowerCase(); if(!q) return this.options; return this.options.filter(o=> o.l.toLowerCase().includes(q) || o.v.startsWith(q)); }
+  }
+};
+</script>
 <div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
   <section id="section-locations" class="tc-section relative p-4 md:p-5 mt-4 md:mt-6 mb-6 md:mb-8 rounded-2xl bg-white/80 ring-1 ring-[#BEE3DB] shadow" style="box-shadow:0 4px 18px -6px #555B6E33;" x-data="locationManager()">
-    <div class="flex items-start justify-between mb-5">
-      <div class="flex items-center gap-3">
-        <h2 class="text-xl md:text-[22px] font-semibold tracking-tight text-[#555B6E]">Locations</h2>
-        <span class="hidden md:inline text-[10px] font-medium text-[#89B0AE]">(Where you practice)</span>
+    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-5">
+      <div class="flex flex-col gap-1">
+        <h2 class="text-[22px] md:text-[24px] font-extrabold tracking-tight text-[#2e4a49] flex items-center gap-2">
+          <svg class="w-7 h-7 text-[#116466]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21s-6-4.686-6-10a6 6 0 1 1 12 0c0 5.314-6 10-6 10Z"/><circle cx="12" cy="11" r="3"/></svg>
+          Locations
+        </h2>
+        <p class="text-[11px] font-medium tracking-wide text-[#587a79] uppercase">Practice sites & presence</p>
       </div>
       <button type="button" @click="startAdd()" class="text-[11px] px-3 py-1.5 rounded-full bg-[#116466] text-white font-semibold shadow hover:bg-[#0d4c4d] transition" x-show="!form.show">Add</button>
     </div>
@@ -96,15 +124,113 @@
                     </div>
                     <template x-if="!row.is_closed && !row.by_appointment_only">
                       <div class="flex flex-col gap-1">
+                        <!-- Segment 1 -->
                         <div class="flex items-center gap-1">
-                          <input type="time" x-model="row.start_time_1" class="flex-1 border rounded px-1 py-0.5 text-[10px]" />
+                          <div class="flex-1 relative" x-data="tcTimePicker(row,'start_time_1')">
+                            <button type="button" @click="toggle()" @keydown.enter.prevent="toggle()" :aria-expanded="open" :aria-label="'Start time segment 1 ' + (row[start] ? toLabel(row[start]) : 'not set')" class="w-full text-left px-2 py-1 rounded border text-[10px] font-medium flex items-center justify-between bg-white hover:border-[#116466] focus:outline-none focus:ring-2 focus:ring-[#116466]/50" :class="row[start] ? 'text-[#116466]' : 'text-[#555B6E]/60'">
+                              <span x-text="label()"></span>
+                              <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+                            </button>
+                            <div x-show="open" x-transition.origin.top.left @click.outside="open=false" @keydown.escape.window="open=false" class="absolute z-[3000] mt-1 left-0 w-48 rounded-lg bg-white shadow-lg ring-1 ring-[#BEE3DB] p-2 flex flex-col gap-2" style="display:none;">
+                              <div class="flex items-center gap-1">
+                                <input type="text" x-model="query" placeholder="Search" class="flex-1 border rounded px-1 py-0.5 text-[10px]" />
+                                <button type="button" @click="clear()" class="px-1.5 py-0.5 text-[9px] rounded bg-[#E5F4F2] text-[#116466] font-semibold">X</button>
+                              </div>
+                              <div class="h-40 overflow-y-auto thin-scroll pr-1">
+                                <template x-for="opt in filtered()" :key="opt.v">
+                                  <button type="button" @click="select(opt.v)" class="w-full text-left px-2 py-1 rounded text-[10px] hover:bg-[#E5F4F2] flex items-center justify-between" :class="row[start]===opt.v ? 'bg-[#116466] text-white hover:bg-[#0d4c4d]' : 'text-[#2e4a49]'">
+                                    <span x-text="opt.l"></span>
+                                    <template x-if="row[start]===opt.v"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></template>
+                                  </button>
+                                </template>
+                              </div>
+                              <div class="flex flex-wrap gap-1 pt-1">
+                                <button type="button" @click="quick('09:00')" class="px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[9px] font-semibold text-[#116466]">9a</button>
+                                <button type="button" @click="quick('13:00')" class="px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[9px] font-semibold text-[#116466]">1p</button>
+                                <button type="button" @click="clear()" class="px-2 py-0.5 rounded-full bg-[#FFE8E5] text-[9px] font-semibold text-[#9b4d49]">Clear</button>
+                              </div>
+                            </div>
+                          </div>
                           <span class="text-[10px] text-[#555B6E]">-</span>
-                          <input type="time" x-model="row.end_time_1" class="flex-1 border rounded px-1 py-0.5 text-[10px]" />
+                          <div class="flex-1 relative" x-data="tcTimePicker(row,'end_time_1')">
+                            <button type="button" @click="toggle()" @keydown.enter.prevent="toggle()" :aria-expanded="open" :aria-label="'End time segment 1 ' + (row[start] ? toLabel(row[start]) : 'not set')" class="w-full text-left px-2 py-1 rounded border text-[10px] font-medium flex items-center justify-between bg-white hover:border-[#116466] focus:outline-none focus:ring-2 focus:ring-[#116466]/50" :class="row[start] ? 'text-[#116466]' : 'text-[#555B6E]/60'">
+                              <span x-text="label()"></span>
+                              <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+                            </button>
+                            <div x-show="open" x-transition.origin.top.left @click.outside="open=false" @keydown.escape.window="open=false" class="absolute z-[3000] mt-1 left-0 w-48 rounded-lg bg-white shadow-lg ring-1 ring-[#BEE3DB] p-2 flex flex-col gap-2" style="display:none;">
+                              <div class="flex items-center gap-1">
+                                <input type="text" x-model="query" placeholder="Search" class="flex-1 border rounded px-1 py-0.5 text-[10px]" />
+                                <button type="button" @click="clear()" class="px-1.5 py-0.5 text-[9px] rounded bg-[#E5F4F2] text-[#116466] font-semibold">X</button>
+                              </div>
+                              <div class="h-40 overflow-y-auto thin-scroll pr-1">
+                                <template x-for="opt in filtered()" :key="opt.v">
+                                  <button type="button" @click="select(opt.v)" class="w-full text-left px-2 py-1 rounded text-[10px] hover:bg-[#E5F4F2] flex items-center justify-between" :class="row[start]===opt.v ? 'bg-[#116466] text-white hover:bg-[#0d4c4d]' : 'text-[#2e4a49]'">
+                                    <span x-text="opt.l"></span>
+                                    <template x-if="row[start]===opt.v"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></template>
+                                  </button>
+                                </template>
+                              </div>
+                              <div class="flex flex-wrap gap-1 pt-1">
+                                <button type="button" @click="quick('12:00')" class="px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[9px] font-semibold text-[#116466]">12p</button>
+                                <button type="button" @click="quick('17:00')" class="px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[9px] font-semibold text-[#116466]">5p</button>
+                                <button type="button" @click="clear()" class="px-2 py-0.5 rounded-full bg-[#FFE8E5] text-[9px] font-semibold text-[#9b4d49]">Clear</button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
+                        <!-- Segment 2 -->
                         <div class="flex items-center gap-1">
-                          <input type="time" x-model="row.start_time_2" class="flex-1 border rounded px-1 py-0.5 text-[10px]" />
+                          <div class="flex-1 relative" x-data="tcTimePicker(row,'start_time_2')">
+                            <button type="button" @click="toggle()" @keydown.enter.prevent="toggle()" :aria-expanded="open" :aria-label="'Start time segment 2 ' + (row[start] ? toLabel(row[start]) : 'not set')" class="w-full text-left px-2 py-1 rounded border text-[10px] font-medium flex items-center justify-between bg-white hover:border-[#116466] focus:outline-none focus:ring-2 focus:ring-[#116466]/50" :class="row[start] ? 'text-[#116466]' : 'text-[#555B6E]/60'">
+                              <span x-text="label()"></span>
+                              <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+                            </button>
+                            <div x-show="open" x-transition.origin.top.left @click.outside="open=false" @keydown.escape.window="open=false" class="absolute z-[3000] mt-1 left-0 w-48 rounded-lg bg-white shadow-lg ring-1 ring-[#BEE3DB] p-2 flex flex-col gap-2" style="display:none;">
+                              <div class="flex items-center gap-1">
+                                <input type="text" x-model="query" placeholder="Search" class="flex-1 border rounded px-1 py-0.5 text-[10px]" />
+                                <button type="button" @click="clear()" class="px-1.5 py-0.5 text-[9px] rounded bg-[#E5F4F2] text-[#116466] font-semibold">X</button>
+                              </div>
+                              <div class="h-40 overflow-y-auto thin-scroll pr-1">
+                                <template x-for="opt in filtered()" :key="opt.v">
+                                  <button type="button" @click="select(opt.v)" class="w-full text-left px-2 py-1 rounded text-[10px] hover:bg-[#E5F4F2] flex items-center justify-between" :class="row[start]===opt.v ? 'bg-[#116466] text-white hover:bg-[#0d4c4d]' : 'text-[#2e4a49]'">
+                                    <span x-text="opt.l"></span>
+                                    <template x-if="row[start]===opt.v"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></template>
+                                  </button>
+                                </template>
+                              </div>
+                              <div class="flex flex-wrap gap-1 pt-1">
+                                <button type="button" @click="quick('13:00')" class="px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[9px] font-semibold text-[#116466]">1p</button>
+                                <button type="button" @click="quick('18:00')" class="px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[9px] font-semibold text-[#116466]">6p</button>
+                                <button type="button" @click="clear()" class="px-2 py-0.5 rounded-full bg-[#FFE8E5] text-[9px] font-semibold text-[#9b4d49]">Clear</button>
+                              </div>
+                            </div>
+                          </div>
                           <span class="text-[10px] text-[#555B6E]">-</span>
-                          <input type="time" x-model="row.end_time_2" class="flex-1 border rounded px-1 py-0.5 text-[10px]" />
+                          <div class="flex-1 relative" x-data="tcTimePicker(row,'end_time_2')">
+                            <button type="button" @click="toggle()" @keydown.enter.prevent="toggle()" :aria-expanded="open" :aria-label="'End time segment 2 ' + (row[start] ? toLabel(row[start]) : 'not set')" class="w-full text-left px-2 py-1 rounded border text-[10px] font-medium flex items-center justify-between bg-white hover:border-[#116466] focus:outline-none focus:ring-2 focus:ring-[#116466]/50" :class="row[start] ? 'text-[#116466]' : 'text-[#555B6E]/60'">
+                              <span x-text="label()"></span>
+                              <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+                            </button>
+                            <div x-show="open" x-transition.origin.top.left @click.outside="open=false" @keydown.escape.window="open=false" class="absolute z-[3000] mt-1 left-0 w-48 rounded-lg bg-white shadow-lg ring-1 ring-[#BEE3DB] p-2 flex flex-col gap-2" style="display:none;">
+                              <div class="flex items-center gap-1">
+                                <input type="text" x-model="query" placeholder="Search" class="flex-1 border rounded px-1 py-0.5 text-[10px]" />
+                                <button type="button" @click="clear()" class="px-1.5 py-0.5 text-[9px] rounded bg-[#E5F4F2] text-[#116466] font-semibold">X</button>
+                              </div>
+                              <div class="h-40 overflow-y-auto thin-scroll pr-1">
+                                <template x-for="opt in filtered()" :key="opt.v">
+                                  <button type="button" @click="select(opt.v)" class="w-full text-left px-2 py-1 rounded text-[10px] hover:bg-[#E5F4F2] flex items-center justify-between" :class="row[start]===opt.v ? 'bg-[#116466] text-white hover:bg-[#0d4c4d]' : 'text-[#2e4a49]'">
+                                    <span x-text="opt.l"></span>
+                                    <template x-if="row[start]===opt.v"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg></template>
+                                  </button>
+                                </template>
+                              </div>
+                              <div class="flex flex-wrap gap-1 pt-1">
+                                <button type="button" @click="quick('15:00')" class="px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[9px] font-semibold text-[#116466]">3p</button>
+                                <button type="button" @click="quick('20:00')" class="px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[9px] font-semibold text-[#116466]">8p</button>
+                                <button type="button" @click="clear()" class="px-2 py-0.5 rounded-full bg-[#FFE8E5] text-[9px] font-semibold text-[#9b4d49]">Clear</button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </template>
@@ -329,6 +455,28 @@
             const core = [seg1,seg2].filter(Boolean).join(', ');
             return core + (notes ? (' ('+notes+')') : '');
           }
+        }
+      };
+      window.tcTimePicker = window.tcTimePicker || function tcTimePicker(row, start){
+        return {
+          row,start, open:false, query:'',
+          options: Array.from({length: 24*4}, (_,i)=>{ // 15 min increments
+            const totalMinutes = i*15;
+            const h = Math.floor(totalMinutes/60);
+            const m = totalMinutes%60;
+            const v = String(h).padStart(2,'0')+ ':' + String(m).padStart(2,'0');
+            const hr12 = ((h + 11) % 12) + 1;
+            const ampm = h>=12 ? 'PM':'AM';
+            const l = hr12 + ':' + String(m).padStart(2,'0') + ' ' + ampm;
+            return {v,l};
+          }),
+          label(){ return this.row[this.start] ? this.toLabel(this.row[this.start]) : 'Select time'; },
+            toLabel(v){ if(!v) return ''; const [h,m] = v.split(':').map(n=>parseInt(n)); const hr12 = ((h + 11) % 12) + 1; const ampm = h>=12? 'PM':'AM'; return hr12 + ':' + String(m).padStart(2,'0') + ' ' + ampm; },
+          toggle(){ this.open=!this.open; if(this.open){ this.$nextTick(()=>{ const el=this.$el.querySelector('input'); el && el.focus(); }); }},
+          select(v){ this.row[this.start]=v; this.open=false; },
+          clear(){ this.row[this.start]=''; this.query=''; },
+          quick(v){ this.select(v); },
+          filtered(){ const q=this.query.trim().toLowerCase(); if(!q) return this.options; return this.options.filter(o=> o.l.toLowerCase().includes(q) || o.v.startsWith(q)); }
         }
       };
       </script>

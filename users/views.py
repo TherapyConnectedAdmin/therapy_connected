@@ -555,6 +555,9 @@ EDITABLE_SIMPLE_FIELDS = {
     'therapy_delivery_method': str,
     'intro_note': str,
     'personal_statement_01': str,
+    'personal_statement_q1': str,
+    'personal_statement_q2': str,
+    'personal_statement_q3': str,
     'credentials_note': str,
     'finance_note': str,  # allow rich text finance note editing
     'no_show_policy': str,  # allow rich text no-show policy editing
@@ -578,8 +581,10 @@ EDITABLE_SIMPLE_FIELDS = {
 FIELD_ALIASES = {
     # Support old client field names -> new canonical names
     'intro_statement': 'intro_note',
-    'personal_statement_q1': 'personal_statement_01',
 }
+# NOTE: We intentionally do NOT alias 'personal_statement_q1' -> 'personal_statement_01'.
+# q1 (guided question response) and personal_statement_01 (long About Me) are distinct.
+# Previous alias caused q1 edits to be written into personal_statement_01 and not reflected back.
 
 def _profile_json(profile):
     """Subset JSON for edit context (can expand)."""
@@ -724,22 +729,41 @@ def _profile_json(profile):
     'year_started_practice': getattr(profile, 'year_started_practice', ''),
     'license_first_name': getattr(profile, 'license_first_name', '') or '',
     'license_last_name': getattr(profile, 'license_last_name', '') or '',
+    'gender': profile.gender.name if getattr(profile, 'gender', None) else None,
     'title_options': title_options,
     'license_type_options': license_type_options,
         'practice_name': profile.practice_name,
         'therapy_delivery_method': profile.therapy_delivery_method,
     # Expose new fields; fall back to legacy if new empty
-    'intro_note': profile.intro_note or profile.intro_statement or profile.personal_statement_q1,
-    'personal_statement_01': profile.personal_statement_01 or profile.personal_statement_q1,
+    'intro_note': profile.intro_note or profile.intro_statement or profile.personal_statement_01 or profile.personal_statement_q1,
+    # Maintain existing personal_statement_01 (long about) separately; do not auto-fallback to q1 when it's empty (avoid accidental overwrite perception)
+    'personal_statement_01': profile.personal_statement_01,
+    'personal_statement_q1': profile.personal_statement_q1,
+    'personal_statement_q2': profile.personal_statement_q2,
+    'personal_statement_q3': profile.personal_statement_q3,
         'credentials_note': profile.credentials_note,
         'finance_note': profile.finance_note,
         'no_show_policy': getattr(profile, 'no_show_policy', ''),
+    'therapy_types_note': getattr(profile, 'therapy_types_note', ''),
+    'specialties_note': getattr(profile, 'specialties_note', ''),
         'accepting_new_clients': profile.accepting_new_clients,
         'license_type': profile.license_type.name if getattr(profile, 'license_type', None) else None,
         'license_type_short': profile.license_type.short_description if getattr(profile, 'license_type', None) else None,
         'license_type_description': profile.license_type.description if getattr(profile, 'license_type', None) else None,
+    # Include raw license entry fields so UI can reflect persisted values
+    'license_number': getattr(profile, 'license_number', '') or '',
+    'license_state': getattr(profile, 'license_state', '') or '',
+    'license_expiration': getattr(profile, 'license_expiration', '') or '',
+    'license_first_name': getattr(profile, 'license_first_name', '') or '',
+    'license_last_name': getattr(profile, 'license_last_name', '') or '',
     'license_status': getattr(profile, 'license_status', ''),
     'license_last_verified_at': profile.license_last_verified_at.isoformat() if getattr(profile, 'license_last_verified_at', None) else None,
+    # Latest license verification message (if any)
+    'license_status_message': (lambda _p: (
+        __import__('users.models_profile').models_profile.LicenseVerificationLog.objects.filter(therapist=_p).order_by('-created_at').values_list('message', flat=True).first()
+    ))(profile),
+    # States where automated verification exists (frontend can label others as Manual)
+    'license_automated_states': (lambda: list(__import__('users.utils.license_verification').utils.license_verification.STATE_STRATEGIES.keys()))(),
     'race_ethnicity_options': race_ethnicity_options,
     'gender_options': gender_options,
     'faith_options': faith_options,
@@ -794,13 +818,56 @@ def api_profile_update(request):
     import json, traceback
     from users.models_profile import TherapistProfile
     try:
+        # Fast-path: handle multipart (file upload) POST separately BEFORE touching request.body
+        if request.method == 'POST' and request.FILES:
+            profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+            f = request.FILES.get('profile_photo') or request.FILES.get('file')
+            if not f:
+                return JsonResponse({'error': 'No file provided'}, status=400)
+            # Basic validations (mirror frontend constraints)
+            max_bytes = 5 * 1024 * 1024  # 5MB
+            if f.size > max_bytes:
+                return JsonResponse({'error': 'File too large (max 5MB)'}, status=400)
+            # Basic image signature validation using Pillow (if available)
+            kind_valid = True
+            try:
+                from PIL import Image
+                pos = f.tell()
+                img = Image.open(f)
+                img.verify()  # verifies but does not decode full image
+                fmt = (getattr(img, 'format', '') or '').upper()
+                if fmt not in {'JPEG','PNG'}:
+                    kind_valid = False
+                f.seek(pos)
+            except Exception:
+                kind_valid = False
+            if not kind_valid:
+                return JsonResponse({'error': 'Unsupported or corrupt image (use JPG or PNG)'}, status=400)
+            # Save
+            profile.profile_photo = f
+            profile.save(update_fields=['profile_photo'])
+            return JsonResponse(_profile_json(profile))
+
+        # JSON / PATCH pathway
         try:
-            payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+            # Avoid RawPostDataException when request already parsed (e.g., multipart) by checking content type
+            if request.content_type and request.content_type.startswith('multipart/form-data'):
+                payload = {}
+            else:
+                payload = json.loads(request.body.decode('utf-8')) if request.body else {}
         except json.JSONDecodeError:
             return JsonResponse({'error':'Invalid JSON'}, status=400)
         profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
         errors = {}
         updated = False
+        # Optional manual re-verification trigger (does not modify fields)
+        reverify_requested = bool(payload.get('reverify_license'))
+        if 'reverify_license' in payload:
+            # Remove to avoid interfering with normal field loop below
+            try:
+                del payload['reverify_license']
+            except KeyError:
+                pass
         from users.models_profile import Title as TitleModel
         race_ethnicities_new = faiths_new = lgbtqia_new = other_identities_new = None
         gender_new = None
@@ -820,6 +887,20 @@ def api_profile_update(request):
         }
         for field, value in payload.items():
             canonical = FIELD_ALIASES.get(field, field)
+            # Special handling: profile photo removal (set to blank string)
+            if canonical == 'profile_photo':
+                try:
+                    if (value or '') == '':
+                        if getattr(profile, 'profile_photo', None):
+                            try:
+                                profile.profile_photo.delete(save=False)
+                            except Exception:
+                                pass
+                        profile.profile_photo = None
+                        updated = True
+                except Exception:
+                    errors['profile_photo'] = 'Failed to remove photo'
+                continue
             if canonical in ('race_ethnicities','faiths','lgbtqia_identities','other_identities'):
                 if isinstance(value, list):
                     if canonical == 'race_ethnicities': race_ethnicities_new = value
@@ -860,8 +941,10 @@ def api_profile_update(request):
                 errors[field] = 'Too long (max 64 chars).'; continue
             if canonical == 'therapy_delivery_method' and value and value.lower() not in {'in person','online','telehealth','hybrid','in person & online','in-person','in-person & online'}:
                 errors[field] = 'Unrecognized delivery method.'; continue
-            if canonical == 'personal_statement_01' and value and len(value) > 1000:
-                errors[field] = 'Too long (max 1000 chars).'; continue
+            if canonical in ('personal_statement_01','personal_statement_q1','personal_statement_q2','personal_statement_q3') and value:
+                max_len = 1000 if canonical=='personal_statement_01' else 650
+                if len(value) > max_len:
+                    errors[field] = f'Too long (max {max_len} chars).'; continue
             if canonical == 'credentials_note' and value and len(value) > 600:
                 errors[field] = 'Too long (max 600 chars).'; continue
             if canonical == 'license_state' and value:
@@ -883,9 +966,8 @@ def api_profile_update(request):
             if canonical == 'license_number' and value:
                 if len(value) > 32:
                     errors[field] = 'Too long (max 32 chars).'; continue
-                from users.models_profile import TherapistProfile as TP
-                if TP.objects.filter(license_number=value).exclude(pk=profile.pk).exists():
-                    errors[field] = 'License number already in use.'; continue
+                # Allow duplicates across profiles (state + number not enforced). Any future
+                # dedup / conflict resolution will occur during verification logic instead.
             if canonical == 'accepting_new_clients':
                 normalized = ''
                 if isinstance(value, bool):
@@ -1184,13 +1266,63 @@ def api_profile_update(request):
                 # Silently ignore activation errors; user can continue editing
                 pass
             # Trigger license verification if relevant fields changed
-            if license_fields_changed:
+            if license_fields_changed or reverify_requested:
                 try:
-                    from users.utils.license_verification import verify_and_persist
-                    # Avoid excessive calls: only run if basic required pieces present
+                    # Run asynchronously so UI can show immediate 'pending' status
                     if profile.license_number and profile.license_state and profile.license_type:
-                        verify_and_persist(profile)
+                        # Only reset to pending if we are changing license fields OR status not already pending OR reverify explicitly requested
+                        if license_fields_changed or reverify_requested or profile.license_status != 'pending':
+                            profile.license_status = 'pending'
+                            profile.license_last_verified_at = None
+                            profile.license_verification_source_url = ''
+                            profile.license_verification_raw = {}
+                            profile.save(update_fields=['license_status','license_last_verified_at','license_verification_source_url','license_verification_raw'])
+                        def _bg_verify(pid):
+                            try:
+                                from users.utils.license_verification import verify_and_persist
+                                from users.models_profile import TherapistProfile as _TP
+                                p = _TP.objects.filter(pk=pid).first()
+                                if p:
+                                    verify_and_persist(p)
+                            except Exception:
+                                # If background thread errors, mark as error so UI doesn't spin forever
+                                try:
+                                    from users.models_profile import TherapistProfile as _TP2
+                                    p2 = _TP2.objects.filter(pk=pid).first()
+                                    if p2 and p2.license_status == 'pending':
+                                        p2.license_status = 'error'
+                                        p2.save(update_fields=['license_status'])
+                                except Exception:
+                                    pass
+                        def _bg_timeout(pid):
+                            # Safety: if still pending after 70s, mark timeout error
+                            import time
+                            time.sleep(70)
+                            try:
+                                from users.models_profile import TherapistProfile as _TP3
+                                p3 = _TP3.objects.filter(pk=pid).first()
+                                if p3 and p3.license_status == 'pending' and p3.license_last_verified_at is None:
+                                    p3.license_status = 'error'
+                                    # store simple timeout message if field exists
+                                    try:
+                                        p3.license_verification_source_url = (p3.license_verification_source_url or '')
+                                    except Exception:
+                                        pass
+                                    p3.save(update_fields=['license_status','license_verification_source_url'])
+                            except Exception:
+                                pass
+                        import threading as _th
+                        _th.Thread(target=_bg_verify, args=(profile.pk,), daemon=True).start()
+                        _th.Thread(target=_bg_timeout, args=(profile.pk,), daemon=True).start()
+                    else:
+                        # License fields incomplete/cleared: reset status to unverified
+                        profile.license_status = 'unverified'
+                        profile.license_last_verified_at = None
+                        profile.license_verification_source_url = ''
+                        profile.license_verification_raw = {}
+                        profile.save(update_fields=['license_status','license_last_verified_at','license_verification_source_url','license_verification_raw'])
                 except Exception:
+                    # swallow background scheduling errors
                     pass
         return JsonResponse(_profile_json(profile))
     except Exception as ex:

@@ -2,12 +2,16 @@
 <!-- My Identity (shown only on edit page, above About Me) -->
 <div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
   <section id="section-identity" class="tc-section relative p-5 md:p-7 mt-8 md:mt-10 mb-6 md:mb-8 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg" style="box-shadow:0 6px 28px -10px #25454433;">
-    <div class="flex flex-col gap-4">
-  <h2 class="text-xl md:text-[22px] font-semibold tracking-tight text-[#555B6E] flex items-center gap-3">
-        <span>My Identity</span>
-        <span class="text-[10px] font-medium text-[#89B0AE]">(Helps clients feel seen)</span>
-      </h2>
-      <p class="text-[12px] text-[#89B0AE] italic -mt-1">Add identity details to help clients feel represented. None of this information is shared; it's only used to help clients connect with the right therapist.</p>
+    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
+      <div class="flex flex-col gap-1">
+        <h2 class="text-[22px] md:text-[24px] font-extrabold tracking-tight text-[#2e4a49] flex items-center gap-2">
+          <svg class="w-7 h-7 text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 12c2.21 0 4-1.79 4-4S14.21 4 12 4 8 5.79 8 8s1.79 4 4 4Zm0 0c-3.866 0-7 2.239-7 5v1h14v-1c0-2.761-3.134-5-7-5Z"/></svg>
+          My Identity
+        </h2>
+        <p class="text-[11px] font-medium tracking-wide text-[#587a79] uppercase">Representation & lived experience</p>
+      </div>
+    </div>
+      <p class="text-[12px] text-[#89B0AE] italic">Add identity details to help clients feel represented. None of this information is shared; it's only used to help clients connect with the right therapist.</p>
       <div class="flex flex-col gap-5 text-[13px] text-[#2e4a49]">
         <template x-if="$store.profileModal.therapist.gender">
           <div class="flex items-center gap-2 flex-wrap">

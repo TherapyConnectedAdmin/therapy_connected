@@ -1,13 +1,11 @@
 {# Extracted standalone About Me body to avoid complex nested if in main template #}
 <div class="flex items-start gap-4 flex-wrap relative">
-  <div class="flex items-center gap-3 mb-4">
-    <div class="w-8 h-8 rounded-xl bg-[#116466]/10 flex items-center justify-center ring-1 ring-[#BEE3DB] shadow-inner">
-      <svg class="w-4.5 h-4.5 text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5Z"/><path d="M3.5 22c1.4-3.9 5-6.5 8.5-6.5s7.1 2.6 8.5 6.5"/></svg>
-    </div>
-    <div class="flex flex-col">
-      <h2 class="text-[20px] md:text-[22px] font-semibold tracking-tight text-[#2e4a49] leading-snug">About Me</h2>
-      <span class="hidden md:inline text-[11px] font-medium text-[#89B0AE]">Share connection, values & style</span>
-    </div>
+  <div class="flex flex-col gap-1 mb-4 relative z-10">
+    <h2 class="text-[22px] md:text-[24px] font-extrabold tracking-tight text-[#2e4a49] flex items-center gap-2">
+      <svg class="w-7 h-7 text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M3.5 22c1.4-3.9 5-6.5 8.5-6.5s7.1 2.6 8.5 6.5"/></svg>
+      About Me
+    </h2>
+    <p class="text-[11px] font-medium tracking-wide text-[#587a79] uppercase">Share connection, values & style</p>
   </div>
 </div>
 {% comment %} When not editable (public full profile), show intro video first (if exists) like original modal style {% endcomment %}
@@ -91,7 +89,7 @@
 <div x-show="editable || ($store.profileModal.therapist.gallery_images && $store.profileModal.therapist.gallery_images.length)" x-cloak>
   {% if editable %}
   {# Keep full upload UI in edit contexts #}
-  <div class="mb-6 rounded-xl p-4 md:p-5 bg-white/70 ring-1 ring-[#BEE3DB] shadow-sm flex flex-col gap-4" x-data="galleryManager()" x-init="images = (Alpine.store('profileModal')?.therapist?.gallery_images||[]).slice()">
+  <div class="mb-6 rounded-xl p-4 md:p-5 bg-white/70 ring-1 ring-[#BEE3DB] shadow-sm flex flex-col gap-4" x-data="galleryManager()" x-init="images = (Alpine.store('profileModal')?.therapist?.gallery_images||[]).slice()" x-on:keydown.escape="confirm.show && cancelDelete()">
     <div class="flex items-center justify-between flex-wrap gap-3">
       <h3 class="text-sm font-bold tracking-wide text-[#555B6E]">Image Gallery</h3>
       <span class="text-[10px] font-medium text-[#89B0AE]" x-text="images.length + ' / 12'"/>
@@ -125,13 +123,38 @@
               </div>
               <div class="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition">
                 <button type="button" @click="setPrimary(img)" x-show="!img.is_primary" class="px-1.5 py-0.5 rounded bg-white text-[9px] font-semibold text-[#116466] ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2]">Primary</button>
-                <button type="button" @click="remove(img)" class="px-1.5 py-0.5 rounded bg-[#FFE8E5] text-[9px] font-semibold text-[#9b4d49] hover:bg-[#FFD5CF]">Del</button>
+                  <button type="button" @click.stop.prevent="openDelete(img)" class="px-1.5 py-0.5 rounded bg-[#FFE8E5] text-[9px] font-semibold text-[#9b4d49] hover:bg-[#FFD5CF]">Del</button>
               </div>
               <div class="p-1">
                 <input type="text" x-model="img.caption" @change="saveMeta(img)" maxlength="60" placeholder="Caption" class="w-full bg-white/80 rounded border border-[#BEE3DB] px-1 py-0.5 text-[10px] focus:border-[#116466] focus:ring-[#116466]" />
               </div>
             </div>
           </template>
+        </div>
+      </div>
+      <!-- Delete Confirmation Modal (inside gallery scope) -->
+      <div x-show="confirm.show" x-cloak class="fixed inset-0 z-[120] flex items-center justify-center" data-gallery-delete-modal>
+        <span class="hidden" aria-hidden="true" x-text="'confirm.show='+confirm.show"></span>
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="cancelDelete()"></div>
+        <div class="relative w-[360px] max-w-[92%] bg-white rounded-2xl shadow-xl ring-2 ring-[#BEE3DB] p-5 flex flex-col gap-4" style="box-shadow:0 12px 36px -10px #555B6E55;">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-full bg-[#FFE8E5] flex items-center justify-center text-[#9b4d49] shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3Z"/></svg>
+            </div>
+            <div class="flex flex-col">
+              <h4 class="text-sm font-semibold text-[#555B6E] tracking-wide">Delete image?</h4>
+              <p class="text-[11px] text-[#556] leading-snug">This will permanently remove the image and its caption. This action cannot be undone.</p>
+              <template x-if="confirm.error"><p class="text-[11px] text-[#9b4d49] mt-1" x-text="confirm.error"></p></template>
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-2 pt-1">
+            <button type="button" @click="cancelDelete()" :class="confirm.deleting ? 'pointer-events-none opacity-40' : ''" class="px-3 py-1.5 rounded-full text-[11px] font-medium bg-white ring-1 ring-[#BEE3DB] hover:bg-[#E5F4F2]">Cancel</button>
+            <button type="button" @click="confirmDeleteAction()" :class="confirm.deleting ? 'pointer-events-none opacity-40' : ''" class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-[#9b4d49] text-white hover:bg-[#873f3b] flex items-center gap-1">
+              <svg x-show="!confirm.deleting" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h12m-9 0v-.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V6m0 0 1 12.5A2 2 0 0 1 14 21H10a2 2 0 0 1-2-2.5L9 6"/></svg>
+              <svg x-show="confirm.deleting" class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="#fff" stroke-width="3"></circle><path class="opacity-90" fill="#fff" d="M4 12a8 8 0 0 1 8-8v3.5A4.5 4.5 0 0 0 7.5 12H4Z"/></svg>
+              <span x-text="confirm.deleting ? 'Deleting…' : 'Delete'"></span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

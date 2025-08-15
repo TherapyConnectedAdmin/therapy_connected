@@ -2,10 +2,14 @@
 {% if standalone and editable %}
 <div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
   <section id="section-contact" class="tc-section relative p-5 md:p-7 mt-4 md:mt-6 mb-6 md:mb-8 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg" style="box-shadow:0 6px 28px -10px #25454433;" x-data="contactWebManager()" x-init="init()" x-cloak>
-    <div class="flex items-start justify-between mb-4">
-      <div>
-        <h2 class="text-xl md:text-[22px] font-semibold tracking-tight text-[#555B6E] mb-2">Contact &amp; Web</h2>
-        <p class="text-[10px] text-[#89B0AE] leading-snug max-w-lg">Only visible to you while editing. Provide at least one reliable contact method.</p>
+    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
+      <div class="flex flex-col gap-1">
+        <h2 class="text-[22px] md:text-[24px] font-extrabold tracking-tight text-[#2e4a49] flex items-center gap-2">
+          <svg class="w-7 h-7 text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 16.92v.08A5 5 0 0 1 17 22h-1a4 4 0 0 0-4-4h0a4 4 0 0 0-4 4H7a5 5 0 0 1-5-5v-.08A5 5 0 0 1 6.08 12h11.84A5 5 0 0 1 22 16.92Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16 3.13a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/></svg>
+          Contact &amp; Web
+        </h2>
+        <p class="text-[11px] font-medium tracking-wide text-[#587a79] uppercase">Reachability & online presence</p>
+        <p class="text-[11px] text-[#89B0AE]">Only visible to you while editing. Provide at least one reliable contact method.</p>
       </div>
       <div class="flex items-center gap-2" x-show="!editing">
         <button type="button" @click="startEdit()" class="px-3 py-1.5 rounded-full bg-[#116466] text-white text-[11px] font-semibold shadow hover:bg-[#0d4c4d]">Edit</button>

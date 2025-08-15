@@ -17,18 +17,21 @@
   {% endif %}
   {% include 'partials/profile/sections/_about.html' %}
   {% include 'partials/profile/sections/_locations.html' with standalone=standalone profile_obj=profile_obj editable=editable %}
-  <template x-if="$store.profileModal.currentUserId === $store.profileModal.therapist.id && ($store.profileModal.therapist.gender || ($store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length) || ($store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length) || ($store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length) || ($store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length))">
-    <section class="tc-section p-4 md:p-5" x-cloak>
-      <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-2">Identity & Background</h3>
-      <div class="flex flex-col gap-1 text-xs text-[#555B6E]">
-        <div x-show="$store.profileModal.therapist.gender">Gender: <span class="font-semibold" x-text="$store.profileModal.therapist.gender"></span></div>
-        <div x-show="$store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length">Race / Ethnicity: <span class="font-semibold" x-text="$store.profileModal.therapist.race_ethnicities.join(', ')"></span></div>
-        <div x-show="$store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length">Faith: <span class="font-semibold" x-text="$store.profileModal.therapist.faiths.join(', ')" ></span></div>
-        <div x-show="$store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length">LGBTQIA+: <span class="font-semibold" x-text="$store.profileModal.therapist.lgbtqia_identities.join(', ')"/></div>
-        <div x-show="$store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length">Other: <span class="font-semibold" x-text="$store.profileModal.therapist.other_identities.join(', ')"/></div>
-      </div>
-    </section>
-  </template>
+  {# Suppress duplicate summary on edit page; keep only detailed editable identity section above #}
+  {% if not editable %}
+    <template x-if="$store.profileModal.currentUserId === $store.profileModal.therapist.id && ($store.profileModal.therapist.gender || ($store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length) || ($store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length) || ($store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length) || ($store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length))">
+      <section class="tc-section p-4 md:p-5" x-cloak>
+        <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-2">Identity & Background</h3>
+        <div class="flex flex-col gap-1 text-xs text-[#555B6E]">
+          <div x-show="$store.profileModal.therapist.gender">Gender: <span class="font-semibold" x-text="$store.profileModal.therapist.gender"></span></div>
+          <div x-show="$store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length">Race / Ethnicity: <span class="font-semibold" x-text="$store.profileModal.therapist.race_ethnicities.join(', ')"></span></div>
+          <div x-show="$store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length">Faith: <span class="font-semibold" x-text="$store.profileModal.therapist.faiths.join(', ')" ></span></div>
+          <div x-show="$store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length">LGBTQIA+: <span class="font-semibold" x-text="$store.profileModal.therapist.lgbtqia_identities.join(', ')"/></div>
+          <div x-show="$store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length">Other: <span class="font-semibold" x-text="$store.profileModal.therapist.other_identities.join(', ')"/></div>
+        </div>
+      </section>
+    </template>
+  {% endif %}
   {% include 'partials/profile/sections/_therapy_specialties.html' %}
   {% include 'partials/profile/sections/_fees_insurance.html' %}
   {% include 'partials/profile/sections/_client_focus.html' %}
