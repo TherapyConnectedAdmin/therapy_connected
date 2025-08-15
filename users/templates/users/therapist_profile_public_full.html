@@ -3,18 +3,13 @@
 {% block title %}{{ profile_obj.first_name }} {{ profile_obj.last_name }} | Therapist Profile{% endblock %}
 {% block meta %}
 <meta name="description" content="Therapist profile for {{ profile_obj.first_name }} {{ profile_obj.last_name }} offering {{ profile_obj.therapy_delivery_method|default:'therapy services' }} in {% with loc=profile_obj.locations.first %}{% if loc %}{{ loc.city }}, {{ loc.state }}{% endif %}{% endwith %}.">
-{% if request.path != '/therapists/'|add:profile_obj.slug|add:'/' %}
-<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}/therapists/{{ profile_obj.slug }}/" />
-{% else %}
 <link rel="canonical" href="{{ request.build_absolute_uri }}" />
-{% endif %}
 {% endblock %}
 {% block content %}
-<div class="relative min-h-screen bg-gradient-to-b from-[#FAF9F9] via-[#F2FAF9] to-[#EAF6F4]">
-  <div class="absolute inset-0 pointer-events-none opacity-70 bg-[radial-gradient(circle_at_25%_20%,#E5F4F2,transparent_60%),radial-gradient(circle_at_85%_75%,#FFDDD0,transparent_65%)]"></div>
-  <div class="relative pt-6 pb-16">
-  <div class="max-w-[1320px] mx-auto px-4 md:px-8">
-  <!-- (Header moved inside card for visibility) -->
+<div class="relative py-6 bg-[#ECEBE8]">
+  <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#E3E2DF] via-[#F5F4F3] to-[#E0DFDC]"></div>
+  <div class="relative">
+  <div class="max-w-7xl mx-auto px-4">
     <script>
       window.addEventListener('alpine:init', () => {
         if(!window.Alpine.store('profileModal')) {
@@ -23,11 +18,9 @@
           });
         }
         const data = {{ serialized|safe }};
-  const store = Alpine.store('profileModal');
+        const store = Alpine.store('profileModal');
   store.therapist = data;
   store.lightboxImage = null;
-  // Trigger map hydration for server-fallback containers (Leaflet + geocode)
-  queueMicrotask(()=> window.initTherapistLocationMaps && window.initTherapistLocationMaps());
       });
     </script>
     <!-- Fallback static badges if JS disabled -->
@@ -36,87 +29,7 @@
         JavaScript is disabled; interactive sections (gallery lightbox, dynamic tabs) are not available.
       </div>
     </noscript>
-  <h1 class="sr-only">Therapist Profile: {{ profile_obj.first_name }} {{ profile_obj.last_name }}</h1>
-  <div class="relative rounded-2xl bg-gradient-to-b from-white/95 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-xl overflow-hidden" style="box-shadow:0 16px 48px -12px #2e4a4933;">
-    <div class="absolute inset-0 pointer-events-none opacity-40 mix-blend-normal bg-[radial-gradient(circle_at_30%_15%,#E5F4F2,transparent_60%),radial-gradient(circle_at_85%_85%,#FFDDD0,transparent_65%)]"></div>
-    <div class="relative z-10 p-2 md:p-4">
-      <div class="mb-6 md:mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-6" id="public-profile-header">
-        <div class="flex items-start gap-6">
-          {% if profile_obj.profile_photo %}
-          <div class="relative w-40 h-56 sm:w-48 sm:h-64 md:w-56 md:h-72 flex-shrink-0 rounded-2xl shadow-lg overflow-hidden ring-1 ring-[#BEE3DB] bg-[#E5F4F2]" style="box-shadow:0 8px 32px -6px #555B6E33;">
-            {% if profile_obj.distance %}
-            <span class="absolute top-3 left-3 bg-[#F5E2D6] text-[#555B6E] px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-[#FF9950]/30" style="box-shadow:0 2px 4px rgba(0,0,0,0.1);">Approx. {{ profile_obj.distance }} miles</span>
-            {% endif %}
-            <img src="{{ profile_obj.profile_photo.url }}" alt="{{ profile_obj.first_name }} {{ profile_obj.last_name }} profile photo" class="w-full h-full object-cover object-center" loading="eager" fetchpriority="high">
-          </div>
-          {% endif %}
-          <div class="flex flex-col gap-3 md:gap-4">
-          <div class="flex flex-wrap items-baseline gap-2">
-            <h1 class="text-2xl md:text-3xl font-extrabold leading-tight tracking-tight text-[#2e4a49] m-0 p-0">
-              {% with fn=profile_obj.first_name|default:profile_obj.user.first_name ln=profile_obj.last_name|default:profile_obj.user.last_name %}
-                {% with base_name=fn|add:' '|add:ln %}
-                  {% if not fn and not ln %}
-                    {% if profile_obj.display_title %}{{ profile_obj.display_title }}{% elif profile_obj.user.get_full_name %}{{ profile_obj.user.get_full_name }}{% else %}{{ profile_obj.user.email }}{% endif %}
-                  {% else %}
-                    {% if profile_obj.title %}{{ profile_obj.title.name }} {% endif %}{{ fn }} {{ ln }}
-                  {% endif %}
-                {% endwith %}
-              {% endwith %}
-              {% if not profile_obj.first_name and not profile_obj.last_name and not profile_obj.display_title and not profile_obj.user.get_full_name %}
-                <span class="text-sm font-normal text-[#89B0AE]">(Unnamed Therapist)</span>
-              {% endif %}
-            </h1>
-            {% if profile_obj.license_type %}
-              {% with lt=profile_obj.license_type %}
-              <span class="flex items-baseline gap-2 pl-3 ml-1 border-l border-[#BEE3DB]">
-                <span class="text-base md:text-lg font-semibold text-[#116466]">{{ lt.name }}</span>
-                {% if lt.short_description %}<span class="text-xs font-medium text-[#89B0AE]">{{ lt.short_description }}</span>{% endif %}
-              </span>
-              {% endwith %}
-            {% endif %}
-          </div>
-          {% if profile_obj.therapy_delivery_method or profile_obj.accepting_new_clients %}
-          <div class="flex flex-wrap gap-2 text-[11px] mt-1">
-            {% if profile_obj.therapy_delivery_method %}
-              <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold">{{ profile_obj.therapy_delivery_method }}</span>
-            {% endif %}
-            {% if profile_obj.accepting_new_clients %}
-              {% with val=profile_obj.accepting_new_clients|lower %}
-                {% if val|slice:":6" == 'accept' %}
-                  <span class="px-2 py-1 rounded-full bg-[#116466] text-white font-semibold">{{ profile_obj.accepting_new_clients }}</span>
-                {% elif val|slice:":3" == 'not' %}
-                  <span class="px-2 py-1 rounded-full bg-[#FFE8E5] text-[#9b4d49] font-semibold">{{ profile_obj.accepting_new_clients }}</span>
-                {% elif 'wait' in val %}
-                  <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold">{{ profile_obj.accepting_new_clients }}</span>
-                {% else %}
-                  <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#116466] font-semibold">{{ profile_obj.accepting_new_clients }}</span>
-                {% endif %}
-              {% endwith %}
-            {% endif %}
-          </div>
-          {% endif %}
-          {% if profile_obj.credentials_note or profile_obj.intro_note or profile_obj.intro_statement or profile_obj.personal_statement_q1 %}
-          <div class="mt-1 md:mt-2 text-sm md:text-base leading-relaxed font-light text-[#2e4a49] max-w-prose">
-            {% if profile_obj.credentials_note %}<p class="mb-2 md:mb-3">{{ profile_obj.credentials_note }}</p>{% endif %}
-            {% with intro=profile_obj.intro_note|default:profile_obj.intro_statement|default:profile_obj.personal_statement_q1 %}
-              {% if intro %}
-                <div class="prose prose-sm max-w-none">{{ intro|safe }}</div>
-              {% endif %}
-            {% endwith %}
-          </div>
-          {% endif %}
-          </div>
-        </div>
-        <div class="flex items-center gap-3 pt-1">
-          <a href="/users/contact/{{ profile_obj.id }}/" target="_blank" class="inline-flex items-center gap-2 px-5 md:px-6 py-2.5 rounded-full font-semibold text-sm text-white bg-gradient-to-r from-[#FF9950] to-[#ff7d1c] hover:from-[#ff8a32] hover:to-[#ff6f00] shadow-md hover:shadow-lg transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FFB889]">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4z"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M8 7v13"/></svg>
-            <span>Contact Me</span>
-          </a>
-        </div>
-      </div>
-  {% include 'partials/profile_modal.html' with standalone=1 profile_obj=profile_obj show_photo_in_header=1 %}
-    </div>
-  </div>
+  {% include 'partials/profile/profile_display.html' %}
   </div>
   </div>
 </div>

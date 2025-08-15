@@ -87,4 +87,179 @@
       saveCredential(){ if(this.saving) return; this.error=''; const f=this.credForm; if(!f.organization_name||!f.year_issued){ this.error='Org & Year required'; return; } this.saving=true; const payload={ type:f.type, organization_name:f.organization_name, id_number:f.id_number, year_issued:f.year_issued }; const url = f.id? `/users/api/profile/credentials/${f.id}/` : '/users/api/profile/credentials/create/'; const method = f.id? 'PATCH':'POST'; fetch(url,{method, headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Save failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.additional_credentials=d.additional_credentials; } this.addingCredential=false; this.resetCred(); if(window.__profileEdit){ window.__profileEdit.applyData(d); window.__profileEdit.notify('Saved'); } }).catch(()=> this.error='Network error').finally(()=> this.saving=false); }
     };
   };
+
+  // Therapy Types & Specialties Manager Component
+  // Extracted from inline template (therapist_profile_edit.html) so it can be reused by modal/public profile.
+  window.therapySpecialtiesManager = function(opts){
+    const csrf = window.TC_CSRF;
+    return {
+      editable: opts && typeof opts.editable !== 'undefined' ? !!opts.editable : false,
+      // Therapy Types state
+      therapyQuery:'', therapyResults:[], therapyOpen:false, therapyLoading:false, therapySelectedIndex:-1, therapyDebounce:null,
+      // Specialties state
+      specialtyQuery:'', specialtyResults:[], specialtyOpen:false, specialtyLoading:false, specialtySelectedIndex:-1, specialtyDebounce:null,
+      // Save debounce
+      saveTimer:null, saving:false, error:'',
+      init(){ /* no-op for now; could preload lists if desired */ },
+      // Shared helpers
+      normalizeName(v){ return (v||'').trim(); },
+      caseEq(a,b){ return (a||'').toLowerCase() === (b||'').toLowerCase(); },
+      inList(list, name){ return list.some(x => this.caseEq((x.name||x), name)); },
+      // Therapy Types logic
+      onTherapyInput(){ if(this.therapyDebounce) clearTimeout(this.therapyDebounce); this.therapySelectedIndex=-1; if(!this.therapyQuery){ if(!this.therapyOpen || !this.therapyResults.length){ this.fetchTherapyTypes(true); } return; } this.therapyDebounce=setTimeout(()=> this.fetchTherapyTypes(), 220); },
+      onTherapyFocus(){ if(this.therapyQuery) { this.onTherapyInput(); return; } if(!this.therapyResults.length){ this.fetchTherapyTypes(true); } else { this.therapyOpen=true; } },
+      fetchTherapyTypes(){ this.therapyLoading=true; fetch('/users/api/lookups/therapy_types/?q='+encodeURIComponent(this.therapyQuery))
+        .then(r=>r.json()).then(d=>{ this.therapyResults=d.results||[]; this.therapyOpen=true; })
+        .catch(()=>{ this.therapyResults=[]; this.therapyOpen=false; })
+        .finally(()=> this.therapyLoading=false); },
+      selectTherapy(idx){ const item=this.therapyResults[idx]; if(!item) return; this.therapyQuery=item.name; this.therapyOpen=false; this.therapyResults=[]; this.addTherapyType(); },
+      therapyKeydown(e){ if(!this.therapyOpen){ if(e.key==='ArrowDown' && this.therapyResults.length){ this.therapyOpen=true; e.preventDefault(); } else if(e.key==='Enter'){ if(this.therapyQuery.trim()){ e.preventDefault(); this.addTherapyType(); } } return; }
+        if(e.key==='ArrowDown'){ e.preventDefault(); this.therapySelectedIndex=(this.therapySelectedIndex+1)%this.therapyResults.length; }
+        else if(e.key==='ArrowUp'){ e.preventDefault(); this.therapySelectedIndex=(this.therapySelectedIndex-1+this.therapyResults.length)%this.therapyResults.length; }
+        else if(e.key==='Enter'){ e.preventDefault(); if(this.therapySelectedIndex>-1){ this.selectTherapy(this.therapySelectedIndex); } if(this.therapyQuery.trim()){ this.addTherapyType(); } }
+        else if(e.key==='Escape'){ this.therapyOpen=false; }
+      },
+      addTherapyType(){ const name=this.normalizeName(this.therapyQuery); if(!name){ return; } const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const list = (s.therapist.therapy_types||[]).slice(); if(this.inList(list, name)){ this.therapyQuery=''; this.therapyOpen=false; this.therapyResults=[]; return; } list.push(name); list.sort((a,b)=> a.localeCompare(b)); s.therapist.therapy_types=list; this.therapyQuery=''; this.therapyOpen=false; this.therapyResults=[]; this.scheduleSave(); },
+      removeTherapyType(name){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; s.therapist.therapy_types=(s.therapist.therapy_types||[]).filter(t=> !this.caseEq(t,name)); this.scheduleSave(); },
+      // Specialties logic
+      onSpecialtyInput(){ if(this.specialtyDebounce) clearTimeout(this.specialtyDebounce); this.specialtySelectedIndex=-1; if(!this.specialtyQuery){ if(!this.specialtyOpen || !this.specialtyResults.length){ this.fetchSpecialties(true); } return; } this.specialtyDebounce=setTimeout(()=> this.fetchSpecialties(), 220); },
+      onSpecialtyFocus(){ if(this.specialtyQuery){ this.onSpecialtyInput(); return; } if(!this.specialtyResults.length){ this.fetchSpecialties(true); } else { this.specialtyOpen=true; } },
+      fetchSpecialties(){ this.specialtyLoading=true; fetch('/users/api/lookups/specialties/?q='+encodeURIComponent(this.specialtyQuery))
+        .then(r=>r.json()).then(d=>{ this.specialtyResults=d.results||[]; this.specialtyOpen=true; })
+        .catch(()=>{ this.specialtyResults=[]; this.specialtyOpen=false; })
+        .finally(()=> this.specialtyLoading=false); },
+      selectSpecialty(idx){ const item=this.specialtyResults[idx]; if(!item) return; this.specialtyQuery=item.name; this.specialtyOpen=false; this.specialtyResults=[]; this.addSpecialty(); },
+      specialtyKeydown(e){ if(!this.specialtyOpen){ if(e.key==='ArrowDown' && this.specialtyResults.length){ this.specialtyOpen=true; e.preventDefault(); } else if(e.key==='Enter'){ if(this.specialtyQuery.trim()){ e.preventDefault(); this.addSpecialty(); } } return; }
+        if(e.key==='ArrowDown'){ e.preventDefault(); this.specialtySelectedIndex=(this.specialtySelectedIndex+1)%this.specialtyResults.length; }
+        else if(e.key==='ArrowUp'){ e.preventDefault(); this.specialtySelectedIndex=(this.specialtySelectedIndex-1+this.specialtyResults.length)%this.specialtyResults.length; }
+        else if(e.key==='Enter'){ e.preventDefault(); if(this.specialtySelectedIndex>-1){ this.selectSpecialty(this.specialtySelectedIndex); } if(this.specialtyQuery.trim()){ this.addSpecialty(); } }
+        else if(e.key==='Escape'){ this.specialtyOpen=false; }
+      },
+      addSpecialty(){ const name=this.normalizeName(this.specialtyQuery); if(!name) return; const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const list=(s.therapist.specialties||[]).slice(); if(this.inList(list, name)){ this.specialtyQuery=''; this.specialtyOpen=false; this.specialtyResults=[]; return; } list.push({name:name, is_top:false}); list.sort((a,b)=> (a.name||'').localeCompare(b.name||'')); s.therapist.specialties=list; this.specialtyQuery=''; this.specialtyOpen=false; this.specialtyResults=[]; this.syncTopList(); this.scheduleSave(); },
+      removeSpecialty(name){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; s.therapist.specialties=(s.therapist.specialties||[]).filter(sp=> !this.caseEq(sp.name||sp,name)); s.therapist.top_specialties = (s.therapist.top_specialties||[]).filter(t=> !this.caseEq(t,name)); this.scheduleSave(); },
+      toggleTop(name){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const specs=(s.therapist.specialties||[]).slice(); const idx=specs.findIndex(sp=> this.caseEq(sp.name||sp,name)); if(idx===-1) return; const sp=specs[idx]; const currentlyTop=!!sp.is_top; if(!currentlyTop){ const topCount=specs.filter(x=> x.is_top).length; if(topCount>=5){ if(window.__profileEdit){ window.__profileEdit.notify('Max 5 top specialties', true); } return; } }
+        sp.is_top = !currentlyTop; specs[idx]=sp; s.therapist.specialties=specs; this.syncTopList(); this.scheduleSave(); },
+      syncTopList(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const tops=(s.therapist.specialties||[]).filter(sp=> sp.is_top).map(sp=> sp.name).slice(0,5); s.therapist.top_specialties=tops; },
+      // Saving
+      scheduleSave(){ if(this.saveTimer) clearTimeout(this.saveTimer); this.saveTimer=setTimeout(()=> this.saveAll(), 650); },
+      saveAll(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; this.saving=true; const therapy=(s.therapist.therapy_types||[]).map(t=> typeof t==='string'? t : (t.name||'')); const specs=(s.therapist.specialties||[]).map(sp=> sp.name || sp); const tops=(s.therapist.top_specialties||[]).slice(0,5); const payload={ therapy_types: therapy, specialties: specs, top_specialties: tops }; fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)})
+        .then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && (d.errors.therapy_types||d.errors.specialties||d.errors.top_specialties)) || d.error || 'Save failed'; if(window.__profileEdit){ window.__profileEdit.notify(this.error,true); } return; } const s2=Alpine.store('profileModal'); if(s2&&s2.therapist){ s2.therapist.therapy_types = d.therapy_types||therapy; s2.therapist.specialties = d.specialties|| (s2.therapist.specialties||[]); s2.therapist.top_specialties = d.top_specialties || (s2.therapist.top_specialties||[]); } if(window.__profileEdit){ window.__profileEdit.applyData(d); window.__profileEdit.notify('Saved'); } })
+        .catch(()=>{ this.error='Network error'; if(window.__profileEdit){ window.__profileEdit.notify(this.error,true); } })
+        .finally(()=> this.saving=false); },
+      clickAwayTherapy(){ this.therapyOpen=false; },
+      clickAwaySpecialty(){ this.specialtyOpen=false; }
+    };
+  };
+
+  // Fees & Insurance Manager Component (extracted for reuse)
+  window.feesInsuranceManager = function(){
+    const csrf = window.TC_CSRF;
+    return {
+      editable:true,
+      fees:{ individual:'', couples:'' },
+      insuranceForm:{ provider:'' },
+      insError:'',
+      providerQuery:'', providerResults:[], providerLoading:false, providerOpen:false, providerSelectedIndex:-1, providerDebounce:null,
+      insuranceSaveTimer:null,
+      init(){ const s=Alpine.store('profileModal'); if(s && s.therapist){ this.fees.individual = s.therapist.individual_session_cost || ''; this.fees.couples = s.therapist.couples_session_cost || ''; } },
+      fmt(v){ if(v==null||v==='') return ''; const num=parseFloat((''+v).replace(/[^0-9.]/g,'')); if(isNaN(num)) return v; return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:0,maximumFractionDigits:0}).format(num); },
+      normalizeCurrency(raw){ if(!raw) return ''; const digits=(''+raw).replace(/[^0-9.]/g,''); if(!digits) return ''; const num=parseFloat(digits); if(isNaN(num)) return ''; return Math.round(num); },
+      formatFeeInput(field){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return ''; const v=s.therapist[field]; if(!v && v!==0) return ''; const num=this.normalizeCurrency(v); return num? ('$'+num):''; },
+      onFeeBlur(field,val){ const norm=this.normalizeCurrency(val); if(norm!==''){ this.fees[field.includes('couples')?'couples':'individual'] = '$'+norm; } },
+      saveFee(field,val){ const s=Alpine.store('profileModal'); const norm=this.normalizeCurrency(val); window.__tcSaveProfileField(field, norm? norm : ''); if(s && s.therapist){ s.therapist[field] = norm? norm : ''; } },
+      toggleSliding(){ const s=Alpine.store('profileModal'); const next = !s.therapist.sliding_scale_pricing_available; window.__tcSaveProfileField('sliding_scale_pricing_available', next); if(s&&s.therapist) s.therapist.sliding_scale_pricing_available=next; },
+      setSliding(val){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; if(s.therapist.sliding_scale_pricing_available===val) return; window.__tcSaveProfileField('sliding_scale_pricing_available', val); s.therapist.sliding_scale_pricing_available=val; },
+      addInsurance(){ const raw=(this.insuranceForm.provider||'').trim(); if(!raw){ this.insError='Provider required'; return; } this.insError=''; const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); if(list.some(i=> (i.provider||'').toLowerCase()===raw.toLowerCase())){ this.insuranceForm.provider=''; this.providerResults=[]; this.providerOpen=false; return; } list.push({ provider: raw, out_of_network:false }); s.therapist.insurance_details=list; this.insuranceForm.provider=''; this.providerResults=[]; this.providerOpen=false; this.providerSelectedIndex=-1; this.scheduleInsuranceSave(); },
+      removeInsurance(idx){ const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); list.splice(idx,1); s.therapist.insurance_details=list; this.scheduleInsuranceSave(); },
+      toggleOON(idx){ const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); if(list[idx]){ list[idx].out_of_network=!list[idx].out_of_network; } s.therapist.insurance_details=list; this.scheduleInsuranceSave(); },
+      saveInsurance(){ const s=Alpine.store('profileModal'); const payload=(s.therapist.insurance_details||[]).map(i=>({provider:i.provider, out_of_network:!!i.out_of_network})); window.__tcSaveProfileField('insurance_details', payload); },
+      scheduleInsuranceSave(){ if(this.insuranceSaveTimer) clearTimeout(this.insuranceSaveTimer); this.insuranceSaveTimer=setTimeout(()=> this.saveInsurance(), 600); },
+      onProviderInput(){ this.providerQuery = this.insuranceForm.provider; this.providerSelectedIndex=-1; if(this.providerDebounce) clearTimeout(this.providerDebounce); if(!this.providerQuery){ this.providerResults=[]; this.providerOpen=false; return; } this.providerDebounce=setTimeout(()=> this.fetchProviders(), 220); },
+      onProviderFocus(){ if(this.insuranceForm.provider && this.insuranceForm.provider.trim()){ this.onProviderInput(); return; } if(this.providerResults.length){ this.providerOpen=true; return; } this.providerLoading=true; fetch('/users/api/lookups/insurance_providers/?q=').then(r=>r.json()).then(d=>{ this.providerResults=(d.results||[]); this.providerOpen=true; }).catch(()=>{ this.providerResults=[]; this.providerOpen=false; }).finally(()=> this.providerLoading=false); },
+      fetchProviders(){ this.providerLoading=true; fetch('/users/api/lookups/insurance_providers/?q='+encodeURIComponent(this.providerQuery)).then(r=>r.json()).then(d=>{ this.providerResults=(d.results||[]); this.providerOpen=true; }).catch(()=>{ this.providerResults=[]; this.providerOpen=false; }).finally(()=> this.providerLoading=false); },
+      selectProvider(idx){ const item=this.providerResults[idx]; if(!item) return; this.insuranceForm.provider=item.name; this.providerOpen=false; this.providerResults=[]; this.addInsurance(); },
+      providerKeydown(e){ if(!this.providerOpen){ if(e.key==='ArrowDown' && this.providerResults.length){ this.providerOpen=true; e.preventDefault(); } else if(e.key==='Enter'){ if(this.insuranceForm.provider.trim()){ e.preventDefault(); this.addInsurance(); } } return; } if(e.key==='ArrowDown'){ e.preventDefault(); this.providerSelectedIndex=(this.providerSelectedIndex+1)%this.providerResults.length; } else if(e.key==='ArrowUp'){ e.preventDefault(); this.providerSelectedIndex=(this.providerSelectedIndex-1+this.providerResults.length)%this.providerResults.length; } else if(e.key==='Enter'){ e.preventDefault(); if(this.providerSelectedIndex>-1){ this.selectProvider(this.providerSelectedIndex); } if(this.insuranceForm.provider.trim()){ this.addInsurance(); } } else if(e.key==='Escape'){ this.providerOpen=false; } },
+      clickAway(){ this.providerOpen=false; }
+    };
+  };
+
+  // Contact & Web Manager Component (extracted)
+  window.contactWebManager = function(){
+    const csrf = window.TC_CSRF;
+    return {
+      editing:false, saving:false, success:false, error:'',
+      socialFields:[
+        {key:'facebook_url', label:'Facebook URL', placeholder:'https://facebook.com/...', type:'url'},
+        {key:'instagram_url', label:'Instagram URL', placeholder:'https://instagram.com/...', type:'url'},
+        {key:'linkedin_url', label:'LinkedIn URL', placeholder:'https://linkedin.com/in/...', type:'url'},
+        {key:'twitter_url', label:'Twitter URL', placeholder:'https://x.com/...', type:'url'},
+        {key:'tiktok_url', label:'TikTok URL', placeholder:'https://tiktok.com/@...', type:'url'},
+        {key:'youtube_url', label:'YouTube URL', placeholder:'https://youtube.com/@...', type:'url'}
+      ],
+      form:{ phone_number:'', phone_extension:'', mobile_number:'', practice_email:'', office_email:'', practice_website_url:'',
+             receive_calls_from_client:false, receive_texts_from_clients:false, receive_emails_from_clients:false, receive_emails_when_client_calls:false,
+             facebook_url:'', instagram_url:'', linkedin_url:'', twitter_url:'', tiktok_url:'', youtube_url:'' },
+      init(){ this.load(); },
+      load(){ const s=window.Alpine && Alpine.store('profileModal'); if(!s||!s.therapist) return; const t=s.therapist; for(const k in this.form){ this.form[k] = (t[k]!==undefined && t[k]!==null) ? t[k] : (typeof this.form[k]==='boolean'? false : ''); } },
+      startEdit(){ this.load(); this.editing=true; this.success=false; this.error=''; },
+      cancel(){ if(this.saving) return; this.editing=false; this.error=''; },
+      socialList(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return []; const map=[['facebook_url','Facebook'],['instagram_url','Instagram'],['linkedin_url','LinkedIn'],['twitter_url','Twitter'],['tiktok_url','TikTok'],['youtube_url','YouTube']]; return map.filter(([k])=> s.therapist[k]).map(([k,l])=> ({key:k,label:l,url:s.therapist[k]})); },
+      validate(){ const urlFields=['practice_website_url','facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url']; const urlRe=/^https?:\/\//i; for(const f of urlFields){ const v=this.form[f]; if(v && !urlRe.test(v)){ this.error=f.replace(/_/g,' ')+' must start with http'; return false; } } return true; },
+      buildPayload(){ const p={}; for(const k in this.form){ p[k]=this.form[k]; } return p; },
+      save(){ if(this.saving) return; this.error=''; if(!this.validate()) return; this.saving=true; const payload=this.buildPayload(); const s=Alpine.store('profileModal'); const prev={}; if(s&&s.therapist){ for(const k in payload){ prev[k]=s.therapist[k]; s.therapist[k]=payload[k]; } }
+        fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload)})
+          .then(r=>r.json().then(d=>[r,d]))
+          .then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && Object.values(d.errors)[0]) || d.error || 'Save failed'; if(s&&s.therapist){ for(const k in prev){ s.therapist[k]=prev[k]; } } if(window.__profileEdit){ window.__profileEdit.notify(this.error,true); } return; }
+            if(s&&s.therapist){ for(const k in d){ if(k in this.form) s.therapist[k]=d[k]; } }
+            if(window.__profileEdit){ window.__profileEdit.applyData(d); window.__profileEdit.notify('Saved'); }
+            this.success=true; this.editing=false; setTimeout(()=> this.success=false,1800);
+          })
+          .catch(()=>{ this.error='Network error'; if(s&&s.therapist){ for(const k in prev){ s.therapist[k]=prev[k]; } } })
+          .finally(()=> this.saving=false);
+      }
+    };
+  };
+
+  // Location Manager Component (extracted)
+  window.locationManager = function(){
+    const csrf = window.TC_CSRF;
+    return {
+      form:{show:false, mode:'add', id:null, practice_name:'', street_address:'', address_line_2:'', city:'', state:'', zip:'', is_primary_address:false},
+      saving:false, error:'',
+      hoursEdit:{ openFor:null, rows:[], saving:false, error:'' },
+      weekdayNames:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+      confirmDelete:{show:false, targetId:null, targetName:''},
+      states:[
+        {code:'', name:'Select State'},
+        {code:'AL', name:'Alabama'},{code:'AK', name:'Alaska'},{code:'AZ', name:'Arizona'},{code:'AR', name:'Arkansas'},
+        {code:'CA', name:'California'},{code:'CO', name:'Colorado'},{code:'CT', name:'Connecticut'},{code:'DE', name:'Delaware'},
+        {code:'DC', name:'District of Columbia'},{code:'FL', name:'Florida'},{code:'GA', name:'Georgia'},{code:'HI', name:'Hawaii'},
+        {code:'ID', name:'Idaho'},{code:'IL', name:'Illinois'},{code:'IN', name:'Indiana'},{code:'IA', name:'Iowa'},
+        {code:'KS', name:'Kansas'},{code:'KY', name:'Kentucky'},{code:'LA', name:'Louisiana'},{code:'ME', name:'Maine'},
+        {code:'MD', name:'Maryland'},{code:'MA', name:'Massachusetts'},{code:'MI', name:'Michigan'},{code:'MN', name:'Minnesota'},
+        {code:'MS', name:'Mississippi'},{code:'MO', name:'Missouri'},{code:'MT', name:'Montana'},{code:'NE', name:'Nebraska'},
+        {code:'NV', name:'Nevada'},{code:'NH', name:'New Hampshire'},{code:'NJ', name:'New Jersey'},{code:'NM', name:'New Mexico'},
+        {code:'NY', name:'New York'},{code:'NC', name:'North Carolina'},{code:'ND', name:'North Dakota'},{code:'OH', name:'Ohio'},
+        {code:'OK', name:'Oklahoma'},{code:'OR', name:'Oregon'},{code:'PA', name:'Pennsylvania'},{code:'RI', name:'Rhode Island'},
+        {code:'SC', name:'South Carolina'},{code:'SD', name:'South Dakota'},{code:'TN', name:'Tennessee'},{code:'TX', name:'Texas'},
+        {code:'UT', name:'Utah'},{code:'VT', name:'Vermont'},{code:'VA', name:'Virginia'},{code:'WA', name:'Washington'},
+        {code:'WV', name:'West Virginia'},{code:'WI', name:'Wisconsin'},{code:'WY', name:'Wyoming'}
+      ],
+      startAdd(){ this.error=''; this.form={show:true, mode:'add', id:null, practice_name:'', street_address:'', address_line_2:'', city:'', state:'', zip:'', is_primary_address:false}; },
+      edit(loc){ this.error=''; this.form={show:true, mode:'edit', id:loc.id, practice_name:loc.practice_name||'', street_address:loc.street_address||'', address_line_2:loc.address_line_2||'', city:loc.city||'', state:loc.state||'', zip:loc.zip||'', is_primary_address: !!loc.is_primary_address}; },
+      cancel(){ this.form.show=false; },
+      openHours(loc){ if(this.hoursEdit.saving) return; this.hoursEdit.openFor = loc.id; const base=[]; const existing=(loc.office_hours||[]).reduce((m,r)=>{ m[r.weekday]=r; return m; },{}); for(let d=0; d<7; d++){ const r = existing[d] || {weekday:d,is_closed:false,by_appointment_only:false,start_time_1:'',end_time_1:'',start_time_2:'',end_time_2:'',notes:''}; base.push(JSON.parse(JSON.stringify(r))); } this.hoursEdit.rows=base; this.hoursEdit.error=''; },
+      closeHours(){ if(this.hoursEdit.saving) return; this.hoursEdit.openFor=null; },
+      toggleClosed(row){ row.is_closed=!row.is_closed; if(row.is_closed){ row.by_appointment_only=false; row.start_time_1=row.end_time_1=row.start_time_2=row.end_time_2=''; } },
+      toggleAppt(row){ row.by_appointment_only=!row.by_appointment_only; if(row.by_appointment_only){ row.is_closed=false; row.start_time_1=row.end_time_1=row.start_time_2=row.end_time_2=''; } },
+      saveHours(){ if(this.hoursEdit.saving || this.hoursEdit.openFor==null) return; this.hoursEdit.saving=true; this.hoursEdit.error=''; const payload={ office_hours: this.hoursEdit.rows.map(r=>({ weekday:r.weekday, is_closed:!!r.is_closed, by_appointment_only:!!r.by_appointment_only, start_time_1:r.start_time_1||'', end_time_1:r.end_time_1||'', start_time_2:r.start_time_2||'', end_time_2:r.end_time_2||'', notes:(r.notes||'').slice(0,64) }))}; fetch('/users/api/profile/locations/'+this.hoursEdit.openFor+'/office_hours/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.hoursEdit.error=d.error||'Save failed'; return; } this.apply(d); const s=window.Alpine && Alpine.store('profileModal'); const updated = s?.therapist?.locations?.find(l=> l.id===this.hoursEdit.openFor); if(updated){ this.openHours(updated); } }).catch(()=> this.hoursEdit.error='Network error').finally(()=> this.hoursEdit.saving=false); },
+      save(){ if(this.saving) return; this.error=''; this.saving=true; if(this.form.mode==='add'){ const fd=new FormData(); ['practice_name','street_address','address_line_2','city','state','zip'].forEach(k=> fd.append(k,this.form[k]||'')); if(this.form.is_primary_address) fd.append('is_primary_address','1'); const prevIds=(window.Alpine && Alpine.store('profileModal')?.therapist?.locations||[]).map(l=>l.id); fetch('/users/api/profile/locations/create/', {method:'POST', headers:{'X-CSRFToken':csrf}, body:fd}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Save failed'; return; } this.apply(d); this.form.show=false; const s=window.Alpine && Alpine.store('profileModal'); const newLoc = (s?.therapist?.locations||[]).find(l=> !prevIds.includes(l.id)); if(newLoc){ this.openHours(newLoc); } }).catch(()=> this.error='Network error').finally(()=> this.saving=false); } else { const payload={ practice_name:this.form.practice_name, street_address:this.form.street_address, address_line_2:this.form.address_line_2, city:this.form.city, state:this.form.state, zip:this.form.zip, is_primary_address:this.form.is_primary_address}; fetch('/users/api/profile/locations/'+this.form.id+'/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Update failed'; return; } this.apply(d); this.form.show=false; }).catch(()=> this.error='Network error').finally(()=> this.saving=false); } },
+      remove(){ if(!this.form.id) return; this.openDelete({id:this.form.id, practice_name:this.form.practice_name}); },
+      openDelete(loc){ if(!loc) return; this.confirmDelete={show:true, targetId:loc.id, targetName: loc.practice_name || 'Location'}; },
+      cancelDelete(){ this.confirmDelete={show:false, targetId:null, targetName:''}; },
+      confirmDeleteAction(){ const id=this.confirmDelete.targetId; if(!id) return; this.confirmDelete.show=false; fetch('/users/api/profile/locations/'+id+'/', {method:'DELETE', headers:{'X-CSRFToken':csrf}}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Delete failed'; return; } if(this.hoursEdit.openFor===id){ this.closeHours(); } if(this.form.id===id){ this.form.show=false; } this.apply(d); }).catch(()=> this.error='Network error'); },
+      removeLoc(loc){ if(!loc || !loc.id) return; this.openDelete(loc); },
+      apply(data){ const s = window.Alpine && Alpine.store('profileModal'); if(s && s.therapist){ s.therapist.locations = data.locations || []; } }
+    };
+  };
 })(window);

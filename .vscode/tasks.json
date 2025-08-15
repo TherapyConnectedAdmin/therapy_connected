@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "makemigrations-users",
+			"type": "shell",
+			"command": "python -m django makemigrations users",
+			"args": []
+		},
+		{
+			"label": "makemigrations-users",
+			"type": "shell",
+			"command": "/Users/wescollins/Documents/Therapy-Connected/.venv/bin/python -m django makemigrations users",
+			"args": []
+		}
+	]
+}

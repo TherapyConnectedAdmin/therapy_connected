@@ -1,247 +1,328 @@
 {% load static %}
-{# Therapist Profile Modal / Standalone Profile Renderer #}
-<style>
-  .profile-modal-scroll { scrollbar-width: thin; scrollbar-gutter: stable both-edge; scrollbar-color:#89B0AE #E6F2F0; overscroll-behavior:contain; }
-  .profile-modal-scroll::-webkit-scrollbar { width:10px; }
-  .profile-modal-scroll::-webkit-scrollbar-track { background:#E6F2F0; }
-  .profile-modal-scroll::-webkit-scrollbar-thumb { background:#89B0AE; border-radius:6px; border:2px solid #E6F2F0; }
-  .profile-modal-scroll::-webkit-scrollbar-thumb:hover { background:#6c9d9b; }
-</style>
-
-{% if standalone %}
-  {# Standalone mode: render sections inline (public full page or edit page) #}
-  {% include 'partials/profile/sections/_general.html' %}
-  {% if editable %}
-    <div id="section-general" class="absolute -top-24"></div>
-    {% include 'partials/profile/sections/_identity.html' %}
-  {% endif %}
-  {% include 'partials/profile/sections/_about.html' %}
-  {% include 'partials/profile/sections/_locations.html' with standalone=standalone profile_obj=profile_obj editable=editable %}
-  {# Suppress duplicate summary on edit page; keep only detailed editable identity section above #}
-  {% if not editable %}
-    <template x-if="$store.profileModal.currentUserId === $store.profileModal.therapist.id && ($store.profileModal.therapist.gender || ($store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length) || ($store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length) || ($store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length) || ($store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length))">
-      <section class="tc-section p-4 md:p-5" x-cloak>
-        <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-2">Identity & Background</h3>
-        <div class="flex flex-col gap-1 text-xs text-[#555B6E]">
-          <div x-show="$store.profileModal.therapist.gender">Gender: <span class="font-semibold" x-text="$store.profileModal.therapist.gender"></span></div>
-          <div x-show="$store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length">Race / Ethnicity: <span class="font-semibold" x-text="$store.profileModal.therapist.race_ethnicities.join(', ')"></span></div>
-          <div x-show="$store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length">Faith: <span class="font-semibold" x-text="$store.profileModal.therapist.faiths.join(', ')" ></span></div>
-          <div x-show="$store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length">LGBTQIA+: <span class="font-semibold" x-text="$store.profileModal.therapist.lgbtqia_identities.join(', ')"/></div>
-          <div x-show="$store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length">Other: <span class="font-semibold" x-text="$store.profileModal.therapist.other_identities.join(', ')"/></div>
-        </div>
-      </section>
-    </template>
-  {% endif %}
-  {% include 'partials/profile/sections/_therapy_specialties.html' %}
-  {% include 'partials/profile/sections/_fees_insurance.html' %}
-  {% include 'partials/profile/sections/_client_focus.html' %}
-  {% include 'partials/profile/sections/_contact_web.html' %}
-  {# Show Qualifications only when editing (standalone edit page), not on public full profile #}
-  {% if standalone and editable %}{% include 'partials/profile/sections/_qualifications.html' %}{% endif %}
-  {% if standalone and editable %}{% include 'partials/profile/_progress_sidebar.html' %}{% endif %}
-{% else %}
-  {# Modal mode: overlay hidden until opened #}
-  <div
-    x-data="{ previousScroll:0, lock(){ this.previousScroll=window.scrollY; document.documentElement.classList.add('overflow-hidden'); document.body.classList.add('overflow-hidden'); }, unlock(){ document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden'); window.scrollTo(0,this.previousScroll||0); } }"
-    x-effect="$store.profileModal.show ? lock() : unlock()"
-    x-cloak
-    x-show="$store.profileModal.show"
-    x-transition.opacity
-    @click.self="$store.profileModal.close()"
-    @keydown.window="if($store.profileModal.show && !$store.profileModal.loading){ if($event.key==='ArrowRight'){ $store.profileModal.next(); } else if($event.key==='ArrowLeft'){ $store.profileModal.prev(); } }"
-    class="fixed inset-0 z-[500] flex items-start md:items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-6 overflow-y-auto"
-    role="dialog" aria-modal="true" aria-label="Therapist Profile"
-  >
-    <div class="relative w-full max-w-[1320px] mx-auto">
-      <!-- Navigation Arrows (placed just outside modal edges) -->
-      <div x-show="$store.profileModal.show" class="pointer-events-none" x-cloak>
-        <template x-if="(($store.profileModal.therapistIds && $store.profileModal.therapistIds.length>1) || ($store.profileModal.ids && $store.profileModal.ids.length>1)) && !$store.profileModal.loading">
-          <div>
-            <button @click.stop="$store.profileModal.prev()" aria-label="Previous Therapist"
-              class="pointer-events-auto group absolute top-1/2 -translate-y-1/2 -left-4 md:-left-6 xl:-left-8 w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#E5F4F2]/90 text-[#116466] ring-1 ring-[#89B0AE] shadow hover:shadow-md hover:bg-[#BEE3DB] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] focus:ring-offset-2 disabled:opacity-40 z-[550]">
-              <span class="sr-only">Previous</span>
-              <svg class="w-5 h-5 transition-transform group-active:-translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6"/></svg>
-            </button>
-            <button @click.stop="$store.profileModal.next()" aria-label="Next Therapist"
-              class="pointer-events-auto group absolute top-1/2 -translate-y-1/2 -right-4 md:-right-6 xl:-right-8 w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#E5F4F2]/90 text-[#116466] ring-1 ring-[#89B0AE] shadow hover:shadow-md hover:bg-[#BEE3DB] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#89B0AE] focus:ring-offset-2 disabled:opacity-40 z-[550]">
-              <span class="sr-only">Next</span>
-              <svg class="w-5 h-5 transition-transform group-active:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
-            </button>
-          </div>
-        </template>
-      </div>
-      <div class="profile-modal-scroll max-h-[calc(100vh-3rem)] overflow-y-auto rounded-none md:rounded-2xl shadow-xl bg-gradient-to-b from-[#FAF9F9] to-[#F2FAF9] ring-1 ring-[#BEE3DB] relative" x-data="{ scrolled:false }" @scroll.passive="scrolled = $el.scrollTop > 140">
-        <!-- Sticky Header (appears after scroll) -->
-  <div class="sticky top-0 z-40 px-3 md:px-6 pt-3 md:pt-4 pb-2 md:pb-3 transition bg-white border-b border-[#E5F4F2] flex items-center gap-4"
-       :class="scrolled ? 'shadow-md' : 'shadow-sm'">
-          <div class="flex flex-col flex-1 min-w-0">
-            <div class="flex flex-wrap items-baseline gap-1 md:gap-2 truncate">
-              <span class="truncate text-base md:text-2xl font-extrabold tracking-tight text-[#2e4a49]" x-text="[$store.profileModal.therapist.title,$store.profileModal.therapist.first_name,$store.profileModal.therapist.last_name].filter(Boolean).join(' ')"></span>
-              <template x-if="$store.profileModal.therapist.license_type || $store.profileModal.therapist.license_type_short">
-                <span class="flex items-baseline gap-1 md:gap-1.5 text-[#116466]">
-                  <span class="text-xs md:text-base font-semibold" x-text="$store.profileModal.therapist.license_type || $store.profileModal.therapist.license_type_short"></span>
-                  <template x-if="$store.profileModal.therapist.license_type && $store.profileModal.therapist.license_type_short && $store.profileModal.therapist.license_type_short !== $store.profileModal.therapist.license_type">
-                    <span class="text-[10px] md:text-xs font-semibold text-[#89B0AE]" x-text="$store.profileModal.therapist.license_type_short"></span>
-                  </template>
-                </span>
-              </template>
-            </div>
-            <div class="flex flex-wrap gap-1 mt-1">
-              <template x-if="$store.profileModal.therapist.therapy_delivery_method">
-                <span class="px-2 py-0.5 rounded-full bg-[#E5F4F2] text-[#116466] text-[10px] font-semibold" x-text="$store.profileModal.therapist.therapy_delivery_method"></span>
-              </template>
-              <template x-if="$store.profileModal.therapist.accepting_new_clients">
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold" :class="(() => { let v=($store.profileModal.therapist.accepting_new_clients||'').toLowerCase(); if(v.startsWith('accept')) return 'bg-[#116466] text-white'; if(v.startsWith('not')) return 'bg-[#FFE8E5] text-[#9b4d49]'; if(v.includes('wait')) return 'bg-[#E5F4F2] text-[#116466]'; return 'bg-[#E5F4F2] text-[#116466]'; })()" x-text="$store.profileModal.therapist.accepting_new_clients"></span>
-              </template>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <a :href="'/users/contact/' + ($store.profileModal.therapist.id||'') + '/'" target="_blank" class="hidden sm:inline-flex px-3 py-1.5 rounded-lg bg-[#FF9950] hover:bg-[#ff7d1c] text-white text-[11px] font-semibold transition" x-show="$store.profileModal.therapist.id">Contact</a>
-            <button @click="$store.profileModal.close()" class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-[#116466] hover:bg-[#0d4c4d] text-white shadow focus:outline-none focus:ring-2 focus:ring-[#89B0AE]" aria-label="Close profile">
-              <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' class='w-5 h-5'><path stroke-linecap='round' stroke-linejoin='round' d='M6 18L18 6M6 6l12 12'/></svg>
-            </button>
-          </div>
-        </div>
-        <!-- Loading State -->
-        <template x-if="$store.profileModal.loading">
-          <div class="absolute inset-0 z-10 flex items-center justify-center bg-white/70 rounded-none md:rounded-2xl">
-            <div class="flex flex-col items-center gap-3">
-              <svg class="w-8 h-8 animate-spin text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" class="opacity-20" />
-                <path d="M4 12a8 8 0 0 1 8-8" class="origin-center" />
-              </svg>
-              <p class="text-xs font-semibold tracking-wide text-[#555B6E]">Loading profile…</p>
-            </div>
-          </div>
-        </template>
-        <div class="p-0 md:p-2">
-          {% include 'partials/profile/sections/_general.html' %}
-          {% include 'partials/profile/sections/_about.html' %}
-          {% include 'partials/profile/sections/_locations.html' with standalone=standalone profile_obj=profile_obj editable=editable %}
-          <template x-if="$store.profileModal.currentUserId === $store.profileModal.therapist.id && ($store.profileModal.therapist.gender || ($store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length) || ($store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length) || ($store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length) || ($store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length))">
-            <section class="tc-section p-4 md:p-5" x-cloak>
-              <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-2">Identity & Background</h3>
-              <div class="flex flex-col gap-1 text-xs text-[#555B6E]">
-                <div x-show="$store.profileModal.therapist.gender">Gender: <span class="font-semibold" x-text="$store.profileModal.therapist.gender"></span></div>
-                <div x-show="$store.profileModal.therapist.race_ethnicities && $store.profileModal.therapist.race_ethnicities.length">Race / Ethnicity: <span class="font-semibold" x-text="$store.profileModal.therapist.race_ethnicities.join(', ')"></span></div>
-                <div x-show="$store.profileModal.therapist.faiths && $store.profileModal.therapist.faiths.length">Faith: <span class="font-semibold" x-text="$store.profileModal.therapist.faiths.join(', ')" ></span></div>
-                <div x-show="$store.profileModal.therapist.lgbtqia_identities && $store.profileModal.therapist.lgbtqia_identities.length">LGBTQIA+: <span class="font-semibold" x-text="$store.profileModal.therapist.lgbtqia_identities.join(', ')"/></div>
-                <div x-show="$store.profileModal.therapist.other_identities && $store.profileModal.therapist.other_identities.length">Other: <span class="font-semibold" x-text="$store.profileModal.therapist.other_identities.join(', ')"/></div>
-              </div>
-            </section>
-          </template>
-          {% include 'partials/profile/sections/_therapy_specialties.html' %}
+{# Comprehensive Therapist Profile Modal (lazy-loaded) #}
+<!-- Shared profile helper components (must load before sections using x-data references) -->
+<script src="{% static 'profile_helpers.js' %}"></script>
+{% include 'partials/profile/sections/_identity.html' %}
+{% include 'partials/profile/sections/_about.html' %}
+{% include 'partials/profile/sections/_locations.html' %}
+{% include 'partials/profile/sections/_identity_summary.html' %}
+{% include 'partials/profile/sections/_therapy_specialties.html' %}
+        <!-- Details Grid -->
+  <section class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-2">
           {% include 'partials/profile/sections/_fees_insurance.html' %}
+          <!-- Qualifications (owner only) -->
           {% include 'partials/profile/sections/_client_focus.html' %}
+          {% if standalone and editable %}
           {% include 'partials/profile/sections/_contact_web.html' %}
-          <!-- Error State -->
-          <div x-show="$store.profileModal.error" class="mx-auto max-w-[1200px] px-4 md:px-6 mt-4 mb-6"><div class="bg-red-100 text-red-700 text-xs rounded-md px-3 py-2">Failed to load profile: <span x-text="$store.profileModal.error"></span></div></div>
-          <!-- Debug (owner only) -->
-          <section x-show="showAllFields && $store.profileModal.currentUserId === $store.profileModal.therapist.id" x-transition.opacity x-cloak class="mx-auto max-w-[1200px] px-4 md:px-6 mb-8" x-data="{ showAllFields:false, expectedFields:[ 'first_name','last_name','middle_name','title','license_type','license_type_short','license_number','license_state','license_expiration','license_first_name','license_last_name','profile_photo_url','profile_photo','credentials_note','intro_note','intro_statement','therapy_delivery_method','accepting_new_clients','participant_types','age_groups','top_specialties','specialties','specialties_note','therapy_types','therapy_types_note','finance_note','no_show_policy','individual_session_cost','couples_session_cost','sliding_scale_pricing_available','insurance_details','locations','gender','race_ethnicities','faiths','lgbtqia_identities','other_identities','mental_health_role','areas_of_expertise','additional_credentials','educations','year_started_practice','years_in_practice','practice_email','office_email','phone_number','phone_extension','mobile_number','practice_website_url','social_facebook_url','social_linkedin_url','social_instagram_url','social_x_url','social_tiktok_url' ], displayName(f){ return f.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); } }">
-            <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-3 flex items-center gap-2">
-              <svg class="w-4 h-4 text-[#116466]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2"/></svg>
-              All Profile Fields (Debug View)
-            </h3>
-            <div class="grid md:grid-cols-2 gap-4 mb-4 max-h-72 overflow-auto pr-2">
-              <template x-for="field in expectedFields" :key="field">
-                <div class="text-[11px] leading-snug flex flex-col gap-0.5 p-2 rounded-lg" :class="$store.profileModal.therapist[field] === undefined ? 'bg-[#FFE8E5] border border-[#FFB3A8]' : 'bg-[#F2FAF9] border border-[#BEE3DB]'">
-                  <div class="font-semibold text-[#555B6E]" x-text="displayName(field)"></div>
-                  <template x-if="$store.profileModal.therapist[field] !== undefined">
-                    <div class="text-[#116466] break-words" x-text="(typeof $store.profileModal.therapist[field] === 'object') ? JSON.stringify($store.profileModal.therapist[field]) : $store.profileModal.therapist[field]"></div>
-                  </template>
-                  <template x-if="$store.profileModal.therapist[field] === undefined">
-                    <div class="text-[#9b4d49] italic">(missing)</div>
+          {% endif %}
+          {% if standalone %}
+          <!-- Qualifications & Education (final section - edit page only) -->
+          <div id="section-qualifications" class="tc-section p-4 md:p-5 md:col-span-2 mb-6 md:mb-8" x-data="qualificationsManager()" x-init="init()" x-cloak>
+            <div class="flex items-start justify-between mb-4">
+              <h3 class="text-2xl md:text-[25px] font-semibold tracking-tight text-[#555B6E]">Qualifications &amp; Education</h3>
+            </div>
+            <div class="text-sm text-[#555B6E] space-y-8">
+              <!-- License (detailed editable) -->
+              <div x-data="{ editing:false, showLicenseNameOverride:false, form:{ license_type:'', license_number:'', license_state:'', license_expiration:'', license_first_name:'', license_last_name:'' }, states:['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'], init(){ this.sync(); }, sync(){ const t=$store.profileModal.therapist||{}; this.form.license_type=t.license_type||''; this.form.license_number=t.license_number||''; this.form.license_state=t.license_state||''; this.form.license_expiration=t.license_expiration||''; this.form.license_first_name=t.license_first_name||''; this.form.license_last_name=t.license_last_name||''; this.showLicenseNameOverride = !!(this.form.license_first_name || this.form.license_last_name); }, save(){ if(this.saving) return; this.error=''; const payload={}; for(const k in this.form){ if(this.form[k]!==($store.profileModal.therapist[k]||'')) payload[k]=this.form[k]; } if(!this.showLicenseNameOverride){ // ensure cleared if not overriding
+                  if(this.form.license_first_name || this.form.license_last_name){ this.form.license_first_name=''; this.form.license_last_name=''; payload.license_first_name=''; payload.license_last_name=''; }
+                }
+                if(Object.keys(payload).length===0){ this.editing=false; return; } this.saving=true; fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken': TC_CSRF}, body: JSON.stringify(payload)}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && Object.values(d.errors)[0]) || d.error || 'Save failed'; return; } if(window.__profileEdit){ window.__profileEdit.applyData(d); window.__profileEdit.notify('Saved'); } this.editing=false; this.sync(); }).catch(()=> this.error='Network error').finally(()=> this.saving=false); }, cancel(){ this.editing=false; this.sync(); }, editing:false, error:'', saving:false, differentName(){ const t=$store.profileModal.therapist||{}; return this.showLicenseNameOverride || ( (t.first_name||'').trim() !== (t.license_first_name||'').trim() ) || ( (t.last_name||'').trim() !== (t.license_last_name||'').trim() ); } }" class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="font-semibold text-[#116466]">Professional License</div>
+                  <div class="flex items-center gap-2" x-show="!editing">
+                    <button type="button" @click="editing=true" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-semibold text-[#116466] hover:bg-[#E5F4F2]">Edit</button>
+                  </div>
+                </div>
+                <!-- Display Mode -->
+                <div x-show="!editing" class="text-[#2e4a49] text-sm space-y-0.5">
+                  <p>
+                    <span x-text="$store.profileModal.therapist.license_type || '—'"></span>
+                    <span x-show="$store.profileModal.therapist.license_number"> • <span x-text="$store.profileModal.therapist.license_number"></span></span>
+                    <span class="opacity-70" x-show="$store.profileModal.therapist.license_state"> (<span x-text="$store.profileModal.therapist.license_state"></span>)</span>
+                  </p>
+                  <p class="text-[11px] text-[#555B6E]/70" x-show="$store.profileModal.therapist.license_expiration">Expires <span x-text="$store.profileModal.therapist.license_expiration"></span></p>
+                  <template x-if="$store.profileModal.therapist.license_first_name || $store.profileModal.therapist.license_last_name">
+                    <p class="text-[11px] text-[#555B6E]/80">Licensed As: <span x-text="$store.profileModal.therapist.license_first_name || $store.profileModal.therapist.first_name"></span> <span x-text="$store.profileModal.therapist.license_last_name || $store.profileModal.therapist.last_name"></span></p>
                   </template>
                 </div>
-              </template>
-            </div>
-            <details class="mt-2">
-              <summary class="cursor-pointer text-xs font-semibold text-[#116466]">Raw Therapist JSON</summary>
-              <pre class="mt-2 p-3 bg-[#1e2727] text-[#E5F4F2] text-[10px] rounded-lg overflow-auto max-h-72" x-text="JSON.stringify($store.profileModal.therapist, null, 2)"></pre>
-            </details>
-          </section>
-          <!-- Footer Actions -->
-          <!-- Footer Actions -->
-          <div class="relative mt-4">
-            <div class="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-[#F2FAF9] to-transparent"></div>
-            <div class="pt-6 pb-8 px-6 md:px-10 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-end items-stretch">
-              <button @click="$store.profileModal.close()" class="group inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm bg-white/70 backdrop-blur ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-white shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE]">
-                <svg class="w-4 h-4 text-[#89B0AE] group-hover:text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                <span>Close</span>
-              </button>
-              <a :href="'/users/contact/' + ($store.profileModal.therapist.id||'') + '/'" target="_blank" x-show="$store.profileModal.therapist.id" class="group inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full font-semibold text-sm text-white bg-gradient-to-r from-[#FF9950] to-[#ff7d1c] hover:from-[#ff8a32] hover:to-[#ff6f00] shadow-md hover:shadow-lg transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FFB889]">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4z"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M8 7v13"/></svg>
-                <span>Contact</span>
-              </a>
+                <!-- Edit Mode -->
+                <form x-show="editing" @submit.prevent="save()" class="bg-white/60 rounded-lg p-3 ring-1 ring-[#BEE3DB] space-y-3">
+                  <div class="grid md:grid-cols-6 gap-3">
+                    <div class="md:col-span-2">
+                      <label class="block text-[11px] font-semibold mb-1">License Type</label>
+                      <button type="button" @click="$dispatch('edit-select',{field:'license_type', value: form.license_type, el:$el})" class="w-full text-left border border-[#BEE3DB] rounded-md px-2 py-1.5 text-[13px] bg-white hover:bg-[#F5F4F3]" x-text="form.license_type || 'Select License Type'" ></button>
+                    </div>
+                    <div>
+                      <label class="block text-[11px] font-semibold mb-1">Number</label>
+                      <input type="text" x-model="form.license_number" maxlength="32" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" />
+                    </div>
+                    <div>
+                      <label class="block text-[11px] font-semibold mb-1">State</label>
+                      <div class="relative">
+                        <select x-model="form.license_state" class="w-full appearance-none border border-[#BEE3DB] rounded-md px-3 pr-9 py-2 text-[13px] leading-tight bg-white text-[#2e4a49] focus:outline-none focus:border-[#116466] focus:ring-2 focus:ring-[#116466]/30 uppercase transition shadow-sm">
+                          <option value="">--</option>
+                          <template x-for="st in states" :key="st">
+                            <option :value="st" x-text="st"></option>
+                          </template>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                          <svg class="w-4 h-4 text-[#116466] opacity-80" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-[11px] font-semibold mb-1">Expiration (MM/YYYY)</label>
+                      <input type="text" x-model="form.license_expiration" maxlength="7" placeholder="08/2026" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" />
+                    </div>
+                    <div class="md:col-span-2">
+                      <label class="block text-[11px] font-semibold mb-1" x-text="(() => { const fn=$store.profileModal.therapist.first_name||''; const ln=$store.profileModal.therapist.last_name||''; const full=[fn,ln].filter(Boolean).join(' '); return 'Name On License Matches Profile' + (full ? ' ('+ full +')' : '') + '?'; })()"></label>
+                      <div class="flex items-center gap-3 text-[11px]">
+                        <label class="inline-flex items-center gap-1"><input type="radio" name="licname" :checked="!showLicenseNameOverride" @change="showLicenseNameOverride=false; form.license_first_name=''; form.license_last_name='';" class="accent-[#116466]" /> <span>Yes</span></label>
+                        <label class="inline-flex items-center gap-1"><input type="radio" name="licname" :checked="showLicenseNameOverride" @change="showLicenseNameOverride=true; if(!(form.license_first_name||form.license_last_name)){ form.license_first_name=''; form.license_last_name=''; }" class="accent-[#116466]" /> <span>No</span></label>
+                      </div>
+                    </div>
+                    <template x-if="showLicenseNameOverride">
+                      <div class="md:col-span-3 flex gap-3">
+                        <div class="flex-1">
+                          <label class="block text-[11px] font-semibold mb-1">Licensed First Name</label>
+                          <input type="text" x-model="form.license_first_name" :placeholder="$store.profileModal.therapist.first_name || 'First'" maxlength="64" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" />
+                        </div>
+                        <div class="flex-1">
+                          <label class="block text-[11px] font-semibold mb-1">Licensed Last Name</label>
+                          <input type="text" x-model="form.license_last_name" :placeholder="$store.profileModal.therapist.last_name || 'Last'" maxlength="64" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" />
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                  <div class="flex items-center gap-2 pt-1">
+                    <button type="submit" :disabled="saving" class="px-3 py-1.5 rounded-full bg-[#116466] text-white text-[11px] font-semibold disabled:opacity-40" x-text="saving ? 'Saving…' : 'Save License'"></button>
+                    <button type="button" @click="cancel()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-medium hover:bg-[#E5F4F2]">Cancel</button>
+                    <p class="text-[11px] text-[#9b4d49]" x-show="error" x-text="error"></p>
+                  </div>
+                </form>
+              </div>
+              <!-- Additional Credentials -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <div class="font-semibold text-[#116466]">Additional Credentials</div>
+                  <div class="flex items-center gap-2" x-show="!addingCredential && !addingEducation">
+                    <button type="button" @click="startAddCredential()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-semibold text-[#116466] hover:bg-[#E5F4F2]">Add Credential</button>
+                  </div>
+                </div>
+                <template x-if="!($store.profileModal.therapist.additional_credentials && $store.profileModal.therapist.additional_credentials.length)">
+                  <p class="text-xs italic text-[#89B0AE]">No credentials added.</p>
+                </template>
+                <ul class="space-y-1 text-sm" x-show="$store.profileModal.therapist.additional_credentials && $store.profileModal.therapist.additional_credentials.length">
+                  <template x-for="c in $store.profileModal.therapist.additional_credentials" :key="c.id">
+                    <li class="group flex flex-wrap items-center gap-1 px-2 py-1 rounded-md hover:bg-[#F5F4F3]">
+                      <span class="font-medium" x-text="c.type || 'Credential'"></span>
+                      <span class="opacity-70">—</span>
+                      <span x-text="c.organization_name"></span>
+                      <span x-show="c.id_number">(<span x-text="c.id_number"></span>)</span>
+                      <span class="opacity-70" x-show="c.year_issued">,</span>
+                      <span x-text="c.year_issued"></span>
+                      <button type="button" @click="editCredential(c)" class="opacity-0 group-hover:opacity-100 ml-2 text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2]">Edit</button>
+                      <button type="button" @click="deleteCredential(c)" class="opacity-0 group-hover:opacity-100 text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#FFB3A8] text-[#9b4d49] hover:bg-[#FFE8E5]">Delete</button>
+                    </li>
+                  </template>
+                </ul>
+                <!-- Credential Form -->
+                <form x-show="addingCredential" @submit.prevent="saveCredential()" class="mt-3 space-y-3 bg-white/60 rounded-lg p-3 ring-1 ring-[#BEE3DB]">
+                  <div class="grid md:grid-cols-4 gap-3">
+                    <div class="md:col-span-2">
+                      <label class="block text-[11px] font-semibold mb-1">Organization</label>
+                      <input type="text" x-model="credForm.organization_name" maxlength="64" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" required />
+                    </div>
+                    <div>
+                      <label class="block text-[11px] font-semibold mb-1">Type</label>
+                      <input type="text" x-model="credForm.type" maxlength="16" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" placeholder="Membership" />
+                    </div>
+                    <div>
+                      <label class="block text-[11px] font-semibold mb-1">Year Issued</label>
+                      <input type="text" x-model="credForm.year_issued" maxlength="4" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" required />
+                    </div>
+                    <div>
+                      <label class="block text-[11px] font-semibold mb-1">ID Number</label>
+                      <input type="text" x-model="credForm.id_number" maxlength="32" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" />
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 pt-1">
+                    <button type="submit" :disabled="saving" class="px-3 py-1.5 rounded-full bg-[#116466] text-white text-[11px] font-semibold disabled:opacity-40" x-text="credForm.id ? 'Update Credential' : 'Add Credential'"></button>
+                    <button type="button" @click="cancelCredential()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-medium hover:bg-[#E5F4F2]">Cancel</button>
+                    <p class="text-[11px] text-[#9b4d49]" x-show="error" x-text="error"></p>
+                  </div>
+                </form>
+              </div>
+              <!-- Education History -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <div class="font-semibold text-[#116466]">Education</div>
+                  <div class="flex items-center gap-2" x-show="!addingEducation && !addingCredential">
+                    <button type="button" @click="startAddEducation()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-semibold text-[#116466] hover:bg-[#E5F4F2]">Add Education</button>
+                  </div>
+                </div>
+                <template x-if="!($store.profileModal.therapist.educations && $store.profileModal.therapist.educations.length)">
+                  <p class="text-xs italic text-[#89B0AE]">No education records added.</p>
+                </template>
+                <ul class="space-y-1 text-sm" x-show="$store.profileModal.therapist.educations && $store.profileModal.therapist.educations.length">
+                  <template x-for="e in $store.profileModal.therapist.educations" :key="e.id">
+                    <li class="group flex flex-wrap items-center gap-1 px-2 py-1 rounded-md hover:bg-[#F5F4F3]">
+                      <span class="font-medium" x-text="e.degree_diploma"></span>
+                      <span class="opacity-70">—</span>
+                      <span x-text="e.school"></span>
+                      <span class="opacity-70" x-show="e.year_graduated">(<span x-text="e.year_graduated"></span>)</span>
+                      <span class="text-[11px] ml-1 opacity-60" x-show="e.year_began_practice">• Began Practice <span x-text="e.year_began_practice"></span></span>
+                      <button type="button" @click="editEducation(e)" class="opacity-0 group-hover:opacity-100 ml-2 text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[#116466] hover:bg-[#E5F4F2]">Edit</button>
+                      <button type="button" @click="deleteEducation(e)" class="opacity-0 group-hover:opacity-100 text-[10px] px-2 py-0.5 rounded-full bg-white ring-1 ring-[#FFB3A8] text-[#9b4d49] hover:bg-[#FFE8E5]">Delete</button>
+                    </li>
+                  </template>
+                </ul>
+                <!-- Education Form -->
+                <form x-show="addingEducation" @submit.prevent="saveEducation()" class="mt-3 space-y-3 bg-white/60 rounded-lg p-3 ring-1 ring-[#BEE3DB]">
+                  <div class="grid md:grid-cols-5 gap-3">
+                    <div class="md:col-span-2">
+                      <label class="block text-[11px] font-semibold mb-1">School</label>
+                      <input type="text" x-model="eduForm.school" maxlength="64" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" required />
+                    </div>
+                    <div>
+                      <label class="block text-[11px] font-semibold mb-1">Degree</label>
+                      <input type="text" x-model="eduForm.degree_diploma" maxlength="32" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" required />
+                    </div>
+                    <div>
+                      <label class="block text-[11px] font-semibold mb-1">Year Graduated</label>
+                      <input type="text" x-model="eduForm.year_graduated" maxlength="4" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" required />
+                    </div>
+                    <div>
+                      <label class="block text-[11px] font-semibold mb-1">Year Began Practice</label>
+                      <input type="text" x-model="eduForm.year_began_practice" maxlength="4" class="w-full border border-[#BEE3DB] rounded-md px-2 py-1.5 text-sm focus:border-[#116466] focus:ring-[#116466]" />
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 pt-1">
+                    <button type="submit" :disabled="saving" class="px-3 py-1.5 rounded-full bg-[#116466] text-white text-[11px] font-semibold disabled:opacity-40" x-text="eduForm.id ? 'Update Education' : 'Add Education'"></button>
+                    <button type="button" @click="cancelEducation()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-medium hover:bg-[#E5F4F2]">Cancel</button>
+                    <p class="text-[11px] text-[#9b4d49]" x-show="error" x-text="error"></p>
+                  </div>
+                </form>
+              </div>
+              <!-- Years in Practice -->
+              <!-- Year Started Practice (explicit override) -->
+              <div x-data="{
+                  editing:false,
+                  years:[],
+                  sel:'',
+                  init(){ const now=new Date().getFullYear(); const start=now-69; const out=[]; for(let y=now; y>=start; y--){ out.push(''+y); } this.years=out; const cur=$store.profileModal.therapist.year_started_practice||''; this.sel = cur && this.years.includes(cur) ? cur : ''; },
+                  startEdit(){ this.editing=true; const cur=$store.profileModal.therapist.year_started_practice||''; this.sel = cur; },
+                  cancel(){ this.editing=false; },
+                  save(){ const v=this.sel||''; window.__tcSaveProfileField('year_started_practice', v); this.editing=false; },
+                  clear(){ this.sel=''; window.__tcSaveProfileField('year_started_practice',''); this.editing=false; }
+                }" class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <div class="font-semibold text-[#116466]">Year Started Practice</div>
+                  <div class="flex items-center gap-2" x-show="!editing">
+                    <button type="button" @click="startEdit()" class="px-3 py-1 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-semibold text-[#116466] hover:bg-[#E5F4F2]">Edit</button>
+                    <button type="button" @click="clear()" x-show="$store.profileModal.therapist.year_started_practice" class="px-3 py-1 rounded-full bg-white ring-1 ring-[#FFB3A8] text-[11px] font-medium text-[#9b4d49] hover:bg-[#FFE8E5]">Clear</button>
+                  </div>
+                </div>
+                <!-- Display Mode -->
+                <p class="text-[#2e4a49] text-sm" x-show="!editing && $store.profileModal.therapist.year_started_practice" x-text="$store.profileModal.therapist.year_started_practice"></p>
+                <p class="text-xs italic text-[#89B0AE]" x-show="!editing && !$store.profileModal.therapist.year_started_practice">Not set (will be inferred from earliest education record)</p>
+                <!-- Edit Mode -->
+                <form x-show="editing" @submit.prevent="save()" class="bg-white/60 rounded-lg p-3 ring-1 ring-[#BEE3DB] flex flex-wrap items-end gap-3">
+                  <div class="relative">
+                    <label class="block text-[11px] font-semibold mb-1">Select Year</label>
+                    <div class="relative">
+                      <select x-model="sel" class="w-36 appearance-none border border-[#BEE3DB] rounded-md px-3 pr-8 py-2 text-[13px] leading-tight bg-white text-[#2e4a49] focus:outline-none focus:border-[#116466] focus:ring-2 focus:ring-[#116466]/30 transition shadow-sm">
+                        <option value="">-- Not Set --</option>
+                        <template x-for="y in years" :key="y">
+                          <option :value="y" x-text="y"></option>
+                        </template>
+                      </select>
+                      <div class="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                        <svg class="w-4 h-4 text-[#116466] opacity-80" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 pb-1">
+                    <button type="submit" class="px-3 py-1.5 rounded-full bg-[#116466] text-white text-[11px] font-semibold">Save</button>
+                    <button type="button" @click="cancel()" class="px-3 py-1.5 rounded-full bg-white ring-1 ring-[#BEE3DB] text-[11px] font-medium hover:bg-[#E5F4F2]">Cancel</button>
+                  </div>
+                </form>
+              </div>
+              <div x-show="$store.profileModal.therapist.years_in_practice">
+                <div class="font-semibold text-[#116466] mb-1">Years in Practice</div>
+                <p class="text-[#2e4a49] text-sm"><span x-text="$store.profileModal.therapist.years_in_practice"></span></p>
+              </div>
             </div>
           </div>
+          {% endif %}
+        </section>
+        {% if standalone and editable %}
+          {% include 'partials/profile/_progress_sidebar.html' %}
+        {% endif %}
+  </div><!-- end lower sections group -->
+  </div><!-- Unified Sections Wrapper END -->
+  <!-- Error State -->
+        <div x-show="$store.profileModal.error" class="bg-red-100 text-red-700 text-xs rounded-md px-3 py-2">Failed to load profile: <span x-text="$store.profileModal.error"></span></div>
+        <!-- Debug: All Fields Raw Listing -->
+  <section x-data="{ 
+      showAllFields:false,
+      expectedFields:[
+        'first_name','last_name','license_type','license_number','license_state','license_expiration','license_first_name','license_last_name','intro_statement','profile_photo_url',
+        'gender','race_ethnicities','faiths','lgbtqia_identities','other_identities',
+        'personal_statement_01','personal_statement_q2','personal_statement_q3','intro_note',
+        'locations','city','state','lat','lng',
+        'therapy_types','specialties','therapy_types_note','top_specialties',
+        'individual_session_cost','couples_session_cost','insurance_details','finance_note','accepted_payment_methods','sliding_scale_pricing_available',
+        'participant_types','age_groups',
+        'phone_number','phone_extension','mobile_number','practice_email','office_email','practice_website_url',
+        'facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url',
+        'receive_calls_from_client','receive_texts_from_clients','receive_emails_from_clients','receive_emails_when_client_calls',
+        'educations','additional_credentials','year_started_practice'
+      ],
+      displayName(f){ return f.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
+    }" 
+    x-show="showAllFields && $store.profileModal.currentUserId === $store.profileModal.therapist.id" x-transition.opacity x-cloak class="border border-dashed border-[#89B0AE] rounded-xl p-4 bg-white/70 -mt-4">
+          <h3 class="text-sm font-bold tracking-wide text-[#555B6E] mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-[#116466]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2"/></svg>
+            All Profile Fields (Debug View)
+          </h3>
+          <div class="grid md:grid-cols-2 gap-4 mb-4 max-h-72 overflow-auto pr-2">
+            <template x-for="field in expectedFields" :key="field">
+              <div class="text-[11px] leading-snug flex flex-col gap-0.5 p-2 rounded-lg" :class="$store.profileModal.therapist[field] === undefined ? 'bg-[#FFE8E5] border border-[#FFB3A8]' : 'bg-[#F2FAF9] border border-[#BEE3DB]'">
+                <div class="font-semibold text-[#555B6E]" x-text="displayName(field)"></div>
+                <template x-if="$store.profileModal.therapist[field] !== undefined">
+                  <div class="text-[#116466] break-words" x-text="(typeof $store.profileModal.therapist[field] === 'object') ? JSON.stringify($store.profileModal.therapist[field]) : $store.profileModal.therapist[field]"></div>
+                </template>
+                <template x-if="$store.profileModal.therapist[field] === undefined">
+                  <div class="text-[#9b4d49] italic">(missing)</div>
+                </template>
+              </div>
+            </template>
+          </div>
+          <details class="mt-2">
+            <summary class="cursor-pointer text-xs font-semibold text-[#116466]">Raw Therapist JSON</summary>
+            <pre class="mt-2 p-3 bg-[#1e2727] text-[#E5F4F2] text-[10px] rounded-lg overflow-auto max-h-72" x-text="JSON.stringify($store.profileModal.therapist, null, 2)"></pre>
+          </details>
+        </section>
+        {% if not standalone %}
+        <!-- Footer Actions (modal only) -->
+        <div class="pt-6 pb-8 px-6 md:px-10 flex flex-wrap gap-4">
+          <button @click="$store.profileModal && $store.profileModal.close()" class="px-5 py-2.5 rounded-lg font-semibold bg-[#116466] text-white text-sm hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition">Close</button>
+          <a :href="'/users/contact/' + $store.profileModal.therapist.id + '/'" target="_blank" class="px-5 py-2.5 rounded-lg font-semibold bg-[#FF9950] text-white text-sm hover:bg-[#555B6E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] transition">Contact</a>
         </div>
+        {% endif %}
       </div>
-    </div>
   </div>
-  <!-- Fallback inline lightbox if global mediaLightbox store not available -->
-  <!-- Fallback inline lightbox (z above modal overlay) -->
-  <div x-cloak x-show="$store.profileModal.lightboxImage && !$store.mediaLightbox" class="fixed inset-0 z-[610] flex items-center justify-center bg-black/80" @click.self="$store.profileModal.lightboxImage=null" @keydown.escape.window="$store.profileModal.lightboxImage=null">
-    <div class="relative max-w-5xl w-[92vw]">
-      <button @click="$store.profileModal.lightboxImage=null" class="absolute -top-12 right-0 bg-[#FF9950] hover:bg-[#555B6E] text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg" aria-label="Close image">
-        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' class='w-7 h-7'><path stroke-linecap='round' stroke-linejoin='round' d='M6 18L18 6M6 6l12 12'/></svg>
-      </button>
-      <img :src="$store.profileModal.lightboxImage" class="w-full max-h-[78vh] object-contain rounded-xl shadow-2xl" />
-    </div>
+  </div> <!-- end clipping wrapper -->
+    </div> <!-- gradient content wrapper -->
   </div>
-  <script>
-    document.addEventListener('alpine:init', () => {
-      try {
-        if(!Alpine.store('profileModal')) {
-          console.warn('[profileModal] Fallback store initialized (primary init missing).');
-          Alpine.store('profileModal', {
-            currentUserId: null,
-            show: false,
-            therapist: {},
-            therapistIds: [],
-            currentIndex: -1,
-            loading: false,
-            error: null,
-            lightboxImage: null,
-            inferList(){
-              if(this.therapistIds.length) return;
-              try {
-                const nodes=[...document.querySelectorAll('[data-therapist-id]')];
-                const ids=nodes.map(n=>parseInt(n.getAttribute('data-therapist-id'))).filter(Boolean);
-                if(ids.length) this.therapistIds=ids;
-              } catch(_) {}
-            },
-            loadTherapist(id){
-              this.error=null; this.loading=true; this.therapist={ id };
-              fetch(`/users/api/therapists/${id}/profile_full/`).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-                .then(d=>{ this.therapist=d; })
-                .catch(e=>{ this.error=e.message; })
-                .finally(()=>{ this.loading=false; });
-            },
-            open(id, list){
-              if(Array.isArray(list) && list.length){ this.therapistIds=list.slice(); }
-              this.inferList();
-              if(this.therapistIds.length){
-                const idx=this.therapistIds.indexOf(id);
-                this.currentIndex= idx>-1 ? idx : this.therapistIds.indexOf(parseInt(id));
-              }
-              this.show=true;
-              this.loadTherapist(id);
-            },
-            next(){
-              if(!this.therapistIds.length) return;
-              this.currentIndex = (this.currentIndex + 1 + this.therapistIds.length) % this.therapistIds.length;
-              this.loadTherapist(this.therapistIds[this.currentIndex]);
-            },
-            prev(){
-              if(!this.therapistIds.length) return;
-              this.currentIndex = (this.currentIndex - 1 + this.therapistIds.length) % this.therapistIds.length;
-              this.loadTherapist(this.therapistIds[this.currentIndex]);
-            },
-            close(){ this.show=false; }
-          });
-        }
-      } catch(e) { console.error('Failed initializing fallback profileModal store', e); }
-    });
-  </script>
-{% endif %}
+ </div>
+<!-- Fallback inline lightbox if global mediaLightbox store not available -->
+<div x-cloak x-show="$store.profileModal.lightboxImage && !$store.mediaLightbox" class="fixed inset-0 z-[115] flex items-center justify-center bg-black/80" @click.self="$store.profileModal.lightboxImage=null" @keydown.escape.window="$store.profileModal.lightboxImage=null">
+  <div class="relative max-w-5xl w-[92vw]">
+  <button @click="$store.profileModal.lightboxImage=null" class="absolute -top-12 right-0 bg-[#FF9950] hover:bg-[#555B6E] text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg" aria-label="Close image">
+      <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' class='w-7 h-7'><path stroke-linecap='round' stroke-linejoin='round' d='M6 18L18 6M6 6l12 12'/></svg>
+    </button>
+  <img :src="$store.profileModal.lightboxImage" class="w-full max-h-[78vh] object-contain rounded-xl shadow-2xl" />
+  </div>
+</div>
