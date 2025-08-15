@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-3xl mx-auto py-8 px-4">
+  <h1 class="text-2xl font-bold text-[#555B6E] mb-4">Account & Membership</h1>
+  {% if subscription %}
+    <div class="rounded border border-[#BEE3DB] bg-white p-4">
+      <div class="text-[#555B6E]">Plan: <strong>{{ subscription.subscription_type.name }}</strong> ({{ subscription.interval }})</div>
+      <div class="text-[#555B6E]">Status: <strong>{% if user.onboarding_status == 'active' %}Active{% else %}{{ user.onboarding_status }}{% endif %}</strong></div>
+      <div class="text-sm text-[#555B6E]/80">Stripe Customer: {{ subscription.stripe_customer_id|default:'—' }}</div>
+    </div>
+  {% else %}
+    <div class="text-[#555B6E]">No active subscription found. <a class="text-[#89B0AE] underline" href="{% url 'payment' %}">Complete payment</a>.</div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-3xl mx-auto py-8 px-4">
+  <h1 class="text-2xl font-bold text-[#555B6E] mb-4">My Feed</h1>
+  <form method="post" class="mb-6 rounded border border-[#BEE3DB] bg-white p-4">
+    {% csrf_token %}
+    <label class="block text-sm text-[#555B6E] mb-1">Share an update</label>
+    <textarea name="content" rows="3" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]"></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <select name="visibility" class="border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]">
+        <option value="members">Members</option>
+        <option value="connections">Connections</option>
+        <option value="public">Public</option>
+      </select>
+      <button type="submit" class="px-4 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E]">Post</button>
+    </div>
+  </form>
+  <div class="space-y-4">
+    {% for post in posts %}
+      <div class="rounded border border-[#BEE3DB] bg-white p-4">
+        <div class="text-sm text-gray-500">{{ post.author.first_name }} {{ post.author.last_name }} • {{ post.created_at|date:'M d, Y H:i' }} • {{ post.visibility }}</div>
+        <div class="mt-2 text-[#555B6E]">{{ post.content|linebreaksbr }}</div>
+      </div>
+    {% empty %}
+      <div class="text-[#555B6E]">No posts yet.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

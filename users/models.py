@@ -69,3 +69,41 @@ class TherapistProfileStats(models.Model):
     def __str__(self):
         return f"Stats for {self.therapist.email} on {self.date}"
 
+
+# --- Social / Members area models ---
+class FeedPost(models.Model):
+    VISIBILITY_CHOICES = [
+        ('public', 'Public'),
+        ('members', 'Members'),
+        ('connections', 'Connections'),
+    ]
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feed_posts')
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    visibility = models.CharField(max_length=16, choices=VISIBILITY_CHOICES, default='members')
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Feed by {self.author.email} @ {self.created_at:%Y-%m-%d}"
+
+
+class Connection(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('blocked', 'Blocked'),
+    ]
+    requester = models.ForeignKey(User, on_delete=models.CASCADE, related_name='connections_sent')
+    addressee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='connections_received')
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('requester', 'addressee')
+
+    def __str__(self):
+        return f"{self.requester.email} -> {self.addressee.email} ({self.status})"
+

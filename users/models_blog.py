@@ -14,6 +14,12 @@ class BlogPost(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published = models.BooleanField(default=False)
+    VISIBILITY_CHOICES = [
+        ('public', 'Public (site-wide)'),
+        ('members', 'Members only'),
+        ('both', 'Both Public and Members'),
+    ]
+    visibility = models.CharField(max_length=12, choices=VISIBILITY_CHOICES, default='public')
     image = models.ImageField(upload_to='blog_images/', blank=True, null=True)
     image_meta = models.JSONField(blank=True, null=True, default=dict)
     tags = models.ManyToManyField(BlogTag, blank=True)

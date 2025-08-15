@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-4">
+  <h1 class="text-2xl font-bold text-[#555B6E] mb-6">Connections</h1>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+      <h2 class="text-lg font-semibold text-[#555B6E] mb-2">Requests Received</h2>
+      <div class="space-y-3">
+        {% for c in received %}
+          <div class="rounded border border-[#BEE3DB] bg-white p-3 flex items-center justify-between">
+            <div class="text-[#555B6E]">From: {{ c.requester.email }} • {{ c.status }}</div>
+          </div>
+        {% empty %}
+          <div class="text-[#555B6E]">No connection requests.</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <h2 class="text-lg font-semibold text-[#555B6E] mb-2">Sent</h2>
+      <div class="space-y-3">
+        {% for c in sent %}
+          <div class="rounded border border-[#BEE3DB] bg-white p-3 flex items-center justify-between">
+            <div class="text-[#555B6E]">To: {{ c.addressee.email }} • {{ c.status }}</div>
+          </div>
+        {% empty %}
+          <div class="text-[#555B6E]">You haven't sent any requests.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

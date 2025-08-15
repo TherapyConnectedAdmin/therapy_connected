@@ -25,6 +25,12 @@
       {{ form.tags }}
       {{ form.tags.errors }}
     </div>
+    <div>
+      <label class="block text-sm font-medium text-[#555B6E] mb-1">Visibility</label>
+      {{ form.visibility }}
+      <p class="text-xs text-[#555B6E]/70 mt-1">Public: visible on the public blog. Members: visible to logged-in members only.</p>
+      {{ form.visibility.errors }}
+    </div>
     <div class="flex items-center gap-2">
       {{ form.published }}
       <label class="text-sm text-[#555B6E]">Publish</label>

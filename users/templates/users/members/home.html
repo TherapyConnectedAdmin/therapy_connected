@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-4">
+  <h1 class="text-2xl font-bold text-[#555B6E] mb-4">Members Area</h1>
+  <div class="flex flex-wrap gap-2 mb-4 text-sm">
+    <a href="{% url 'members_feed' %}" class="px-3 py-1 rounded bg-[#BEE3DB] text-[#555B6E]">Feed</a>
+    <a href="{% url 'members_profile' %}" class="px-3 py-1 rounded bg-[#BEE3DB] text-[#555B6E]">Profile</a>
+    <a href="{% url 'members_blog' %}" class="px-3 py-1 rounded bg-[#BEE3DB] text-[#555B6E]">Blog</a>
+    <a href="{% url 'members_connections' %}" class="px-3 py-1 rounded bg-[#BEE3DB] text-[#555B6E]">Connections</a>
+    <a href="{% url 'members_stats' %}" class="px-3 py-1 rounded bg-[#BEE3DB] text-[#555B6E]">Statistics</a>
+    <a href="{% url 'members_account' %}" class="px-3 py-1 rounded bg-[#BEE3DB] text-[#555B6E]">Account</a>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <a class="block p-4 rounded border border-[#BEE3DB] bg-white hover:bg-[#F6FFF8]" href="{% url 'members_profile' %}">
+      <div class="font-semibold text-[#555B6E]">Profile</div>
+      <div class="text-sm text-[#555B6E]/80">Edit your public profile</div>
+    </a>
+    <a class="block p-4 rounded border border-[#BEE3DB] bg-white hover:bg-[#F6FFF8]" href="{% url 'members_account' %}">
+      <div class="font-semibold text-[#555B6E]">Account & Membership</div>
+      <div class="text-sm text-[#555B6E]/80">Plan, billing, and cancellation</div>
+    </a>
+    <a class="block p-4 rounded border border-[#BEE3DB] bg-white hover:bg-[#F6FFF8]" href="{% url 'members_feed' %}">
+      <div class="font-semibold text-[#555B6E]">Feed</div>
+      <div class="text-sm text-[#555B6E]/80">Share updates with your network</div>
+    </a>
+    <a class="block p-4 rounded border border-[#BEE3DB] bg-white hover:bg-[#F6FFF8]" href="{% url 'members_connections' %}">
+      <div class="font-semibold text-[#555B6E]">Connections</div>
+      <div class="text-sm text-[#555B6E]/80">View and manage professional connections</div>
+    </a>
+    <a class="block p-4 rounded border border-[#BEE3DB] bg-white hover:bg-[#F6FFF8]" href="{% url 'members_blog' %}">
+      <div class="font-semibold text-[#555B6E]">My Blog</div>
+      <div class="text-sm text-[#555B6E]/80">Write and manage posts</div>
+    </a>
+    <a class="block p-4 rounded border border-[#BEE3DB] bg-white hover:bg-[#F6FFF8]" href="{% url 'members_stats' %}">
+      <div class="font-semibold text-[#555B6E]">Statistics</div>
+      <div class="text-sm text-[#555B6E]/80">Profile views and engagement</div>
+    </a>
+  </div>
+</div>
+{% endblock %}

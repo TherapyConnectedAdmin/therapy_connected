@@ -162,13 +162,11 @@ def login_view(request):
                     return redirect(next_url)
                 # Redirect based on onboarding_status
                 if hasattr(user, 'onboarding_status'):
-                    # Pending payment -> send to payment screen
+                    # Pending payment -> send to payment screen; otherwise land on feed
                     if user.onboarding_status == 'pending_payment':
                         return redirect('payment')
-                    # After payment but before profile completion -> unified edit screen
-                    elif user.onboarding_status == 'pending_profile_completion':
-                        return redirect('edit_profile')
-                return redirect('dashboard')
+                # Default landing for authenticated users
+                return redirect('members_feed')
             else:
                 messages.error(request, 'Invalid credentials or inactive account.')
     else:
@@ -220,7 +218,7 @@ def payment(request):
     if request.user.onboarding_status == 'pending_profile_completion':
         return redirect('edit_profile')
     if request.user.onboarding_status == 'active':
-        return redirect('dashboard')
+        return redirect('members_feed')
 
     from users.models import SubscriptionType, Subscription
     selected_plan_id = request.session.get('selected_plan_id')
@@ -1433,7 +1431,7 @@ def api_profile_submit(request):
     except Exception:
         pass
     # Return current onboarding_status and dashboard redirect
-    return JsonResponse({'success': True, 'onboarding_status': getattr(request.user, 'onboarding_status', ''), 'redirect': reverse('dashboard')})
+    return JsonResponse({'success': True, 'onboarding_status': getattr(request.user, 'onboarding_status', ''), 'redirect': reverse('members_feed')})
 
 @login_required
 @require_http_methods(["POST", "DELETE"])
@@ -2116,4 +2114,102 @@ def _attempt_subscription_activation(user):
     except Exception:
         # Leave user pending; they'll stay in pending_profile_completion until next successful attempt
         return
+
+
+from django.db.models import Q
+
+@login_required
+def members_home(request):
+    return render(request, 'users/members/home.html')
+
+
+@login_required
+def members_profile(request):
+    # Reuse unified editor
+    return redirect('edit_profile')
+
+
+@login_required
+def members_account(request):
+    from .models import Subscription
+    sub = Subscription.objects.filter(user=request.user).order_by('-created_at').first()
+    return render(request, 'users/members/account.html', {
+        'subscription': sub,
+    })
+
+
+@login_required
+def members_feed(request):
+    # Create new post
+    if request.method == 'POST':
+        content = (request.POST.get('content') or '').strip()
+        visibility = (request.POST.get('visibility') or 'members').strip()
+        if content:
+            from .models import FeedPost
+            if visibility not in dict(FeedPost.VISIBILITY_CHOICES):
+                visibility = 'members'
+            FeedPost.objects.create(author=request.user, content=content[:3000], visibility=visibility)
+        return redirect('members_feed')
+    # List visible posts
+    from .models import FeedPost, Connection
+    # Accepted connections for current user (either direction)
+    accepted_ids = set(Connection.objects.filter(
+        Q(requester=request.user, status='accepted') | Q(addressee=request.user, status='accepted')
+    ).values_list('requester_id', 'addressee_id'))
+    # Flatten to user IDs excluding self duplicates
+    connected_user_ids = set()
+    for a, b in accepted_ids:
+        if a:
+            connected_user_ids.add(a)
+        if b:
+            connected_user_ids.add(b)
+    connected_user_ids.discard(request.user.id)
+    posts = FeedPost.objects.filter(
+        Q(visibility__in=['public', 'members']) |
+        Q(visibility='connections', author_id__in=list(connected_user_ids)) |
+        Q(author=request.user)
+    ).select_related('author').order_by('-created_at')[:100]
+    return render(request, 'users/members/feed.html', {
+        'posts': posts,
+    })
+
+
+@login_required
+def members_connections(request):
+    from .models import Connection
+    # Simple lists for now
+    received = Connection.objects.filter(addressee=request.user).order_by('-created_at')
+    sent = Connection.objects.filter(requester=request.user).order_by('-created_at')
+    return render(request, 'users/members/connections.html', {
+        'received': received,
+        'sent': sent,
+    })
+
+
+@login_required
+def members_blog(request):
+    from .models_blog import BlogPost
+    posts = BlogPost.objects.filter(author=request.user).order_by('-created_at')
+    return render(request, 'users/members/blog.html', {
+        'posts': posts,
+    })
+
+
+@login_required
+def members_stats(request):
+    profile = TherapistProfile.objects.filter(user=request.user).first()
+    stats = None
+    if profile:
+        today = timezone.now().date()
+        stat_obj = TherapistProfileStats.objects.filter(therapist=request.user, date=today).first()
+        stats = {
+            'visit_count': stat_obj.profile_clicks if stat_obj else 0,
+            'contact_count': stat_obj.contact_clicks if stat_obj else 0,
+            'search_impressions': stat_obj.search_impressions if stat_obj else 0,
+            'search_rank': stat_obj.search_rank if stat_obj else None,
+            'last_viewed_at': profile.last_viewed_at,
+        }
+    return render(request, 'users/members/stats.html', {
+        'stats': stats,
+    })
 

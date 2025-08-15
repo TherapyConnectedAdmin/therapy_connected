@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-4">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold text-[#555B6E]">My Blog</h1>
+    <a href="{% url 'user_blog_create' %}" class="px-4 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E]">New Post</a>
+  </div>
+  <div class="space-y-4">
+    {% for post in posts %}
+      <div class="rounded border border-[#BEE3DB] bg-white p-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="font-semibold text-[#555B6E]">{{ post.title }}</div>
+            <div class="text-xs text-gray-500">{{ post.created_at|date:'M d, Y' }} • {{ post.visibility }} • {% if post.published %}Published{% else %}Draft{% endif %}</div>
+          </div>
+          <div class="flex gap-3">
+            <a href="{% url 'user_blog_edit' pk=post.pk %}" class="text-[#FF9950] hover:underline text-sm">Edit</a>
+            {% if post.slug and post.published %}
+              {% if post.visibility == 'public' or post.visibility == 'both' %}
+                <a href="{% url 'blog_detail' slug=post.slug %}" class="text-[#89B0AE] hover:underline text-sm">View</a>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="text-[#555B6E]">No posts yet.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

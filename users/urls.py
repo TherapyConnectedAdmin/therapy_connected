@@ -40,4 +40,12 @@ urlpatterns = [
     path('api/lookups/specialties/', views.api_specialties_lookup, name='api_specialties_lookup'),
     path('api/lookups/participant_types/', views.api_participant_types, name='api_participant_types'),
     path('api/lookups/age_groups/', views.api_age_groups, name='api_age_groups'),
+    # Members area
+    path('members/', views.members_home, name='members_home'),
+    path('members/profile/', views.members_profile, name='members_profile'),
+    path('members/account/', views.members_account, name='members_account'),
+    path('members/feed/', views.members_feed, name='members_feed'),
+    path('members/connections/', views.members_connections, name='members_connections'),
+    path('members/blog/', views.members_blog, name='members_blog'),
+    path('members/stats/', views.members_stats, name='members_stats'),
 ]

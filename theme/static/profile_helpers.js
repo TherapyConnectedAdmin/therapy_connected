@@ -56,7 +56,7 @@
         this.renderMobile();
       },
       canSubmit(){ return (this.dual.min.percent>=100); },
-      submitProfile(){ if(this.submitting||!this.canSubmit()) return; this.submitting=true; this.submitError=''; const csrf=window.TC_CSRF; fetch('/users/api/profile/submit/', { method:'POST', headers:{ 'X-CSRFToken': csrf } }).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.submitError=d.error||'Submit failed'; return; } const url=d.redirect||'/users/dashboard/'; window.location.href=url; }).catch(()=>{ this.submitError='Network error'; }).finally(()=> this.submitting=false); },
+  submitProfile(){ if(this.submitting||!this.canSubmit()) return; this.submitting=true; this.submitError=''; const csrf=window.TC_CSRF; fetch('/users/api/profile/submit/', { method:'POST', headers:{ 'X-CSRFToken': csrf } }).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.submitError=d.error||'Submit failed'; return; } const url=d.redirect||'/users/members/feed/'; window.location.href=url; }).catch(()=>{ this.submitError='Network error'; }).finally(()=> this.submitting=false); },
       scrollTo(id){ const el=document.getElementById(id); if(!el) return; window.scrollTo({top: el.getBoundingClientRect().top + window.scrollY - 80, behavior:'smooth'}); },
       focusFirstIncomplete(){ const target=this.sections.find(s=>s.percent<100); if(target) this.scrollTo(target.id); },
       watchData(){ const handler=()=>{ this.compute(); }; document.addEventListener('tc-profile-updated', handler); this.compute(); },

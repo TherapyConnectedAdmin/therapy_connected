@@ -23,13 +23,15 @@ def user_blog_edit(request, pk):
                 post.slug = slug
             post.save()
             form.save_m2m()
-            return redirect('dashboard')
+            return redirect('members_blog')
     else:
         form = BlogPostForm(instance=post)
     return render(request, 'users/user_blog_form.html', {'form': form, 'edit_mode': True, 'post': post})
 
 def blog_index(request):
-    posts = BlogPost.objects.filter(published=True).select_related('author').prefetch_related('tags')
+    posts = BlogPost.objects.filter(published=True).filter(
+        Q(visibility__in=['public','both'])
+    ).select_related('author').prefetch_related('tags')
     q = request.GET.get('q', '').strip()
     tag = request.GET.get('tag', '').strip()
     author = request.GET.get('author', '').strip()
@@ -81,11 +83,11 @@ def blog_index(request):
     })
 
 def blog_detail(request, slug):
-    post = get_object_or_404(BlogPost, slug=slug, published=True)
+    post = get_object_or_404(BlogPost, slug=slug, published=True, visibility__in=['public','both'])
     tags = BlogTag.objects.all().order_by('name')
     # Sidebar data
-    recent_posts = BlogPost.objects.filter(published=True).exclude(id=post.id).order_by('-created_at')[:6]
-    related_posts = BlogPost.objects.filter(published=True, tags__in=post.tags.all()).exclude(id=post.id).distinct().order_by('-created_at')[:6]
+    recent_posts = BlogPost.objects.filter(published=True, visibility__in=['public','both']).exclude(id=post.id).order_by('-created_at')[:6]
+    related_posts = BlogPost.objects.filter(published=True, visibility__in=['public','both'], tags__in=post.tags.all()).exclude(id=post.id).distinct().order_by('-created_at')[:6]
     # Simple popular tags: top 10 by usage count
     popular_tags = BlogTag.objects.all().order_by('name')[:10]
     return render(request, 'blog/detail.html', {
@@ -118,7 +120,7 @@ def user_blog_create(request):
                 post.slug = slug
             post.save()
             form.save_m2m()
-            return redirect('dashboard')
+            return redirect('members_blog')
     else:
         form = BlogPostForm()
     return render(request, 'users/user_blog_form.html', {'form': form})

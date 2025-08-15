@@ -12,6 +12,27 @@
 			"type": "shell",
 			"command": "/Users/wescollins/Documents/Therapy-Connected/.venv/bin/python -m django makemigrations users",
 			"args": []
+		},
+		{
+			"label": "makemigrations-users",
+			"type": "shell",
+			"command": "/Users/wescollins/Documents/Therapy-Connected/.venv/bin/python -m django makemigrations users",
+			"args": []
+		},
+		{
+			"label": "makemigrations-users",
+			"type": "shell",
+			"command": "/Users/wescollins/Documents/Therapy-Connected/.venv/bin/python -m django makemigrations users"
+		},
+		{
+			"label": "tc-makemigrations",
+			"type": "shell",
+			"command": "/Users/wescollins/Documents/Therapy-Connected/.venv/bin/python",
+			"args": [
+				"manage.py",
+				"makemigrations",
+				"users"
+			]
 		}
 	]
 }

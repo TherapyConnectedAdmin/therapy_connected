@@ -14,6 +14,46 @@
             defer 
             onerror="console.warn('[Alpine] primary CDN failed, attempting fallback...');(function(){var s=document.createElement('script');s.src='https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js';s.defer=true;s.onerror=function(){console.error('[Alpine] fallback Alpine load failed');window.dispatchEvent(new CustomEvent('alpine-failed'));};document.head.appendChild(s);}())">
         </script>
+        <style>
+            /* Members header: darker corporate bar */
+            .member-header{
+                background: #555B6E; /* dark slate */
+                border-bottom: 2px solid #BEE3DB;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+            }
+            /* Brand link colors */
+            .public-header .brand-link{ color:#555B6E; }
+            .member-header .brand-link{ color:#F7FAF9 !important; }
+            /* Member nav: underline/active bar with high contrast */
+            .member-header nav.member-nav{ gap: 1.25rem; background: transparent; border: 0; padding: 0; border-radius: 0; }
+            .member-header nav a.nav-link{
+                padding: 0.75rem 0.25rem;
+                border-bottom: 2px solid transparent;
+                color: #EAF7F4 !important; /* override inline */
+                background: transparent;
+                border-radius: 0;
+                transition: color .15s ease, border-color .15s ease;
+            }
+            .member-header nav a.nav-link:hover{ color:#BEE3DB !important; border-bottom-color:#BEE3DB; }
+            .member-header nav a.nav-link.active-nav{ color:#FF9950 !important; border-bottom-color:#FF9950; }
+            /* Member header action button (e.g., Logout) */
+            .member-header .action-btn{
+                background-color: transparent;
+                color: #EAF7F4;
+                border: 1px solid #BEE3DB;
+                padding: 0.5rem 0.75rem;
+                border-radius: 0.5rem;
+                font-weight: 600;
+                font-size: 0.875rem; /* text-sm */
+                transition: background .2s, color .2s, border-color .2s;
+            }
+            .member-header .action-btn:hover,
+            .member-header .action-btn:focus{
+                background-color: #BEE3DB;
+                color: #555B6E;
+                border-color: #BEE3DB;
+            }
+        </style>
         <script>
             // Safety guard: if Alpine fails to load, provide minimal shim to prevent hard breaks.
             window.addEventListener('alpine-failed', () => {
@@ -59,19 +99,25 @@
                 if(!Alpine.store('mediaLightbox')){
                     Alpine.store('mediaLightbox', {
                         open:false, type:null, src:null, caption:null,
-                                openImage(src){ console.log('[mediaLightbox] openImage', src); this.type='image'; this.src=src; this.caption=''; this.open=true; this._lock(); },
-                                openVideo(src, caption){ console.log('[mediaLightbox] openVideo', src); this.type='video'; this.src=src; this.caption=caption||''; this.open=true; this._lock(); },
-                                close(){ console.log('[mediaLightbox] close'); this.open=false; this.src=null; this.caption=null; this.type=null; this._unlock(); },
+                        openImage(src){ console.log('[mediaLightbox] openImage', src); this.type='image'; this.src=src; this.caption=''; this.open=true; this._lock(); },
+                        openVideo(src, caption){ console.log('[mediaLightbox] openVideo', src); this.type='video'; this.src=src; this.caption=caption||''; this.open=true; this._lock(); },
+                        close(){ console.log('[mediaLightbox] close'); this.open=false; this.src=null; this.caption=null; this.type=null; this._unlock(); },
                         _lock(){ document.documentElement.classList.add('overflow-hidden'); document.body.classList.add('overflow-hidden'); },
                         _unlock(){ document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden'); }
                     });
-                            // Expose for quick console inspection
-                            window.__mediaLightbox = Alpine.store('mediaLightbox');
+                    // Expose for quick console inspection
+                    window.__mediaLightbox = Alpine.store('mediaLightbox');
                 }
             });
         </script>
 </head>
-<body class="bg-gray-50 text-black font-serif leading-normal tracking-normal">
+<body class="bg-gray-50 text-black font-serif leading-normal tracking-normal min-h-screen flex flex-col">
+        {# When authenticated, hide any generic marketing CTAs across the site #}
+        {% if request.user.is_authenticated %}
+    <style>
+            .get-started-btn { display: none !important; }
+        </style>
+        {% endif %}
         <style>
             /* Reusable thin scrollbar for modal content */
             .custom-scrollbar { scrollbar-gutter: stable both-edge; }
@@ -79,101 +125,138 @@
             .custom-scrollbar::-webkit-scrollbar-track { background: #F1F5F4; border-radius: 8px; }
             .custom-scrollbar::-webkit-scrollbar-thumb { background: #BEE3DB; border-radius: 8px; border:2px solid #F1F5F4; }
             .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #89B0AE; }
-            /* Ensure body lock prevents layout shift */
-            html.overflow-hidden, body.overflow-hidden { height: 100%; overscroll-behavior: contain; }
+            /* Members header: darker corporate bar (overrides) */
+            .member-header{
+                background: #555B6E; /* dark slate */
+                border-bottom: 2px solid #BEE3DB;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+            }
+            /* Member nav: horizontal links with active underline and high contrast */
+            .member-header nav.member-nav{ gap: 1.25rem; background: transparent; border: 0; padding: 0; border-radius: 0; }
+            .member-header nav a.nav-link{
+                padding: 0.75rem 0.25rem;
+                border-bottom: 2px solid transparent;
+                color: #EAF7F4 !important;
+                background: transparent;
+                border-radius: 0;
+                transition: color .15s ease, border-color .15s ease;
+            }
+            .member-header nav a.nav-link:hover{ color:#BEE3DB !important; border-bottom-color:#BEE3DB; }
+            .member-header nav a.nav-link.active-nav{ color:#FF9950 !important; border-bottom-color:#FF9950; }
+            /* Member mobile menu background */
+            .member-header #mobile-menu nav{ background-color:#F7FFFB; border:1px solid #D8EFE8; }
+            /* Member mobile menu action button variant (on light background) */
+            .member-header #mobile-menu .action-btn{
+                background-color: #BEE3DB;
+                color: #555B6E;
+                border-color: #BEE3DB;
+            }
+            .member-header #mobile-menu .action-btn:hover,
+            .member-header #mobile-menu .action-btn:focus{
+                background-color: #89B0AE;
+                color: #FFFFFF;
+                border-color: #89B0AE;
+            }
+            /* Public login button styling */
+            .public-header .login-btn{
+                background-color: transparent;
+                color: #89B0AE;
+                border: 1px solid #89B0AE;
+                transition: background .2s, color .2s, border-color .2s;
+            }
+            .public-header .login-btn:hover,
+            .public-header .login-btn:focus{
+                background-color: #89B0AE;
+                color: #fff;
+                border-color: #89B0AE;
+            }
+            /* Sticky header on desktop for both public and member headers */
+            @media (min-width: 1024px){
+                .public-header,
+                .member-header{
+                    position: sticky;
+                    top: 0;
+                    z-index: 60; /* below media lightbox (z-120), above content */
+                }
+            }
         </style>
-    <!-- Modals now included only in home.html; all showModal logic removed -->
-    <!-- Header -->
-    <div class="min-h-screen flex flex-col">
-    <header class="shadow-sm sticky top-0 z-20" style="background-color: #FAF9F9;">
-        <style>
-        .nav-link {
-            transition: color 0.2s;
-        }
-        .nav-link:hover {
-            color: #FF9950 !important;
-        }
-        .signup-btn {
-            transition: background 0.2s, color 0.2s;
-        }
-        .signup-btn:hover {
-            color: #555B6E !important;
-        }
-        </style>
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative flex flex-col lg:flex-row items-center h-auto lg:h-16 py-2 lg:py-0">
-            <!-- Logo and mobile menu button -->
-            <div class="flex w-full lg:w-auto items-center justify-between lg:justify-start">
-                <div class="flex items-center gap-4">
-                    <a href="/" class="text-2xl font-bold" style="color: #555B6E;">Therapy Connected</a>
-                    <!-- Compact ZIP control -->
-                    <div x-data="{open:false,newZip:'',error:'',saving:false, submit(){this.error=''; if(!/^\d{5}$/.test(this.newZip)){ this.error='Enter 5 digit ZIP'; return;} this.saving=true; fetch(`/set_zip/?zip=${this.newZip}`).then(r=>r.json()).then(d=>{ if(d.status==='ok'){ window.location.reload(); } else { this.error='Could not update'; } }).catch(()=> this.error='Network error').finally(()=> this.saving=false); }}" class="relative hidden md:block">
-                        <button type="button" @click="open=!open; if(open){ $nextTick(()=> $refs.zipInput.focus()) }" class="flex items-center gap-1 text-sm font-medium px-2 py-1 rounded hover:bg-[#BEE3DB] focus:outline-none focus:ring-2 focus:ring-[#89B0AE]" :aria-expanded="open.toString()" aria-haspopup="dialog" style="color:#555B6E;">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
-                            <span class="font-semibold">
-                                {% if user_zip_city and user_zip_state %}
-                                    {{ user_zip_city }}, {{ user_zip_state }}
-                                {% elif user_zip %}
-                                    {{ user_zip }}
-                                {% else %}
-                                    Set Location
-                                {% endif %}
-                            </span>
-                        </button>
-                        <div x-cloak x-show="open" x-transition @click.outside="open=false" class="absolute left-0 mt-2 w-60 bg-white border rounded shadow-lg p-4 z-30" style="border-color:#89B0AE;">
-                            <h3 class="text-xs font-semibold mb-2 tracking-wide" style="color:#555B6E;">Change ZIP Code</h3>
-                            <form @submit.prevent="submit()" class="space-y-2">
-                                <input x-ref="zipInput" x-model="newZip" type="text" inputmode="numeric" maxlength="5" placeholder="ZIP" aria-label="ZIP code" class="w-full border rounded px-3 py-2 text-sm focus:ring-2" style="border-color:#89B0AE; color:#555B6E; background:#FAF9F9;" />
-                                <button type="button" @click="open=false; error=''; if(typeof setZipFromGeolocation==='function'){ setZipFromGeolocation(true); } else { error='Function not available'; }" class="text-xs underline font-medium" style="color:#89B0AE;">Use my location</button>
-                                <div class="flex gap-2 justify-end">
-                                    <button type="button" @click="open=false; newZip=''; error=''" class="px-3 py-1 text-xs font-medium rounded" style="background:#BEE3DB; color:#555B6E;">Cancel</button>
-                                    <button type="submit" :disabled="saving" class="px-3 py-1 text-xs font-semibold rounded" :class="saving ? 'opacity-60 cursor-not-allowed' : ''" style="background:#89B0AE; color:#FAF9F9;" x-text="saving ? 'Saving...' : 'Save'"></button>
-                                </div>
-                                <p x-show="error" x-text="error" class="text-xs font-semibold" style="color:#FF4D4F;"></p>
-                                <p class="text-[10px] mt-1" style="color:#555B6E;">Current: <strong>
+
+        <header class="{% if request.user.is_authenticated %}member-header{% else %}public-header{% endif %} bg-white border-b">
+            <div class="{% if request.user.is_authenticated %}px-4 py-3{% else %}max-w-7xl mx-auto px-4 py-3{% endif %}">
+                <div class="flex items-center gap-4 xl:grid xl:grid-cols-3">
+                    <div class="flex items-center">
+                        <a href="/" class="brand-link text-xl font-semibold flex items-center">
+                            Therapy Connected
+                            {% if request.user.is_authenticated %}
+                                <span class="ml-2 text-[11px] font-semibold px-2 py-0.5 rounded-full" style="background:#BEE3DB; color:#555B6E;">Member</span>
+                            {% endif %}
+                        </a>
+                        {% if not request.user.is_authenticated %}
+                        <!-- Desktop ZIP control (public only) -->
+                        <div class="ml-3 hidden md:block relative" x-data="{open:false,newZip:'',error:'',saving:false, submit(){this.error=''; if(!/^\\d{5}$/.test(this.newZip)){ this.error='Enter 5 digit ZIP'; return;} this.saving=true; fetch(`/set_zip/?zip=${this.newZip}`).then(r=>r.json()).then(d=>{ if(d.status==='ok'){ window.location.reload(); } else { this.error='Could not update'; } }).catch(()=> this.error='Network error').finally(()=> this.saving=false); } }">
+                            <button type="button" @click="open=!open; if(open){ $nextTick(()=> $refs.dZip && $refs.dZip.focus()) }" class="flex items-center gap-1 text-sm font-medium px-2 py-1 rounded border" style="border-color:#89B0AE; color:#555B6E; background:#FAF9F9;">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+                                <span>
                                     {% if user_zip_city and user_zip_state %}
-                                        {{ user_zip_city }}, {{ user_zip_state }} ({{ user_zip }})
+                                        {{ user_zip_city }}, {{ user_zip_state }}
                                     {% elif user_zip %}
                                         {{ user_zip }}
                                     {% else %}
-                                        (none)
+                                        Set Location
                                     {% endif %}
-                                </strong></p>
-                            </form>
+                                </span>
+                            </button>
+                            <div x-cloak x-show="open" @click.outside="open=false" class="absolute z-50 mt-2 left-0 bg-white border rounded shadow p-3 w-64">
+                                <form @submit.prevent="submit()" class="space-y-2">
+                                    <input x-ref="dZip" x-model="newZip" type="text" inputmode="numeric" maxlength="5" placeholder="ZIP" aria-label="ZIP code" class="w-full border rounded px-3 py-2 text-sm" style="border-color:#89B0AE; color:#555B6E; background:#FAF9F9;" />
+                                    <button type="button" @click="open=false; error=''; if(typeof setZipFromGeolocation==='function'){ setZipFromGeolocation(true); } else { error='Function not available'; }" class="text-xs underline font-medium" style="color:#89B0AE;">Use my location</button>
+                                    <div class="flex gap-2 justify-end">
+                                        <button type="button" @click="open=false; newZip=''; error=''" class="px-3 py-1 text-xs font-medium rounded" style="background:#BEE3DB; color:#555B6E;">Cancel</button>
+                                        <button type="submit" :disabled="saving" class="px-3 py-1 text-xs font-semibold rounded" :class="saving ? 'opacity-60 cursor-not-allowed' : ''" style="background:#89B0AE; color:#FAF9F9;" x-text="saving ? 'Saving...' : 'Save'"></button>
+                                    </div>
+                                    <p x-show="error" x-text="error" class="text-xs font-semibold" style="color:#FF4D4F;"></p>
+                                </form>
+                            </div>
                         </div>
+                        {% endif %}
+                        <button id="mobile-menu-btn" class="ml-auto inline-flex xl:hidden items-center justify-center w-10 h-10 rounded-md" aria-label="Toggle menu">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-6 h-6" style="color:#555B6E;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        </button>
                     </div>
+                    {% if request.user.is_authenticated %}
+                    <nav class="hidden xl:flex items-center gap-2 member-nav xl:justify-self-center xl:ml-0">
+                        <a href="/users/members/feed/" class="font-medium nav-link{% if request.path|slice:':20' == '/users/members/feed/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':20' == '/users/members/feed/' %}#FF9950{% else %}#555B6E{% endif %};">Home</a>
+                        <a href="/users/members/connections/" class="font-medium nav-link{% if request.path|slice:':27' == '/users/members/connections/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':27' == '/users/members/connections/' %}#FF9950{% else %}#555B6E{% endif %};">Connections</a>
+                        <a href="/users/members/blog/" class="font-medium nav-link{% if request.path|slice:':20' == '/users/members/blog/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':20' == '/users/members/blog/' %}#FF9950{% else %}#555B6E{% endif %};">Blog</a>
+                        <a href="/users/members/profile/" class="font-medium nav-link{% if request.path|slice:':23' == '/users/members/profile/' or request.path|slice:':20' == '/users/profile/edit/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':23' == '/users/members/profile/' or request.path|slice:':20' == '/users/profile/edit/' %}#FF9950{% else %}#555B6E{% endif %};">Profile</a>
+                        <a href="/users/members/stats/" class="font-medium nav-link{% if request.path|slice:':21' == '/users/members/stats/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':21' == '/users/members/stats/' %}#FF9950{% else %}#555B6E{% endif %};">Stats</a>
+                        <a href="/users/members/account/" class="font-medium nav-link{% if request.path|slice:':23' == '/users/members/account/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':23' == '/users/members/account/' %}#FF9950{% else %}#555B6E{% endif %};">Account</a>
+                    </nav>
+                    <div class="hidden xl:flex items-center space-x-2 xl:space-x-4 xl:justify-self-end xl:ml-0">
+                        <a href="/users/logout/" class="action-btn">Logout</a>
+                    </div>
+                    {% else %}
+                    <nav class="hidden xl:flex items-center gap-6 xl:justify-self-center xl:ml-0">
+                        <a href="/" class="font-medium nav-link{% if request.path == '/' %} active-nav{% endif %}" style="color: {% if request.path == '/' %}#FF9950{% else %}#555B6E{% endif %};">Home</a>
+                        <a href="/therapists/" class="font-medium nav-link{% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %}#FF9950{% else %}#555B6E{% endif %};">Therapists</a>
+                        <a href="{% url 'blog_index' %}" class="font-medium nav-link{% if request.path|slice:':6' == '/blog/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/blog/' %}#FF9950{% else %}#555B6E{% endif %};">Blog</a>
+                        <a href="/features/" class="font-medium nav-link{% if request.path|slice:':9' == '/features' %} active-nav{% endif %}" style="color: {% if request.path|slice:':9' == '/features' %}#FF9950{% else %}#555B6E{% endif %};">Features</a>
+                        <a href="/pricing/" class="font-medium nav-link{% if request.path|slice:':8' == '/pricing' %} active-nav{% endif %}" style="color: {% if request.path|slice:':8' == '/pricing' %}#FF9950{% else %}#555B6E{% endif %};">Pricing</a>
+                        <a href="/about/" class="font-medium nav-link{% if request.path|slice:':6' == '/about' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/about' %}#FF9950{% else %}#555B6E{% endif %};">About</a>
+                    </nav>
+                    <div class="hidden xl:flex items-center space-x-2 xl:space-x-4 xl:justify-self-end xl:ml-0">
+                        <a href="/users/login/" class="login-btn px-4 py-2 rounded font-semibold text-sm">Login</a>
+                        {% if request.path != '/users/register/' %}
+                            <a href="/subscribe/" class="get-started-btn px-4 py-2 rounded font-semibold text-sm signup-btn">Get Started</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
-                <!-- Mobile menu button -->
-                <button id="mobile-menu-btn" class="lg:hidden p-2 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE] ml-2" aria-label="Open navigation">
-                    <svg class="h-6 w-6 text-[#555B6E]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-                </button>
-            </div>
-    
-            <!-- Desktop nav centered via flex (prevents overlap with ZIP control) -->
-            <nav class="hidden lg:flex flex-1 justify-center items-center gap-6">
-                <a href="/" class="font-medium nav-link{% if request.path == '/' %} active-nav{% endif %}" style="color: {% if request.path == '/' %}#FF9950{% else %}#555B6E{% endif %};">Home</a>
-                <a href="/therapists/" class="font-medium nav-link{% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %}#FF9950{% else %}#555B6E{% endif %};">Therapists</a>
-                <a href="{% url 'blog_index' %}" class="font-medium nav-link{% if request.path|slice:':6' == '/blog/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/blog/' %}#FF9950{% else %}#555B6E{% endif %};">Blog</a>
-                <a href="/features/" class="font-medium nav-link{% if request.path|slice:':9' == '/features' %} active-nav{% endif %}" style="color: {% if request.path|slice:':9' == '/features' %}#FF9950{% else %}#555B6E{% endif %};">Features</a>
-                <a href="/pricing/" class="font-medium nav-link{% if request.path|slice:':8' == '/pricing' %} active-nav{% endif %}" style="color: {% if request.path|slice:':8' == '/pricing' %}#FF9950{% else %}#555B6E{% endif %};">Pricing</a>
-                <a href="/about/" class="font-medium nav-link{% if request.path|slice:':6' == '/about' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/about' %}#FF9950{% else %}#555B6E{% endif %};">About</a>
-            </nav>
-            <div class="hidden lg:flex items-center space-x-2 lg:space-x-4 ml-auto">
-                {% if request.user.is_authenticated %}
-                    <a href="/users/logout/" class="text-sm font-medium" style="color: #89B0AE;">Logout</a>
-                    {% if request.path != '/users/profile-wizard/' %}
-                        <a href="/users/dashboard/" class="get-started-btn px-4 py-2 rounded font-semibold text-sm">Dashboard</a>
-                    {% endif %}
-                {% else %}
-                    <a href="/users/login/" class="text-sm font-medium" style="color: #89B0AE;">Login</a>
-                    {% if request.path != '/users/register/' %}
-                        <a href="/subscribe/" class="get-started-btn px-4 py-2 rounded font-semibold text-sm signup-btn">Get Started</a>
-                    {% endif %}
-                {% endif %}
-            </div>
-            <!-- Mobile nav dropdown -->
-            <div id="mobile-menu" class="lg:hidden hidden w-full mt-2">
+                <!-- Mobile nav dropdown -->
+                <div id="mobile-menu" class="xl:hidden hidden w-full mt-2">
                 <nav class="flex flex-col gap-2 bg-white rounded shadow p-4 items-center text-center">
-                    <!-- Mobile ZIP control -->
+                    {% if not request.user.is_authenticated %}
+                    <!-- Mobile ZIP control (public only) -->
                     <div x-data="{open:false,newZip:'',error:'',saving:false, submit(){this.error=''; if(!/^\d{5}$/.test(this.newZip)){ this.error='Enter 5 digit ZIP'; return;} this.saving=true; fetch(`/set_zip/?zip=${this.newZip}`).then(r=>r.json()).then(d=>{ if(d.status==='ok'){ window.location.reload(); } else { this.error='Could not update'; } }).catch(()=> this.error='Network error').finally(()=> this.saving=false); }}" class="w-full mb-2">
                         <button type="button" @click="open=!open; if(open){ $nextTick(()=> $refs.mZip.focus()) }" class="w-full flex items-center justify-center gap-1 text-sm font-medium px-2 py-2 rounded border" style="border-color:#89B0AE; color:#555B6E;">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
@@ -199,41 +282,46 @@
                             </form>
                         </div>
                     </div>
-                    <a href="/" class="font-medium nav-link{% if request.path == '/' %} active-nav{% endif %}" style="color: {% if request.path == '/' %}#FF9950{% else %}#555B6E{% endif %};">Home</a>
-                    <a href="/therapists/" class="font-medium nav-link{% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %}#FF9950{% else %}#555B6E{% endif %};">Therapists</a>
-                    <a href="{% url 'blog_index' %}" class="font-medium nav-link{% if request.path|slice:':6' == '/blog/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/blog/' %}#FF9950{% else %}#555B6E{% endif %};">Blog</a>
-                    <a href="#" class="font-medium nav-link" style="color: #555B6E;">Features</a>
-                    <a href="#" class="font-medium nav-link" style="color: #555B6E;">Pricing</a>
-                    <a href="#" class="font-medium nav-link" style="color: #555B6E;">About</a>
-                    <div class="flex flex-col gap-2 mt-2">
-                        {% if request.user.is_authenticated %}
-                            <a href="/users/logout/" class="text-sm font-medium" style="color: #89B0AE;">Logout</a>
-                            {% if request.path != '/users/profile-wizard/' %}
-                                <a href="/users/profile/" class="px-4 py-2 rounded font-semibold text-sm text-center signup-btn" style="background-color: #FF9950; color: #fff;">Profile</a>
-                                <a href="/users/profile/" class="get-started-btn px-4 py-2 rounded font-semibold text-sm text-center signup-btn">Profile</a>
-                            {% endif %}
-                        {% else %}
-                            <a href="/users/login/" class="text-sm font-medium" style="color: #89B0AE;">Login</a>
-                            {% if request.path != '/users/register/' %}
-                                <a href="/subscribe/" class="get-started-btn px-4 py-2 rounded font-semibold text-sm text-center signup-btn">Get Started</a>
-                            {% endif %}
-        <style>
-          .get-started-btn {
-            background-color: #89B0AE;
-            color: #fff;
-            transition: background 0.2s, color 0.2s;
-          }
-          .get-started-btn:hover, .get-started-btn:focus {
-            background-color: #555B6E !important;
-            color: #fff !important;
-          }
-        </style>
-                        {% endif %}
-                    </div>
+                    {% endif %}
+                                        {% if request.user.is_authenticated %}
+                                            <a href="/users/members/feed/" class="font-medium nav-link{% if request.path|slice:':20' == '/users/members/feed/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':20' == '/users/members/feed/' %}#FF9950{% else %}#555B6E{% endif %};">Home</a>
+                                            <a href="/users/members/connections/" class="font-medium nav-link{% if request.path|slice:':27' == '/users/members/connections/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':27' == '/users/members/connections/' %}#FF9950{% else %}#555B6E{% endif %};">Connections</a>
+                                            <a href="/users/members/blog/" class="font-medium nav-link{% if request.path|slice:':20' == '/users/members/blog/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':20' == '/users/members/blog/' %}#FF9950{% else %}#555B6E{% endif %};">Blog</a>
+                                            <a href="/users/members/profile/" class="font-medium nav-link{% if request.path|slice:':23' == '/users/members/profile/' or request.path|slice:':20' == '/users/profile/edit/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':23' == '/users/members/profile/' or request.path|slice:':20' == '/users/profile/edit/' %}#FF9950{% else %}#555B6E{% endif %};">Profile</a>
+                                            <a href="/users/members/stats/" class="font-medium nav-link{% if request.path|slice:':21' == '/users/members/stats/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':21' == '/users/members/stats/' %}#FF9950{% else %}#555B6E{% endif %};">Stats</a>
+                                            <a href="/users/members/account/" class="font-medium nav-link{% if request.path|slice:':23' == '/users/members/account/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':23' == '/users/members/account/' %}#FF9950{% else %}#555B6E{% endif %};">Account</a>
+                                            <div class="flex flex-col gap-2 mt-2">
+                                                <a href="/users/logout/" class="action-btn text-center">Logout</a>
+                                            </div>
+                                        {% else %}
+                                                <a href="/" class="font-medium nav-link{% if request.path == '/' %} active-nav{% endif %}" style="color: {% if request.path == '/' %}#FF9950{% else %}#555B6E{% endif %};">Home</a>
+                                                <a href="/therapists/" class="font-medium nav-link{% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':12' == '/therapists/' or request.path|slice:':9' == '/users/t/' %}#FF9950{% else %}#555B6E{% endif %};">Therapists</a>
+                                                <a href="{% url 'blog_index' %}" class="font-medium nav-link{% if request.path|slice:':6' == '/blog/' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/blog/' %}#FF9950{% else %}#555B6E{% endif %};">Blog</a>
+                                                <a href="/features/" class="font-medium nav-link{% if request.path|slice:':9' == '/features' %} active-nav{% endif %}" style="color: {% if request.path|slice:':9' == '/features' %}#FF9950{% else %}#555B6E{% endif %};">Features</a>
+                                                <a href="/pricing/" class="font-medium nav-link{% if request.path|slice:':8' == '/pricing' %} active-nav{% endif %}" style="color: {% if request.path|slice:':8' == '/pricing' %}#FF9950{% else %}#555B6E{% endif %};">Pricing</a>
+                                                <a href="/about/" class="font-medium nav-link{% if request.path|slice:':6' == '/about' %} active-nav{% endif %}" style="color: {% if request.path|slice:':6' == '/about' %}#FF9950{% else %}#555B6E{% endif %};">About</a>
+                        <div class="flex flex-col gap-2 mt-2">
+                            <a href="/users/login/" class="login-btn px-4 py-2 rounded font-semibold text-sm text-center">Login</a>
+                                                        {% if request.path != '/users/register/' %}
+                                                                <a href="/subscribe/" class="get-started-btn px-4 py-2 rounded font-semibold text-sm text-center signup-btn">Get Started</a>
+                                                        {% endif %}
+                                                        <style>
+                                                            .get-started-btn {
+                                                                background-color: #89B0AE;
+                                                                color: #fff;
+                                                                transition: background 0.2s, color 0.2s;
+                                                            }
+                                                            .get-started-btn:hover, .get-started-btn:focus {
+                                                                background-color: #555B6E !important;
+                                                                color: #fff !important;
+                                                            }
+                                                        </style>
+                                                </div>
+                                        {% endif %}
                 </nav>
             </div>
         <script>
-        // Simple mobile nav toggle
+    // Simple mobile nav toggle
         document.addEventListener('DOMContentLoaded', function() {
             var btn = document.getElementById('mobile-menu-btn');
             var menu = document.getElementById('mobile-menu');
@@ -249,7 +337,6 @@
         {% block content %}{% endblock %}
     </main>
     {% include "footer.html" %}
-    </div>
         <!-- Global site JS (modal logic + geolocation ZIP helper) -->
         <script src="{% static 'home.js' %}"></script>
                 <script>
