@@ -77,16 +77,81 @@ class FeedPost(models.Model):
         ('members', 'Members'),
         ('connections', 'Connections'),
     ]
+    POST_TYPE_CHOICES = [
+        ('text', 'Text'),
+        ('photo', 'Photo'),
+        ('video', 'Video'),
+        ('event', 'Event'),
+        ('celebrate', 'Celebrate'),
+    ]
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feed_posts')
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     visibility = models.CharField(max_length=16, choices=VISIBILITY_CHOICES, default='members')
+    # Post composition and scheduling
+    post_type = models.CharField(max_length=16, choices=POST_TYPE_CHOICES, default='text')
+    title = models.CharField(max_length=200, blank=True, null=True)
+    is_published = models.BooleanField(default=True)
+    published_at = models.DateTimeField(blank=True, null=True)
+    scheduled_at = models.DateTimeField(blank=True, null=True)
+    # Event-specific optional fields
+    event_start_at = models.DateTimeField(blank=True, null=True)
+    event_location = models.CharField(max_length=255, blank=True, null=True)
+    event_url = models.URLField(blank=True, null=True)
+    # Celebrate-specific optional fields
+    celebrate_type = models.CharField(max_length=64, blank=True, null=True)
 
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
         return f"Feed by {self.author.email} @ {self.created_at:%Y-%m-%d}"
+
+
+class FeedMedia(models.Model):
+    TYPE_CHOICES = [
+        ('image', 'Image'),
+        ('video', 'Video'),
+    ]
+    post = models.ForeignKey(FeedPost, on_delete=models.CASCADE, related_name='media')
+    file = models.FileField(upload_to='feed_media/%Y/%m/')
+    type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    meta = models.JSONField(blank=True, null=True, default=dict)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Media {self.type} for post {self.post_id}"
+
+
+class FeedReaction(models.Model):
+    REACTION_CHOICES = [
+        ('like', 'Like'),
+        ('celebrate', 'Celebrate'),
+        ('support', 'Support'),
+        ('insightful', 'Insightful'),
+        ('love', 'Love'),
+    ]
+    post = models.ForeignKey(FeedPost, on_delete=models.CASCADE, related_name='reactions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feed_reactions')
+    reaction = models.CharField(max_length=16, choices=REACTION_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('post', 'user')
+
+    def __str__(self):
+        return f"{self.user_id}:{self.reaction} on {self.post_id}"
+
+
+class FeedComment(models.Model):
+    post = models.ForeignKey(FeedPost, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feed_comments')
+    content = models.TextField()
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True, related_name='replies')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Comment by {self.author_id} on post {self.post_id}"
 
 
 class Connection(models.Model):

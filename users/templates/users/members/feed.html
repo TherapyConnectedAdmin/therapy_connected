@@ -1,29 +1,176 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="max-w-3xl mx-auto py-8 px-4">
-  <h1 class="text-2xl font-bold text-[#555B6E] mb-4">My Feed</h1>
-  <form method="post" class="mb-6 rounded border border-[#BEE3DB] bg-white p-4">
-    {% csrf_token %}
-    <label class="block text-sm text-[#555B6E] mb-1">Share an update</label>
-    <textarea name="content" rows="3" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]"></textarea>
-    <div class="flex items-center justify-between mt-2">
-      <select name="visibility" class="border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]">
-        <option value="members">Members</option>
-        <option value="connections">Connections</option>
-        <option value="public">Public</option>
-      </select>
-      <button type="submit" class="px-4 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E]">Post</button>
+  <h1 class="text-2xl font-bold text-[#555B6E] mb-4">Home</h1>
+  <!-- Composer (LinkedIn-like trigger) -->
+  <div class="rounded border border-[#BEE3DB] bg-white p-4 mb-6">
+    <div class="flex items-center gap-3">
+      <div class="flex-1">
+        <button id="open-composer" class="w-full text-left border border-[#BEE3DB] rounded-full px-4 py-2 text-[#555B6E]/80 hover:bg-[#F6FFF8]">Start a post</button>
+      </div>
     </div>
-  </form>
+    <div class="mt-3 flex items-center gap-4 text-sm">
+      <button class="flex items-center gap-1 text-[#89B0AE]" data-type="photo" data-ctype>Photo</button>
+      <button class="flex items-center gap-1 text-[#89B0AE]" data-type="video" data-ctype>Video</button>
+      <button class="flex items-center gap-1 text-[#89B0AE]" data-type="event" data-ctype>Event</button>
+      <button class="flex items-center gap-1 text-[#89B0AE]" data-type="celebrate" data-ctype>Celebrate</button>
+    </div>
+  </div>
+
+  <!-- Modal Composer -->
+  <div id="composer-modal" class="fixed inset-0 bg-black/40 hidden z-[120]">
+    <div class="max-w-2xl mx-auto mt-20 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
+      <form method="post" enctype="multipart/form-data" id="composer-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create" />
+        <input type="hidden" name="post_type" id="composer-post-type" value="text" />
+        <div class="px-4 py-3 border-b border-[#BEE3DB] flex items-center justify-between">
+          <div class="font-semibold text-[#555B6E]">Create a post</div>
+          <button type="button" id="close-composer" class="text-[#555B6E]">✕</button>
+        </div>
+        <div class="p-4 space-y-3">
+          <div>
+            <select name="visibility" class="border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]">
+              <option value="members">Members</option>
+              <option value="connections">Connections</option>
+              <option value="public">Public</option>
+            </select>
+          </div>
+          <div id="composer-title-wrap" class="hidden">
+            <input type="text" name="title" placeholder="Title" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
+          </div>
+          <textarea name="content" rows="5" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" placeholder="What do you want to talk about?"></textarea>
+          <div id="composer-event-fields" class="hidden grid grid-cols-1 md:grid-cols-2 gap-2">
+            <input type="datetime-local" name="event_start_at" class="border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
+            <input type="text" name="event_location" placeholder="Location" class="border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
+            <input type="url" name="event_url" placeholder="Event URL" class="md:col-span-2 border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
+          </div>
+          <div id="composer-celebrate-fields" class="hidden">
+            <input type="text" name="celebrate_type" placeholder="What are you celebrating? (Promotion, Work anniversary, etc.)" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3 text-sm">
+              <label class="cursor-pointer text-[#89B0AE]"><input type="file" name="media" class="hidden" /> Add media</label>
+              <div class="flex items-center gap-1">
+                <span class="text-[#555B6E]/70">Schedule:</span>
+                <input type="datetime-local" name="scheduled_at" class="border border-[#BEE3DB] rounded px-2 py-1 bg-[#FAF9F9] text-[#555B6E] text-xs" />
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" id="composer-cancel" class="px-3 py-2 rounded font-semibold text-sm bg-[#BEE3DB] text-[#555B6E]">Cancel</button>
+              <button type="submit" class="px-4 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E]">Post</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="space-y-4">
     {% for post in posts %}
       <div class="rounded border border-[#BEE3DB] bg-white p-4">
-        <div class="text-sm text-gray-500">{{ post.author.first_name }} {{ post.author.last_name }} • {{ post.created_at|date:'M d, Y H:i' }} • {{ post.visibility }}</div>
+        <div class="text-sm text-gray-500 flex items-center justify-between">
+          <div>
+            {{ post.author.first_name }} {{ post.author.last_name }} • {{ post.created_at|date:'M d, Y H:i' }} • {{ post.visibility }}
+            {% if post.title %}<div class="font-semibold text-[#555B6E]">{{ post.title }}</div>{% endif %}
+          </div>
+          <div class="text-xs text-[#555B6E]/60">{{ post.post_type }}</div>
+        </div>
         <div class="mt-2 text-[#555B6E]">{{ post.content|linebreaksbr }}</div>
+        {% if post.media.all %}
+          <div class="mt-2 grid grid-cols-2 gap-2">
+            {% for m in post.media.all %}
+              {% if m.type == 'image' %}
+                <img src="{{ m.file.url }}" alt="" class="rounded" />
+              {% else %}
+                <video class="rounded" controls src="{{ m.file.url }}"></video>
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="mt-3 flex items-center gap-4 text-sm text-[#555B6E]">
+          <button class="react-btn" data-post="{{ post.id }}" data-reaction="like">👍 Like</button>
+          <button class="react-btn" data-post="{{ post.id }}" data-reaction="celebrate">🎉 Celebrate</button>
+          <button class="react-btn" data-post="{{ post.id }}" data-reaction="support">🤝 Support</button>
+          <button class="react-btn" data-post="{{ post.id }}" data-reaction="insightful">💡 Insightful</button>
+          <button class="react-btn" data-post="{{ post.id }}" data-reaction="love">❤️ Love</button>
+        </div>
+        <div class="mt-2 text-xs text-[#555B6E]/70">
+          {{ post.reactions.count }} reactions • {{ post.comments.count }} comments
+        </div>
+        <!-- Comments -->
+        <div class="mt-3 space-y-3">
+          {% for c in post.comments.all %}
+            <div class="border border-[#E6F2F0] rounded p-2">
+              <div class="text-xs text-[#555B6E]/70">{{ c.author.first_name }} {{ c.author.last_name }} • {{ c.created_at|date:'M d, Y H:i' }}</div>
+              <div class="text-sm text-[#555B6E]">{{ c.content|linebreaksbr }}</div>
+            </div>
+          {% endfor %}
+          <form class="comment-form" data-post="{{ post.id }}">
+            {% csrf_token %}
+            <div class="flex gap-2">
+              <input type="text" name="content" class="flex-1 border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E] text-sm" placeholder="Add a comment" />
+              <button class="px-3 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white">Comment</button>
+            </div>
+          </form>
+        </div>
       </div>
     {% empty %}
       <div class="text-[#555B6E]">No posts yet.</div>
     {% endfor %}
   </div>
 </div>
+
+<script>
+(function(){
+  const modal = document.getElementById('composer-modal');
+  const openBtn = document.getElementById('open-composer');
+  const closeBtn = document.getElementById('close-composer');
+  const cancelBtn = document.getElementById('composer-cancel');
+  const form = document.getElementById('composer-form');
+  const postType = document.getElementById('composer-post-type');
+  const titleWrap = document.getElementById('composer-title-wrap');
+  const eventFields = document.getElementById('composer-event-fields');
+  const celebrateFields = document.getElementById('composer-celebrate-fields');
+
+  function setType(t){
+    postType.value = t;
+    titleWrap.classList.toggle('hidden', !(t==='photo' || t==='video' || t==='event' || t==='celebrate'));
+    eventFields.classList.toggle('hidden', t!=='event');
+    celebrateFields.classList.toggle('hidden', t!=='celebrate');
+  }
+
+  openBtn?.addEventListener('click', ()=>{ modal.classList.remove('hidden'); setType('text'); });
+  closeBtn?.addEventListener('click', ()=> modal.classList.add('hidden'));
+  cancelBtn?.addEventListener('click', ()=> modal.classList.add('hidden'));
+  document.querySelectorAll('[data-ctype]')?.forEach(btn=>{
+    btn.addEventListener('click', ()=>{ modal.classList.remove('hidden'); setType(btn.dataset.type||'text'); });
+  });
+
+  // Reactions
+  document.querySelectorAll('.react-btn').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      const postId = btn.dataset.post;
+      const reaction = btn.dataset.reaction;
+      const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value;
+      const res = await fetch(`/users/api/feed/${postId}/react/`, { method: 'POST', headers: {'X-CSRFToken': csrf} , body: new URLSearchParams({reaction})});
+      if(!res.ok) return;
+      location.reload();
+    });
+  });
+
+  // Comments
+  document.querySelectorAll('.comment-form').forEach(f=>{
+    f.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const postId = f.dataset.post;
+      const data = new FormData(f);
+      const res = await fetch(`/users/api/feed/${postId}/comment/`, { method:'POST', body:data });
+      if(!res.ok) return;
+      location.reload();
+    });
+  });
+})();
+</script>
 {% endblock %}

@@ -68,6 +68,7 @@ from django.utils.decorators import method_decorator
 from django.core.exceptions import ValidationError
 from django.db import transaction as db_transaction
 from users.utils.profile_completion import compute_profile_completion
+from django.views.decorators.csrf import csrf_protect
 
 # Temporary in-memory store for tokens (use a model for production)
 confirmation_tokens = {}
@@ -2140,15 +2141,47 @@ def members_account(request):
 
 @login_required
 def members_feed(request):
-    # Create new post
-    if request.method == 'POST':
+    # Create new post (simple form fallback)
+    if request.method == 'POST' and request.POST.get('action') == 'create':
         content = (request.POST.get('content') or '').strip()
         visibility = (request.POST.get('visibility') or 'members').strip()
-        if content:
+        post_type = (request.POST.get('post_type') or 'text').strip()
+        title = (request.POST.get('title') or '').strip() or None
+        scheduled_at = (request.POST.get('scheduled_at') or '').strip() or None
+        event_start_at = (request.POST.get('event_start_at') or '').strip() or None
+        event_location = (request.POST.get('event_location') or '').strip() or None
+        event_url = (request.POST.get('event_url') or '').strip() or None
+        celebrate_type = (request.POST.get('celebrate_type') or '').strip() or None
+        if content or title:
             from .models import FeedPost
             if visibility not in dict(FeedPost.VISIBILITY_CHOICES):
                 visibility = 'members'
-            FeedPost.objects.create(author=request.user, content=content[:3000], visibility=visibility)
+            if post_type not in dict(FeedPost.POST_TYPE_CHOICES):
+                post_type = 'text'
+            post = FeedPost.objects.create(
+                author=request.user,
+                content=content[:5000],
+                visibility=visibility,
+                post_type=post_type,
+                title=title,
+            )
+            # schedule if present
+            from django.utils.dateparse import parse_datetime
+            if scheduled_at:
+                dt = parse_datetime(scheduled_at)
+                if dt:
+                    post.scheduled_at = dt
+                    post.is_published = False
+            if post_type == 'event':
+                if event_start_at:
+                    dt2 = parse_datetime(event_start_at)
+                    if dt2:
+                        post.event_start_at = dt2
+                post.event_location = event_location
+                post.event_url = event_url
+            if post_type == 'celebrate':
+                post.celebrate_type = celebrate_type
+            post.save()
         return redirect('members_feed')
     # List visible posts
     from .models import FeedPost, Connection
@@ -2168,10 +2201,59 @@ def members_feed(request):
         Q(visibility__in=['public', 'members']) |
         Q(visibility='connections', author_id__in=list(connected_user_ids)) |
         Q(author=request.user)
-    ).select_related('author').order_by('-created_at')[:100]
+    ).select_related('author').prefetch_related('comments__author', 'reactions', 'media').order_by('-created_at')[:100]
     return render(request, 'users/members/feed.html', {
         'posts': posts,
     })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_feed_react(request, post_id):
+    from .models import FeedPost, FeedReaction
+    reaction = (request.POST.get('reaction') or 'like').strip()
+    if reaction not in dict(FeedReaction.REACTION_CHOICES):
+        reaction = 'like'
+    post = FeedPost.objects.filter(id=post_id).first()
+    if not post:
+        return JsonResponse({'error': 'Not found'}, status=404)
+    # Toggle or set
+    obj, created = FeedReaction.objects.update_or_create(post=post, user=request.user, defaults={'reaction': reaction})
+    return JsonResponse({'ok': True, 'reaction': obj.reaction, 'created': created})
+
+
+@login_required
+@require_http_methods(["POST"]) 
+def api_feed_comment(request, post_id):
+    from .models import FeedPost, FeedComment
+    post = FeedPost.objects.filter(id=post_id).first()
+    if not post:
+        return JsonResponse({'error': 'Not found'}, status=404)
+    content = (request.POST.get('content') or '').strip()
+    parent_id = request.POST.get('parent_id')
+    if not content:
+        return JsonResponse({'error': 'Empty'}, status=400)
+    parent = None
+    if parent_id:
+        parent = FeedComment.objects.filter(id=parent_id, post=post).first()
+    c = FeedComment.objects.create(post=post, author=request.user, content=content[:2000], parent=parent)
+    return JsonResponse({'ok': True, 'id': c.id, 'content': c.content, 'author': request.user.get_full_name() or request.user.username, 'created_at': c.created_at.isoformat()})
+
+
+@login_required
+@require_http_methods(["POST"]) 
+def api_feed_media_upload(request, post_id):
+    from .models import FeedPost, FeedMedia
+    post = FeedPost.objects.filter(id=post_id, author=request.user).first()
+    if not post:
+        return JsonResponse({'error': 'Not found or no permission'}, status=404)
+    f = request.FILES.get('file')
+    if not f:
+        return JsonResponse({'error': 'No file'}, status=400)
+    # naive type detection
+    mtype = 'image' if (f.content_type or '').startswith('image/') else 'video'
+    media = FeedMedia.objects.create(post=post, file=f, type=mtype)
+    return JsonResponse({'ok': True, 'id': media.id, 'type': media.type, 'url': media.file.url})
 
 
 @login_required

@@ -2047,6 +2047,9 @@
   .mt-12 {
     margin-top: calc(var(--spacing) * 12);
   }
+  .mt-20 {
+    margin-top: calc(var(--spacing) * 20);
+  }
   .mt-auto {
     margin-top: auto;
   }
@@ -3012,6 +3015,9 @@
   }
   .border-\[\#E5F4F2\] {
     border-color: #E5F4F2;
+  }
+  .border-\[\#E6F2F0\] {
+    border-color: #E6F2F0;
   }
   .border-\[\#FF9950\] {
     border-color: #FF9950;

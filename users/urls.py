@@ -48,4 +48,8 @@ urlpatterns = [
     path('members/connections/', views.members_connections, name='members_connections'),
     path('members/blog/', views.members_blog, name='members_blog'),
     path('members/stats/', views.members_stats, name='members_stats'),
+    # Feed APIs
+    path('api/feed/<int:post_id>/react/', views.api_feed_react, name='api_feed_react'),
+    path('api/feed/<int:post_id>/comment/', views.api_feed_comment, name='api_feed_comment'),
+    path('api/feed/<int:post_id>/media/', views.api_feed_media_upload, name='api_feed_media_upload'),
 ]
