@@ -205,6 +205,8 @@ class TherapistProfile(models.Model):
     gender = models.ForeignKey('Gender', on_delete=models.SET_NULL, blank=True, null=True, related_name='therapists')
     participant_types = models.ManyToManyField('ParticipantType', related_name='therapists', blank=True)
     age_groups = models.ManyToManyField('AgeGroup', related_name='therapists', blank=True)
+    # Tracks the most recent time a visitor viewed this therapist's public profile
+    last_viewed_at = models.DateTimeField(blank=True, null=True)
     def __str__(self):
         return f"{self.first_name} {self.last_name}".strip()
 
