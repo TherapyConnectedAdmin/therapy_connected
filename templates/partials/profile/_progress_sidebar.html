@@ -4,8 +4,27 @@
   <div class="rounded-2xl bg-white/70 ring-1 ring-[#BEE3DB] p-4 shadow-lg flex flex-col gap-4">
     <div>
       <h4 class="text-sm font-semibold text-[#116466] tracking-wide mb-1">Profile Progress</h4>
-      <div class="w-full h-2 bg-[#E5F4F2] rounded-full overflow-hidden"><div class="h-full bg-[#116466] transition-all" :style="'width:' + overall.percent + '%'" aria-hidden="true"></div></div>
-      <p class="mt-1 text-[11px] text-[#555B6E]"><span x-text="overall.completedFields"></span>/<span x-text="overall.totalFields"></span> Fields (<span x-text="Math.round(overall.percent)"></span>%)</p>
+      <div class="space-y-2">
+        <div>
+          <div class="flex items-center justify-between text-[11px] text-[#555B6E] mb-1">
+            <span>Minimum Required</span>
+            <span><span x-text="dual.min.filled"></span>/<span x-text="dual.min.total"></span> (<span x-text="dual.min.percent"></span>%)</span>
+          </div>
+          <div class="w-full h-2 bg-[#E5F4F2] rounded-full overflow-hidden"><div class="h-full bg-[#116466] transition-all" :style="'width:' + dual.min.percent + '%'" aria-hidden="true"></div></div>
+          <ul class="mt-1 text-[11px] text-[#555B6E] list-disc list-inside" x-show="dual.min.percent<100">
+            <template x-for="m in minMissing" :key="m">
+              <li x-text="m"></li>
+            </template>
+          </ul>
+        </div>
+        <div>
+          <div class="flex items-center justify-between text-[11px] text-[#555B6E] mb-1">
+            <span>Full Profile</span>
+            <span><span x-text="overall.completedFields"></span>/<span x-text="overall.totalFields"></span> (<span x-text="Math.round(overall.percent)"></span>%)</span>
+          </div>
+          <div class="w-full h-2 bg-[#E5F4F2] rounded-full overflow-hidden"><div class="h-full bg-[#89B0AE] transition-all" :style="'width:' + Math.round(overall.percent) + '%'" aria-hidden="true"></div></div>
+        </div>
+      </div>
     </div>
     <ul class="flex flex-col gap-2 text-[12px]" role="list">
       <template x-for="sec in sections" :key="sec.id">
@@ -19,8 +38,16 @@
       </template>
     </ul>
     <div class="pt-1 border-t border-[#BEE3DB]/60">
-      <button @click="focusFirstIncomplete()" class="w-full mt-3 px-3 py-2 rounded-full bg-[#116466] text-white text-[11px] font-semibold hover:bg-[#0d4c4d] transition">Go To Next Incomplete</button>
+      <template x-if="!canSubmit()">
+        <button @click="focusFirstIncomplete()" class="w-full mt-3 px-3 py-2 rounded-full bg-[#116466] text-white text-[11px] font-semibold hover:bg-[#0d4c4d] transition">Go To Next Incomplete</button>
+      </template>
+      <template x-if="canSubmit()">
+        <div class="flex flex-col gap-2">
+          <button @click="submitProfile()" :disabled="submitting" class="w-full mt-3 px-3 py-2 rounded-full bg-[#0E7C7B] text-white text-[12px] font-semibold hover:bg-[#0c686a] disabled:opacity-60 transition">Submit Profile</button>
+          <p class="text-[11px] text-[#555B6E]" x-show="submitError" x-text="submitError"></p>
+        </div>
+      </template>
     </div>
   </div>
 </aside>
-<script src="{% static 'profile_helpers.js' %}"></script>
+ <script src="{% static 'profile_helpers.js' %}?v=20250815"></script>

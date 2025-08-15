@@ -21,6 +21,7 @@ urlpatterns = [
     # Profile edit APIs
     path('api/profile/me/', views.api_profile_me, name='api_profile_me'),
     path('api/profile/update/', views.api_profile_update, name='api_profile_update'),
+    path('api/profile/submit/', views.api_profile_submit, name='api_profile_submit'),
     path('api/profile/upload/photo/', views.api_profile_upload_photo, name='api_profile_upload_photo'),
     path('api/profile/gallery/upload/', views.api_profile_gallery_upload, name='api_profile_gallery_upload'),
     path('api/profile/gallery/<int:image_id>/', views.api_profile_gallery_item, name='api_profile_gallery_item'),

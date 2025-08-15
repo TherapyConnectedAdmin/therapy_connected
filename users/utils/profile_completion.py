@@ -4,7 +4,6 @@ from typing import Dict, Any
 
 ESSENTIAL_FIELDS = [
     'profile_photo',
-    'practice_name',
     'therapy_delivery_method',
     'license_type',
     # Newly counted basics for clearer early progress feedback
@@ -18,7 +17,6 @@ ESSENTIAL_FIELDS = [
 RELATION_CHECKS = {
     'locations': lambda p: p.locations.exists(),
     'specialties': lambda p: p.specialties.exists(),
-    'race_ethnicities': lambda p: p.race_ethnicities.exists(),
 }
 
 @dataclass

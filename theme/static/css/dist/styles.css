@@ -2654,6 +2654,9 @@
   .resize {
     resize: both;
   }
+  .list-inside {
+    list-style-position: inside;
+  }
   .list-disc {
     list-style-type: disc;
   }
@@ -2977,6 +2980,9 @@
   }
   .border-t-transparent {
     border-top-color: transparent;
+  }
+  .bg-\[\#0E7C7B\] {
+    background-color: #0E7C7B;
   }
   .bg-\[\#1e2727\] {
     background-color: #1e2727;
@@ -4196,6 +4202,11 @@
     }
   }
   @media (hover: hover) {
+    .hover\:bg-\[\#0c686a\]:hover {
+      background-color: #0c686a;
+    }
+  }
+  @media (hover: hover) {
     .hover\:bg-\[\#0d4c4d\]:hover {
       background-color: #0d4c4d;
     }
@@ -4450,6 +4461,9 @@
   }
   .disabled\:opacity-50:disabled {
     opacity: 50%;
+  }
+  .disabled\:opacity-60:disabled {
+    opacity: 60%;
   }
   @media (width >= 40rem) {
     .sm\:col-span-1 {

@@ -419,12 +419,17 @@ def public_therapist_profile(request, slug):
         'finance_note': profile.finance_note,
         'credentials_note': profile.credentials_note,
         'profile_photo_url': profile.profile_photo.url if profile.profile_photo else None,
-        'practice_website_url': profile.practice_website_url,
+    'practice_website_url': profile.practice_website_url,
         'facebook_url': profile.facebook_url,
         'instagram_url': profile.instagram_url,
         'linkedin_url': profile.linkedin_url,
         'twitter_url': profile.twitter_url,
         'tiktok_url': profile.tiktok_url,
+    'youtube_url': profile.youtube_url,
+    'receive_calls_from_client': getattr(profile, 'receive_calls_from_client', False),
+    'receive_texts_from_clients': getattr(profile, 'receive_texts_from_clients', False),
+    'receive_emails_from_clients': getattr(profile, 'receive_emails_from_clients', False),
+    'receive_emails_when_client_calls': getattr(profile, 'receive_emails_when_client_calls', False),
         'youtube_url': profile.youtube_url,
         'therapy_types_note': profile.therapy_types_note,
         'specialties_note': profile.specialties_note,
@@ -576,6 +581,22 @@ EDITABLE_SIMPLE_FIELDS = {
     'license_expiration': str,
     'license_first_name': str,
     'license_last_name': str,
+    # Contact & Web (strings/booleans)
+    'phone_number': str,
+    'phone_extension': str,
+    'mobile_number': str,
+    'office_email': str,
+    'practice_website_url': str,
+    'facebook_url': str,
+    'instagram_url': str,
+    'linkedin_url': str,
+    'twitter_url': str,
+    'tiktok_url': str,
+    'youtube_url': str,
+    'receive_calls_from_client': bool,
+    'receive_texts_from_clients': bool,
+    'receive_emails_from_clients': bool,
+    'receive_emails_when_client_calls': bool,
 }
 
 FIELD_ALIASES = {
@@ -719,6 +740,7 @@ def _profile_json(profile):
         other_identity_options = []
     data = {
         'id': profile.user_id,
+    'onboarding_status': getattr(profile.user, 'onboarding_status', ''),
     'first_name': profile.first_name or getattr(profile.user, 'first_name', ''),
     'middle_name': profile.middle_name or '',
     'last_name': profile.last_name or getattr(profile.user, 'last_name', ''),
@@ -1391,6 +1413,29 @@ def api_age_groups(request):
     return JsonResponse({'results': data})
 
 @login_required
+@require_http_methods(["POST"])
+def api_profile_submit(request):
+    """Submit profile for activation. Validates minimum completion and triggers
+    deferred subscription activation, then returns a redirect to the dashboard.
+
+    Always redirects to dashboard on success so users can proceed even if
+    activation remains pending (e.g., license verification outstanding).
+    """
+    from users.models_profile import TherapistProfile
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    # Server-side minimal completion check
+    result = compute_profile_completion(profile)
+    if result.percent < 100:
+        return JsonResponse({'error': 'Minimum profile requirements not met', 'percent': result.percent}, status=400)
+    # Attempt activation (may be a no-op if prerequisites aren\'t met yet)
+    try:
+        _attempt_subscription_activation(request.user)
+    except Exception:
+        pass
+    # Return current onboarding_status and dashboard redirect
+    return JsonResponse({'success': True, 'onboarding_status': getattr(request.user, 'onboarding_status', ''), 'redirect': reverse('dashboard')})
+
+@login_required
 @require_http_methods(["POST", "DELETE"])
 def api_profile_upload_photo(request):
     from users.models_profile import TherapistProfile
@@ -1894,13 +1939,18 @@ def api_full_profile(request, user_id):
         'credentials_note': profile.credentials_note,
         'profile_photo_url': profile.profile_photo.url if profile.profile_photo else None,
     'title_options': list(TitleModel.objects.order_by('name').values_list('name', flat=True)),
-        'practice_website_url': profile.practice_website_url,
+    'practice_website_url': profile.practice_website_url,
         'facebook_url': profile.facebook_url,
         'instagram_url': profile.instagram_url,
         'linkedin_url': profile.linkedin_url,
         'twitter_url': profile.twitter_url,
         'tiktok_url': profile.tiktok_url,
-        'youtube_url': profile.youtube_url,
+    'youtube_url': profile.youtube_url,
+    # Contact preferences (booleans)
+    'receive_calls_from_client': getattr(profile, 'receive_calls_from_client', False),
+    'receive_texts_from_clients': getattr(profile, 'receive_texts_from_clients', False),
+    'receive_emails_from_clients': getattr(profile, 'receive_emails_from_clients', False),
+    'receive_emails_when_client_calls': getattr(profile, 'receive_emails_when_client_calls', False),
         'therapy_types_note': profile.therapy_types_note,
         'specialties_note': profile.specialties_note,
         'license_type': profile.license_type.name if profile.license_type else None,
