@@ -32,8 +32,8 @@
           {% endif %}
           <div class="flex-1 min-w-0">
             <div class="flex items-baseline gap-2">
-              {% if prof and prof.slug %}
-                <a href="/therapists/{{ prof.slug }}/" target="_blank" rel="noopener" class="font-semibold text-[#555B6E] hover:underline truncate">
+              {% if prof %}
+                <a href="{% if prof.slug %}/therapists/{{ prof.slug }}/{% else %}#{% endif %}" data-profile-id="{{ c.requester.id }}" class="font-semibold text-[#555B6E] hover:underline truncate">
                   {% if prof and prof.first_name %}
                     {{ prof.first_name }} {{ prof.last_name }}
                   {% elif prof and prof.last_name %}
@@ -48,11 +48,7 @@
                 </a>
               {% else %}
                 <span class="font-semibold text-[#555B6E] truncate">
-                  {% if prof and prof.first_name %}
-                    {{ prof.first_name }} {{ prof.last_name }}
-                  {% elif prof and prof.last_name %}
-                    {{ prof.first_name }} {{ prof.last_name }}
-                  {% elif c.requester.first_name %}
+                  {% if c.requester.first_name %}
                     {{ c.requester.first_name }} {{ c.requester.last_name }}
                   {% elif c.requester.last_name %}
                     {{ c.requester.first_name }} {{ c.requester.last_name }}
@@ -109,8 +105,8 @@
             {% endif %}
             <div class="flex-1 min-w-0">
               <div class="flex items-baseline gap-2">
-                {% if prof and prof.slug %}
-                  <a href="/therapists/{{ prof.slug }}/" target="_blank" rel="noopener" class="font-semibold text-[#555B6E] hover:underline truncate">
+                {% if prof %}
+                  <a href="{% if prof.slug %}/therapists/{{ prof.slug }}/{% else %}#{% endif %}" data-profile-id="{{ c.addressee.id }}" class="font-semibold text-[#555B6E] hover:underline truncate">
                     {% if prof and prof.first_name %}
                       {{ prof.first_name }} {{ prof.last_name }}
                     {% elif prof and prof.last_name %}
@@ -125,11 +121,7 @@
                   </a>
                 {% else %}
                   <span class="font-semibold text-[#555B6E] truncate">
-                    {% if prof and prof.first_name %}
-                      {{ prof.first_name }} {{ prof.last_name }}
-                    {% elif prof and prof.last_name %}
-                      {{ prof.first_name }} {{ prof.last_name }}
-                    {% elif c.addressee.first_name %}
+                    {% if c.addressee.first_name %}
                       {{ c.addressee.first_name }} {{ c.addressee.last_name }}
                     {% elif c.addressee.last_name %}
                       {{ c.addressee.first_name }} {{ c.addressee.last_name }}
@@ -275,6 +267,12 @@
     var accept = e.target.closest && e.target.closest('[data-conn-accept]');
     var remove = e.target.closest && e.target.closest('[data-conn-delete]');
     var discoverBtn = e.target.closest && e.target.closest('[data-discover-connect]');
+    var nameLink = e.target.closest && e.target.closest('a[data-profile-id]');
+    if (nameLink){
+      const id = nameLink.getAttribute('data-profile-id');
+      if(id){ e.preventDefault(); try { window.Alpine && Alpine.store('profileModal') && Alpine.store('profileModal').open(parseInt(id)); } catch(_){} }
+      return;
+    }
     if (accept){
       e.preventDefault(); var id = accept.getAttribute('data-conn-accept');
       accept.disabled = true;
@@ -436,7 +434,7 @@
     const lic = item.license_type ? `<span class="text-xs font-medium text-[#116466]">${item.license_type}${item.license_type_short? ' · '+item.license_type_short:''}</span>` : '';
     const meta = [loc, dist].filter(Boolean).join(' • ');
     const name = ((item.name||'').trim()) || 'Therapist';
-    const link = item.slug ? `/therapists/${item.slug}/` : '#';
+  const link = item.slug ? `/therapists/${item.slug}/` : '#';
   return `
   <div class="rounded-xl border border-[#BEE3DB] bg-[#F6FBFA] p-3">
       <div class="flex items-center gap-3">
@@ -445,7 +443,7 @@
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
               <div class="flex items-baseline gap-2">
-                <a href="${link}" target="_blank" rel="noopener" class="font-semibold text-[#555B6E] hover:underline truncate">${name}</a>
+                <a href="${link}" data-profile-id="${item.id}" class="font-semibold text-[#555B6E] hover:underline truncate">${name}</a>
                 ${lic}
               </div>
               ${practice}
@@ -485,7 +483,7 @@
     const suggestionsSection = document.getElementById('suggestions-section');
     const suggestionsGrid = document.getElementById('suggestions-grid');
   function miniCardHtml(item){
-      const link = item.slug ? `/therapists/${item.slug}/` : '#';
+  const link = item.slug ? `/therapists/${item.slug}/` : '#';
       const name = ((item.name||'').trim()) || 'Therapist';
   const licPrimary = item.license_type ? `<div class="text-sm font-medium text-[#116466] mt-1 whitespace-normal break-words">${item.license_type}</div>` : '';
   const licShort = item.license_type_short ? `<div class="text-xs text-[#116466]/80 whitespace-normal break-words">${item.license_type_short}</div>` : '';
@@ -499,7 +497,7 @@
             <div class="w-full flex justify-center">
               ${avatar.replace('w-12 h-12','w-20 h-20')}
             </div>
-        <a href="${link}" target="_blank" rel="noopener" class="mt-3 block text-sm md:text-base font-semibold text-[#555B6E] hover:underline whitespace-normal break-words w-full">${name}</a>
+  <a href="${link}" data-profile-id="${item.id}" class="mt-3 block text-sm md:text-base font-semibold text-[#555B6E] hover:underline whitespace-normal break-words w-full">${name}</a>
             ${licPrimary}
             ${licShort}
             ${meta}
@@ -564,4 +562,5 @@
     });
 })();
 </script>
+{% include "partials/profile/profile_display.html" %}
 {% endblock %}
