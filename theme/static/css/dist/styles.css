@@ -3232,6 +3232,9 @@
   :where(.divide-\[\#E5F4F2\] > :not(:last-child)) {
     border-color: #E5F4F2;
   }
+  :where(.divide-\[\#E6F2F0\] > :not(:last-child)) {
+    border-color: #E6F2F0;
+  }
   .self-center {
     align-self: center;
   }

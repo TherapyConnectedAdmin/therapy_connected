@@ -3027,10 +3027,53 @@ def api_connections_discover(request):
 
 @login_required
 def members_blog(request):
-    from .models_blog import BlogPost
-    posts = BlogPost.objects.filter(author=request.user).order_by('-created_at')
+    from .models_blog import BlogPost, BlogTag
+    # Me avatar for composer (similar to feed)
+    me_avatar_url = None
+    try:
+        _prof = TherapistProfile.objects.filter(user=request.user).only('profile_photo').first()
+        if _prof and _prof.profile_photo:
+            me_avatar_url = _prof.profile_photo.url
+    except Exception:
+        me_avatar_url = None
+    # Filters
+    q = (request.GET.get('q') or '').strip()
+    sort = (request.GET.get('sort') or 'recent').strip().lower()
+    posts = (
+        BlogPost.objects
+        .filter(published=True, visibility__in=['members','both'])
+        .select_related('author')
+        .prefetch_related('tags', 'media')
+    )
+    if q:
+        from django.db.models import Q
+        posts = posts.filter(
+            Q(title__icontains=q) |
+            Q(content__icontains=q) |
+            Q(tags__name__icontains=q) |
+            Q(author__first_name__icontains=q) |
+            Q(author__last_name__icontains=q)
+        ).distinct()
+    if sort == 'oldest':
+        posts = posts.order_by('created_at')
+    else:
+        sort = 'recent'
+        posts = posts.order_by('-created_at')
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(posts, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    # Sidebar data
+    recent_posts = BlogPost.objects.filter(published=True, visibility__in=['members','both']).order_by('-created_at')[:6]
+    tags = BlogTag.objects.all().order_by('name')
     return render(request, 'users/members/blog.html', {
-        'posts': posts,
+        'page_obj': page_obj,
+        'q': q,
+        'current_sort': sort,
+        'me_avatar_url': me_avatar_url,
+        'recent_posts': recent_posts,
+        'tags': tags,
     })
 
 
