@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="py-10 w-full" style="background-color:#FFF6ED;">
+<section class="py-10 w-full" style="{% if in_members %}background-color:#F6FBFA;{% else %}background-color:#FFF6ED;{% endif %}">
   <div class="max-w-7xl mx-auto px-4 lg:px-8">
     <div class="mb-6 flex items-center justify-between gap-4">
   <a href="{% if in_members %}{% url 'members_blog' %}{% else %}{% url 'blog_index' %}{% endif %}" class="text-sm font-semibold px-4 py-2 rounded-full bg-white border border-[#BEE3DB] text-[#116466] hover:bg-[#FAF9F9] transition" style="box-shadow:0 2px 4px rgba(0,0,0,0.04);">&larr; Back to Blog</a>
@@ -121,7 +121,7 @@
   <aside class="lg:col-span-3 xl:col-span-3 space-y-8 relative">
         <div class="sticky top-6 space-y-8">
           <!-- Search within blog -->
-          <form action="{% url 'blog_index' %}" method="get" class="rounded-2xl bg-[#FAF9F9] shadow p-5 border border-[#BEE3DB] w-full">
+          <form action="{% if in_members %}{% url 'members_blog' %}{% else %}{% url 'blog_index' %}{% endif %}" method="get" class="rounded-2xl bg-[#FAF9F9] shadow p-5 border border-[#BEE3DB] w-full">
             <label for="search" class="sr-only">Search blog</label>
             <div class="flex w-full">
               <input id="search" name="q" type="text" placeholder="Search posts..." class="flex-1 min-w-0 rounded-l-full px-4 py-2.5 text-sm border border-[#89B0AE] focus:outline-none focus:ring-2 focus:ring-[#89B0AE] bg-white" />
