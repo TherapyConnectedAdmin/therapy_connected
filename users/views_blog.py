@@ -176,3 +176,37 @@ def user_blog_create(request):
     else:
         form = BlogPostForm()
     return render(request, 'users/user_blog_form.html', {'form': form})
+
+@login_required
+def user_blog_update_visibility(request, pk):
+    """Update visibility (and optionally published) for a blog post owned by the user.
+    Accepts POST with fields: visibility (required), published (optional: 'on'/truthy).
+    Redirects back to members_blog preserving q/sort/page when provided.
+    """
+    post = get_object_or_404(BlogPost, pk=pk, author=request.user)
+    if request.method != 'POST':
+        return redirect('members_blog')
+    vis = (request.POST.get('visibility') or '').strip()
+    valid = {k for k, _ in BlogPost.VISIBILITY_CHOICES}
+    if vis not in valid:
+        # Ignore invalid values silently for UX; keep old visibility
+        pass
+    else:
+        post.visibility = vis
+    if 'published' in request.POST:
+        # Treat presence as boolean toggle; accept common truthy values
+        val = (request.POST.get('published') or '').lower()
+        post.published = val in {'1','true','yes','on'}
+    post.save(update_fields=['visibility','published','updated_at'])
+    # Preserve filters if sent
+    q = request.POST.get('q', '')
+    sort = request.POST.get('sort', '')
+    page = request.POST.get('page', '')
+    from django.urls import reverse
+    import urllib.parse as _url
+    base = reverse('members_blog')
+    params = { 'q': q, 'sort': sort, 'page': page }
+    params = {k:v for k,v in params.items() if v}
+    if params:
+        return redirect(f"{base}?{_url.urlencode(params)}")
+    return redirect('members_blog')
