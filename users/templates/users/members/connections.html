@@ -1,32 +1,567 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="max-w-4xl mx-auto py-8 px-4">
-  <h1 class="text-2xl font-bold text-[#555B6E] mb-6">Connections</h1>
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div>
-      <h2 class="text-lg font-semibold text-[#555B6E] mb-2">Requests Received</h2>
-      <div class="space-y-3">
-        {% for c in received %}
-          <div class="rounded border border-[#BEE3DB] bg-white p-3 flex items-center justify-between">
-            <div class="text-[#555B6E]">From: {{ c.requester.email }} • {{ c.status }}</div>
-          </div>
-        {% empty %}
-          <div class="text-[#555B6E]">No connection requests.</div>
-        {% endfor %}
+<div class="max-w-5xl mx-auto py-8 px-4 grid grid-cols-1 md:grid-cols-4 gap-6">
+  <aside class="md:col-span-1">
+    <div class="bg-white border border-[#BEE3DB] rounded-lg p-4">
+      <div class="font-semibold text-[#555B6E] mb-2">Manage My Network</div>
+      <ul class="text-sm text-[#89B0AE] space-y-1">
+        <li><a href="{% url 'members_my_connections' %}" class="hover:underline">My Connections{% if accepted is not None %} ({{ accepted|length }}){% endif %}</a></li>
+  <li><a href="{% url 'members_invitations' %}" class="hover:underline">Invitations{% if received_count is not None %} ({{ received_count }}){% elif received is not None %} ({{ received|length }}){% endif %}</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="md:col-span-3">
+  {% if received|length %}
+  <div class="mb-8 border border-[#BEE3DB] rounded-xl bg-white p-4" id="invites-section">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold text-[#555B6E]">Current Invitations <span class="text-sm text-[#555B6E]/60">({{ received|length }})</span></h2>
+      <div class="flex items-center gap-3">
+        <a href="{% url 'members_invitations' %}" class="text-base md:text-lg font-semibold text-[#116466] hover:text-[#0c5755]">Show all</a>
+        <button id="invites-toggle" class="text-sm text-[#555B6E] border border-[#BEE3DB] rounded px-2 py-1 leading-none" aria-label="Toggle invitations" aria-expanded="true" aria-controls="invites-content">▾</button>
       </div>
     </div>
-    <div>
-      <h2 class="text-lg font-semibold text-[#555B6E] mb-2">Sent</h2>
-      <div class="space-y-3">
-        {% for c in sent %}
-          <div class="rounded border border-[#BEE3DB] bg-white p-3 flex items-center justify-between">
-            <div class="text-[#555B6E]">To: {{ c.addressee.email }} • {{ c.status }}</div>
+    <div id="invites-content">
+    <div id="invite-list" class="space-y-3">
+      {% for c in received %}
+        {% with prof=c.requester.therapistprofile %}
+  <div class="rounded-xl border border-[#BEE3DB] bg-[#F6FBFA] p-3 flex items-center gap-3" id="conn-{{ c.id }}" data-invite>
+          {% if prof and prof.profile_photo %}
+            <img src="{{ prof.profile_photo.url }}" alt="" class="w-12 h-12 rounded-full object-cover"/>
+          {% else %}
+            <div class="w-12 h-12 rounded-full bg-[#E5F4F2]"></div>
+          {% endif %}
+          <div class="flex-1 min-w-0">
+            <div class="flex items-baseline gap-2">
+              {% if prof and prof.slug %}
+                <a href="/therapists/{{ prof.slug }}/" target="_blank" rel="noopener" class="font-semibold text-[#555B6E] hover:underline truncate">
+                  {% if prof and prof.first_name %}
+                    {{ prof.first_name }} {{ prof.last_name }}
+                  {% elif prof and prof.last_name %}
+                    {{ prof.first_name }} {{ prof.last_name }}
+                  {% elif c.requester.first_name %}
+                    {{ c.requester.first_name }} {{ c.requester.last_name }}
+                  {% elif c.requester.last_name %}
+                    {{ c.requester.first_name }} {{ c.requester.last_name }}
+                  {% else %}
+                    Therapist
+                  {% endif %}
+                </a>
+              {% else %}
+                <span class="font-semibold text-[#555B6E] truncate">
+                  {% if prof and prof.first_name %}
+                    {{ prof.first_name }} {{ prof.last_name }}
+                  {% elif prof and prof.last_name %}
+                    {{ prof.first_name }} {{ prof.last_name }}
+                  {% elif c.requester.first_name %}
+                    {{ c.requester.first_name }} {{ c.requester.last_name }}
+                  {% elif c.requester.last_name %}
+                    {{ c.requester.first_name }} {{ c.requester.last_name }}
+                  {% else %}
+                    Therapist
+                  {% endif %}
+                </span>
+              {% endif %}
+              {% if prof and prof.license_type %}
+                <span class="text-xs font-medium text-[#116466]">
+                  {{ prof.license_type.name }}{% if prof.license_type.short_description %} · {{ prof.license_type.short_description }}{% endif %}
+                </span>
+              {% endif %}
+            </div>
+            {% if prof and prof.practice_name %}
+              <div class="text-xs text-[#555B6E]">{{ prof.practice_name }}</div>
+            {% endif %}
+            <div class="text-[11px] text-[#555B6E]/70">Invited • {{ c.created_at|date:'M d, Y' }}</div>
           </div>
-        {% empty %}
-          <div class="text-[#555B6E]">You haven't sent any requests.</div>
+          <div class="flex gap-2">
+            <button data-conn-accept="{{ c.id }}" class="px-3 py-1 rounded bg-[#89B0AE] text-white text-sm">Accept</button>
+            <button data-conn-delete="{{ c.id }}" class="px-3 py-1 rounded border border-[#BEE3DB] text-[#555B6E] text-sm">Ignore</button>
+          </div>
+        </div>
+        {% endwith %}
+      {% endfor %}
+    </div>
+    {% if received|length > 5 %}
+      <div class="mt-3">
+        <button id="invites-load-more" class="px-3 py-1 rounded border border-[#BEE3DB] text-[#555B6E] text-sm">Load more</button>
+      </div>
+    {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if sent|length %}
+  <div class="mb-8 border border-[#BEE3DB] rounded-xl bg-white p-4" id="sent-section">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold text-[#555B6E]">Requests Sent <span class="text-sm text-[#555B6E]/60">({{ sent|length }})</span></h2>
+      <div class="flex items-center gap-3">
+        <button id="sent-toggle" class="text-sm text-[#555B6E] border border-[#BEE3DB] rounded px-2 py-1 leading-none" aria-label="Toggle sent requests" aria-expanded="false" aria-controls="sent-content">▸</button>
+      </div>
+    </div>
+    <div id="sent-content" style="display:none;">
+      <div id="sent-list" class="space-y-3">
+        {% for c in sent %}
+          {% with prof=c.addressee.therapistprofile %}
+          <div class="rounded-xl border border-[#BEE3DB] bg-[#F6FBFA] p-3 flex items-center gap-3" id="conn-{{ c.id }}" data-sent-item>
+            {% if prof and prof.profile_photo %}
+              <img src="{{ prof.profile_photo.url }}" alt="" class="w-12 h-12 rounded-full object-cover"/>
+            {% else %}
+              <div class="w-12 h-12 rounded-full bg-[#E5F4F2]"></div>
+            {% endif %}
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-2">
+                {% if prof and prof.slug %}
+                  <a href="/therapists/{{ prof.slug }}/" target="_blank" rel="noopener" class="font-semibold text-[#555B6E] hover:underline truncate">
+                    {% if prof and prof.first_name %}
+                      {{ prof.first_name }} {{ prof.last_name }}
+                    {% elif prof and prof.last_name %}
+                      {{ prof.first_name }} {{ prof.last_name }}
+                    {% elif c.addressee.first_name %}
+                      {{ c.addressee.first_name }} {{ c.addressee.last_name }}
+                    {% elif c.addressee.last_name %}
+                      {{ c.addressee.first_name }} {{ c.addressee.last_name }}
+                    {% else %}
+                      Therapist
+                    {% endif %}
+                  </a>
+                {% else %}
+                  <span class="font-semibold text-[#555B6E] truncate">
+                    {% if prof and prof.first_name %}
+                      {{ prof.first_name }} {{ prof.last_name }}
+                    {% elif prof and prof.last_name %}
+                      {{ prof.first_name }} {{ prof.last_name }}
+                    {% elif c.addressee.first_name %}
+                      {{ c.addressee.first_name }} {{ c.addressee.last_name }}
+                    {% elif c.addressee.last_name %}
+                      {{ c.addressee.first_name }} {{ c.addressee.last_name }}
+                    {% else %}
+                      Therapist
+                    {% endif %}
+                  </span>
+                {% endif %}
+                {% if prof and prof.license_type %}
+                  <span class="text-xs font-medium text-[#116466]">
+                    {{ prof.license_type.name }}{% if prof.license_type.short_description %} · {{ prof.license_type.short_description }}{% endif %}
+                  </span>
+                {% endif %}
+              </div>
+              {% if prof and prof.practice_name %}
+                <div class="text-xs text-[#555B6E]">{{ prof.practice_name }}</div>
+              {% endif %}
+              <div class="text-[11px] text-[#555B6E]/70">Requested • {{ c.created_at|date:'M d, Y' }}</div>
+            </div>
+            <div class="flex gap-2">
+              <button data-conn-delete="{{ c.id }}" class="px-3 py-1 rounded border border-[#BEE3DB] text-[#555B6E] text-sm">Cancel</button>
+            </div>
+          </div>
+          {% endwith %}
         {% endfor %}
+      </div>
+      {% if sent|length > 5 %}
+      <div class="mt-3">
+        <button id="sent-load-more" class="px-3 py-1 rounded border border-[#BEE3DB] text-[#555B6E] text-sm">Load more</button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Suggested connections (dedicated bordered card after Requests Sent) -->
+  <div class="mb-8 border border-[#BEE3DB] rounded-xl bg-[#F6FBFA] p-4" id="suggestions-section" style="display:none;">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold text-[#555B6E]">Suggested Connections</h2>
+      <button id="suggestions-toggle" class="text-sm text-[#555B6E] border border-[#BEE3DB] rounded px-2 py-1 leading-none" aria-label="Toggle suggested connections" aria-expanded="true" aria-controls="suggestions-content">▾</button>
+    </div>
+    <div id="suggestions-content">
+      <div id="suggestions-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3"></div>
+      <div class="mt-3" id="suggestions-load-wrap" style="display:none;">
+        <button id="suggestions-load-more" class="px-3 py-1 rounded border border-[#BEE3DB] text-[#555B6E] text-sm">Load more</button>
       </div>
     </div>
   </div>
+
+  
+
+  <div class="mb-8 border border-[#BEE3DB] rounded-xl bg-white p-4" id="discover-section">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold text-[#555B6E]">Discover Therapists</h2>
+      <button id="discover-toggle" class="text-sm text-[#555B6E] border border-[#BEE3DB] rounded px-2 py-1 leading-none" aria-label="Toggle discover therapists" aria-expanded="true" aria-controls="discover-content">▾</button>
+    </div>
+    <div id="discover-content">
+    <p class="text-sm text-[#555B6E]/80 mb-4">Find peers you may have worked with, went to school with, or who are nearby.</p>
+  <form id="discover-form" class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end bg-[#F6FBFA] border border-[#BEE3DB] rounded-xl p-4">
+      <div class="md:col-span-2">
+        <label class="block text-xs font-semibold text-[#555B6E] mb-1">Name, email, city, or keyword</label>
+  <input type="text" name="q" class="w-full border border-[#BEE3DB] rounded-lg px-3 py-2 text-sm bg-white" placeholder="Search…" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-[#555B6E] mb-1">School</label>
+  <input type="text" name="school" class="w-full border border-[#BEE3DB] rounded-lg px-3 py-2 text-sm bg-white" placeholder="e.g., NYU" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-[#555B6E] mb-1">City</label>
+  <input type="text" name="city" class="w-full border border-[#BEE3DB] rounded-lg px-3 py-2 text-sm bg-white" placeholder="e.g., Seattle" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-[#555B6E] mb-1">State</label>
+        <div class="relative">
+          <select name="state" class="w-full border border-[#BEE3DB] rounded-lg px-3 py-2 text-sm appearance-none pr-8 bg-white">
+            <option value="">Any</option>
+            <option>AL</option><option>AK</option><option>AZ</option><option>AR</option><option>CA</option>
+            <option>CO</option><option>CT</option><option>DE</option><option>DC</option><option>FL</option>
+            <option>GA</option><option>HI</option><option>ID</option><option>IL</option><option>IN</option>
+            <option>IA</option><option>KS</option><option>KY</option><option>LA</option><option>ME</option>
+            <option>MD</option><option>MA</option><option>MI</option><option>MN</option><option>MS</option>
+            <option>MO</option><option>MT</option><option>NE</option><option>NV</option><option>NH</option>
+            <option>NJ</option><option>NM</option><option>NY</option><option>NC</option><option>ND</option>
+            <option>OH</option><option>OK</option><option>OR</option><option>PA</option><option>RI</option>
+            <option>SC</option><option>SD</option><option>TN</option><option>TX</option><option>UT</option>
+            <option>VT</option><option>VA</option><option>WA</option><option>WV</option><option>WI</option>
+            <option>WY</option>
+          </select>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#555B6E]/60">▾</span>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-[#555B6E] mb-1">Within (miles)</label>
+  <input type="number" name="within" min="10" max="500" step="10" value="150" class="w-full border border-[#BEE3DB] rounded-lg px-3 py-2 text-sm bg-white" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-[#555B6E] mb-1">Sort</label>
+        <div class="relative">
+          <select name="sort" class="w-full border border-[#BEE3DB] rounded-lg px-3 py-2 text-sm appearance-none pr-8 bg-white">
+            <option value="distance">Distance</option>
+            <option value="name">Name</option>
+          </select>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#555B6E]/60">▾</span>
+        </div>
+      </div>
+      <div class="md:col-span-2 flex items-end gap-2">
+        <button type="submit" class="px-4 py-2 rounded-lg bg-[#116466] text-white text-sm font-semibold">Search</button>
+      </div>
+    </form>
+    <div id="discover-results" class="mt-4 grid grid-cols-1 gap-3"></div>
+    <div class="mt-3" id="discover-load-wrap" style="display:none;">
+      <button id="discover-load-more" class="px-3 py-1 rounded border border-[#BEE3DB] text-[#555B6E] text-sm">Load more</button>
+    </div>
+    </div>
+  </div>
+  </main>
 </div>
+
+<script>
+(function(){
+  // CSRF helpers: prefer hidden input; fallback to csrftoken cookie
+  function getCookie(name){
+    const m = document.cookie.match('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g,'\\$1') + '=([^;]*)');
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  function csrftoken(){
+    var el=document.querySelector('input[name=csrfmiddlewaretoken]');
+    return el && el.value ? el.value : (getCookie('csrftoken') || '');
+  }
+  async function post(url){
+    try{
+      const res=await fetch(url,{method:'POST', headers:{'X-CSRFToken': csrftoken()}});
+      return res;
+    }catch(e){ return { ok:false }; }
+  }
+  async function del(url){
+    try{
+      const res=await fetch(url,{method:'POST', headers:{'X-CSRFToken': csrftoken(), 'X-HTTP-Method-Override':'DELETE'}});
+      return res;
+    }catch(e){ return { ok:false }; }
+  }
+  document.addEventListener('click', async function(e){
+    var accept = e.target.closest && e.target.closest('[data-conn-accept]');
+    var remove = e.target.closest && e.target.closest('[data-conn-delete]');
+    var discoverBtn = e.target.closest && e.target.closest('[data-discover-connect]');
+    if (accept){
+      e.preventDefault(); var id = accept.getAttribute('data-conn-accept');
+      accept.disabled = true;
+      const res = await post(`/users/api/connections/${id}/accept/`);
+      if (res && res.ok){ var row = document.getElementById('conn-'+id); if (row) row.remove(); location.reload(); }
+      else { accept.disabled = false; }
+    } else if (remove){
+      e.preventDefault(); var id2 = remove.getAttribute('data-conn-delete');
+      remove.disabled = true;
+      const res2 = await del(`/users/api/connections/${id2}/delete/`);
+      if (res2 && res2.ok){ var row2 = document.getElementById('conn-'+id2); if (row2) row2.remove(); }
+      else { remove.disabled = false; }
+    } else if (discoverBtn){
+      e.preventDefault(); var uid = discoverBtn.getAttribute('data-id');
+      if(uid){ await connectTo(uid, discoverBtn); }
+    }
+  });
+  // Invitations collapse + pagination
+  (function(){
+    const section = document.getElementById('invites-section');
+    const content = document.getElementById('invites-content');
+    const toggleBtn = document.getElementById('invites-toggle');
+    const loadMoreBtn = document.getElementById('invites-load-more');
+    const list = document.getElementById('invite-list');
+    if (section && content && list){
+      // Show only first 5 initially
+      const items = Array.from(list.querySelectorAll('[data-invite]'));
+      const cap = 5;
+      if (items.length > cap){
+        items.slice(cap).forEach(el => el.style.display = 'none');
+      }
+      if (loadMoreBtn){
+        loadMoreBtn.addEventListener('click', function(){
+          items.forEach(el => el.style.display = '');
+          loadMoreBtn.style.display = 'none';
+        });
+      }
+      if (toggleBtn){
+        toggleBtn.addEventListener('click', function(){
+          const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+          if (expanded){
+            content.style.display = 'none';
+            toggleBtn.setAttribute('aria-expanded', 'false');
+            toggleBtn.textContent = '▸';
+          } else {
+            content.style.display = '';
+            toggleBtn.setAttribute('aria-expanded', 'true');
+            toggleBtn.textContent = '▾';
+          }
+        });
+      }
+    }
+  })();
+  // Sent requests collapse + pagination (default collapsed)
+  (function(){
+    const section = document.getElementById('sent-section');
+    const content = document.getElementById('sent-content');
+    const toggleBtn = document.getElementById('sent-toggle');
+    const loadMoreBtn = document.getElementById('sent-load-more');
+    const list = document.getElementById('sent-list');
+    if (section && content && list){
+      // Initially collapsed
+      content.style.display = 'none';
+      if (toggleBtn){ toggleBtn.setAttribute('aria-expanded','false'); toggleBtn.textContent = '▸'; }
+      const items = Array.from(list.querySelectorAll('[data-sent-item]'));
+      const cap = 5;
+      if (items.length > cap){ items.slice(cap).forEach(el => el.style.display = 'none'); }
+      if (loadMoreBtn){
+        loadMoreBtn.addEventListener('click', function(){
+          items.forEach(el => el.style.display = '');
+          loadMoreBtn.style.display = 'none';
+        });
+      }
+      if (toggleBtn){
+        toggleBtn.addEventListener('click', function(){
+          const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+          if (expanded){
+            content.style.display = 'none';
+            toggleBtn.setAttribute('aria-expanded', 'false');
+            toggleBtn.textContent = '▸';
+          } else {
+            content.style.display = '';
+            toggleBtn.setAttribute('aria-expanded', 'true');
+            toggleBtn.textContent = '▾';
+          }
+        });
+      }
+    }
+  })();
+  // Suggestions collapse (default open)
+  (function(){
+    const section = document.getElementById('suggestions-section');
+    if(!section) return;
+    const content = document.getElementById('suggestions-content');
+    const toggleBtn = document.getElementById('suggestions-toggle');
+    if(toggleBtn && content){
+      toggleBtn.addEventListener('click', function(){
+        const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+        if (expanded){
+          content.style.display = 'none';
+          toggleBtn.setAttribute('aria-expanded', 'false');
+          toggleBtn.textContent = '▸';
+        } else {
+          content.style.display = '';
+          toggleBtn.setAttribute('aria-expanded', 'true');
+          toggleBtn.textContent = '▾';
+        }
+      });
+    }
+  })();
+  // Discover collapse (default open)
+  (function(){
+    const section = document.getElementById('discover-section');
+    if(!section) return;
+    const content = document.getElementById('discover-content');
+    const toggleBtn = document.getElementById('discover-toggle');
+    if(toggleBtn && content){
+      toggleBtn.addEventListener('click', function(){
+        const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+        if (expanded){
+          content.style.display = 'none';
+          toggleBtn.setAttribute('aria-expanded', 'false');
+          toggleBtn.textContent = '▸';
+        } else {
+          content.style.display = '';
+          toggleBtn.setAttribute('aria-expanded', 'true');
+          toggleBtn.textContent = '▾';
+        }
+      });
+    }
+  })();
+  // Discover handlers
+  const form = document.getElementById('discover-form');
+  const resultsEl = document.getElementById('discover-results');
+  const discoverLoadWrap = document.getElementById('discover-load-wrap');
+  const discoverLoadBtn = document.getElementById('discover-load-more');
+  let __discoverAll = [];
+  let __discoverIdx = 0;
+  const __discoverPage = 10;
+  function getCookie(name){
+    const m = document.cookie.match('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g,'\\$1') + '=([^;]*)');
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  async function connectTo(userId, btn){
+    if(btn){ btn.disabled = true; const t=btn.textContent; btn.textContent='Sending…'; btn.dataset._orig=t; }
+    try{
+      const res = await fetch(`/users/api/connections/request/${userId}/`, { method:'POST', headers:{'X-CSRFToken': getCookie('csrftoken')}});
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok || !data.ok){ throw new Error(data.error || ('HTTP '+res.status)); }
+      if(btn){ btn.textContent = (data.connection && data.connection.status==='accepted') ? 'Connected' : 'Requested'; }
+    }catch(err){ if(btn){ btn.textContent = btn.dataset._orig || 'Connect'; btn.disabled=false; } alert('Unable to send request'); }
+  }
+  function cardHtml(item){
+    const dist = (item.distance!=null)? `${item.distance} mi` : '';
+    const loc = [item.city||'', item.state||''].filter(Boolean).join(', ');
+    const avatar = item.photo_url ? `<img src="${item.photo_url}" alt="" class="w-12 h-12 rounded-full object-cover"/>` : `<div class="w-12 h-12 rounded-full bg-[#E5F4F2]"></div>`;
+    const practice = item.practice_name ? `<div class="text-xs text-[#555B6E]">${item.practice_name}</div>` : '';
+    const school = item.school ? `<div class="text-xs text-[#555B6E]/80">${item.school}${item.school_year? ' ('+item.school_year+')':''}</div>` : '';
+    const lic = item.license_type ? `<span class="text-xs font-medium text-[#116466]">${item.license_type}${item.license_type_short? ' · '+item.license_type_short:''}</span>` : '';
+    const meta = [loc, dist].filter(Boolean).join(' • ');
+    const name = ((item.name||'').trim()) || 'Therapist';
+    const link = item.slug ? `/therapists/${item.slug}/` : '#';
+  return `
+  <div class="rounded-xl border border-[#BEE3DB] bg-[#F6FBFA] p-3">
+      <div class="flex items-center gap-3">
+        ${avatar}
+        <div class="flex-1 min-w-0">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex items-baseline gap-2">
+                <a href="${link}" target="_blank" rel="noopener" class="font-semibold text-[#555B6E] hover:underline truncate">${name}</a>
+                ${lic}
+              </div>
+              ${practice}
+              ${school}
+              <div class="text-[11px] text-[#555B6E]/70">${meta}</div>
+            </div>
+            <div class="shrink-0 self-start">
+              <button class="px-3 py-2 rounded bg-[#89B0AE] text-white text-sm" data-discover-connect data-id="${item.id}">Connect</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+  function renderNextDiscover(){
+    const slice = __discoverAll.slice(__discoverIdx, __discoverIdx + __discoverPage);
+    if(slice.length){
+      const html = slice.map(cardHtml).join('');
+      if(__discoverIdx === 0){ resultsEl.innerHTML = html; } else { resultsEl.insertAdjacentHTML('beforeend', html); }
+      __discoverIdx += slice.length;
+    } else if(__discoverIdx === 0){
+      resultsEl.innerHTML = '<div class="text-[#555B6E]">No results.</div>';
+    }
+    if(discoverLoadWrap){ discoverLoadWrap.style.display = (__discoverIdx < __discoverAll.length) ? '' : 'none'; }
+  }
+  async function runDiscover(params){
+    const qs = new URLSearchParams(params);
+    const res = await fetch(`/users/api/connections/discover/?`+qs.toString());
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || !data.ok){ resultsEl.innerHTML = '<div class="text-[#555B6E]">No results.</div>'; if(discoverLoadWrap) discoverLoadWrap.style.display='none'; return; }
+    __discoverAll = data.results||[];
+    __discoverIdx = 0;
+    resultsEl.innerHTML = '';
+    renderNextDiscover();
+  }
+    // Suggested connections grid (smaller cards, 4 per row)
+    const suggestionsSection = document.getElementById('suggestions-section');
+    const suggestionsGrid = document.getElementById('suggestions-grid');
+  function miniCardHtml(item){
+      const link = item.slug ? `/therapists/${item.slug}/` : '#';
+      const name = ((item.name||'').trim()) || 'Therapist';
+  const licPrimary = item.license_type ? `<div class="text-sm font-medium text-[#116466] mt-1 whitespace-normal break-words">${item.license_type}</div>` : '';
+  const licShort = item.license_type_short ? `<div class="text-xs text-[#116466]/80 whitespace-normal break-words">${item.license_type_short}</div>` : '';
+    const practice = item.practice_name ? `<div class="text-sm text-[#555B6E] whitespace-normal break-words">${item.practice_name}</div>` : '';
+  const cityst = [item.city||'', item.state||''].filter(Boolean).join(', ');
+  const meta = cityst ? `<div class="text-xs text-[#555B6E]/70 whitespace-normal break-words">${cityst}</div>` : '';
+      const avatar = item.photo_url ? `<img src="${item.photo_url}" alt="" class="w-12 h-12 rounded-full object-cover"/>` : `<div class="w-12 h-12 rounded-full bg-[#E5F4F2]"></div>`;
+      return `
+        <div class="rounded-xl border border-[#BEE3DB] bg-white p-4 h-full min-h-[240px] flex flex-col items-center text-center shadow-sm">
+          <div class="flex-1 w-full flex flex-col items-center text-center">
+            <div class="w-full flex justify-center">
+              ${avatar.replace('w-12 h-12','w-20 h-20')}
+            </div>
+        <a href="${link}" target="_blank" rel="noopener" class="mt-3 block text-sm md:text-base font-semibold text-[#555B6E] hover:underline whitespace-normal break-words w-full">${name}</a>
+            ${licPrimary}
+            ${licShort}
+            ${meta}
+          </div>
+          <div class="w-full mt-3">
+            <button class="w-full px-3 py-2 rounded bg-[#89B0AE] text-white text-sm" data-discover-connect data-id="${item.id}">Connect</button>
+          </div>
+        </div>`;
+    }
+    let __suggestAll = [];
+    let __suggestIdx = 0;
+    const __suggestPage = 12;
+    function renderNextSuggestions(){
+      const slice = __suggestAll.slice(__suggestIdx, __suggestIdx + __suggestPage);
+      if(slice.length){
+        const html = slice.map(miniCardHtml).join('');
+        suggestionsGrid.insertAdjacentHTML('beforeend', html);
+        __suggestIdx += slice.length;
+      }
+      const wrap = document.getElementById('suggestions-load-wrap');
+      if(wrap){ wrap.style.display = (__suggestIdx < __suggestAll.length) ? '' : 'none'; }
+    }
+    async function runSuggestions(){
+      if(!suggestionsSection || !suggestionsGrid) return;
+      try{
+  // Try shared-school suggestions with a very wide radius to maximize results
+  let res = await fetch('/users/api/connections/discover/?suggest=1&within=9999&sort=distance');
+        let data = await res.json().catch(()=>({}));
+        if(!res.ok || !data.ok) return;
+        let items = (data.results||[]);
+        // Fallbacks: if too few, augment with general results (no radius cap)
+        if(items.length < 12){
+          res = await fetch('/users/api/connections/discover/?within=9999&sort=distance');
+          data = await res.json().catch(()=>({}));
+          if(!res.ok || !data.ok) return;
+          const more = (data.results||[]);
+          // Merge unique by id while preserving order
+          const seen = new Set(items.map(i=>i.id));
+          for(const m of more){ if(!seen.has(m.id)){ items.push(m); seen.add(m.id); } }
+        }
+        __suggestAll = items;
+        if(__suggestAll.length){
+          suggestionsGrid.innerHTML = '';
+          suggestionsSection.style.display = '';
+          __suggestIdx = 0;
+          renderNextSuggestions();
+        }
+      }catch(_e){ /* ignore */ }
+    }
+  if(form && resultsEl){
+    form.addEventListener('submit', function(ev){ ev.preventDefault(); const fd=new FormData(form); const params={}; fd.forEach((v,k)=>{ if(v) params[k]=v; }); runDiscover(params); });
+  resultsEl.addEventListener('click', function(ev){ const b=ev.target.closest('[data-discover-connect]'); if(!b) return; const id=b.getAttribute('data-id'); if(id) connectTo(id, b); });
+  if(discoverLoadBtn){ discoverLoadBtn.addEventListener('click', function(ev){ ev.preventDefault(); renderNextDiscover(); }); }
+    // Initial suggestions by proximity
+    runDiscover({});
+  }
+    // Kick off suggestions below Requests Sent and hook up Load more
+    runSuggestions();
+    document.addEventListener('click', function(ev){
+      const btn = ev.target.closest('#suggestions-load-more');
+      if(btn){ ev.preventDefault(); renderNextSuggestions(); }
+    });
+})();
+</script>
 {% endblock %}

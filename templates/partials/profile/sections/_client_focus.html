@@ -1,6 +1,6 @@
 {# Client Focus & Approaches Section (extracted from profile_modal) #}
 <div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
-  <section id="section-client-focus" class="tc-section relative p-5 md:p-7 mt-4 md:mt-6 mb-6 md:mb-10 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg md:col-span-2"
+  <section id="section-client-focus" class="tc-section relative p-5 md:p-7 mt-4 md:mt-6 mb-6 md:mb-10 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg"
            style="box-shadow:0 6px 24px -10px #25454433;"
            x-data="{ editable: {{ editable|default:0|yesno:'true,false' }} }"
            x-show="editable || ($store.profileModal.therapist.participant_types && $store.profileModal.therapist.participant_types.length) || ($store.profileModal.therapist.age_groups && $store.profileModal.therapist.age_groups.length) || $store.profileModal.therapist.mental_health_role || ($store.profileModal.therapist.therapy_types && $store.profileModal.therapist.therapy_types.length) || ($store.profileModal.therapist.specialties && $store.profileModal.therapist.specialties.length) || ($store.profileModal.therapist.areas_of_expertise && $store.profileModal.therapist.areas_of_expertise.length)"

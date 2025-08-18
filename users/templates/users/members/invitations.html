@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-3xl mx-auto py-8 px-4">
+  <h1 class="text-2xl font-bold text-[#555B6E] mb-6">All Invitations</h1>
+  {% if received|length %}
+    <div class="space-y-3">
+      {% for c in received %}
+        {% with prof=c.requester.therapistprofile %}
+  <div class="rounded-xl border border-[#BEE3DB] bg-[#F6FBFA] p-3 flex items-center gap-3" id="conn-{{ c.id }}">
+          {% if prof and prof.profile_photo %}
+            <img src="{{ prof.profile_photo.url }}" alt="" class="w-12 h-12 rounded-full object-cover"/>
+          {% else %}
+            <div class="w-12 h-12 rounded-full bg-[#E5F4F2]"></div>
+          {% endif %}
+          <div class="flex-1 min-w-0">
+            <div class="flex items-baseline gap-2">
+              {% if prof and prof.slug %}
+                <a href="/therapists/{{ prof.slug }}/" target="_blank" rel="noopener" class="font-semibold text-[#555B6E] hover:underline truncate">
+                  {% if prof and prof.first_name %}
+                    {{ prof.first_name }} {{ prof.last_name }}
+                  {% elif prof and prof.last_name %}
+                    {{ prof.first_name }} {{ prof.last_name }}
+                  {% elif c.requester.first_name %}
+                    {{ c.requester.first_name }} {{ c.requester.last_name }}
+                  {% elif c.requester.last_name %}
+                    {{ c.requester.first_name }} {{ c.requester.last_name }}
+                  {% else %}
+                    Therapist
+                  {% endif %}
+                </a>
+              {% else %}
+                <span class="font-semibold text-[#555B6E] truncate">
+                  {% if prof and prof.first_name %}
+                    {{ prof.first_name }} {{ prof.last_name }}
+                  {% elif prof and prof.last_name %}
+                    {{ prof.first_name }} {{ prof.last_name }}
+                  {% elif c.requester.first_name %}
+                    {{ c.requester.first_name }} {{ c.requester.last_name }}
+                  {% elif c.requester.last_name %}
+                    {{ c.requester.first_name }} {{ c.requester.last_name }}
+                  {% else %}
+                    Therapist
+                  {% endif %}
+                </span>
+              {% endif %}
+              {% if prof and prof.license_type %}
+                <span class="text-xs font-medium text-[#116466]">
+                  {{ prof.license_type.name }}{% if prof.license_type.short_description %} · {{ prof.license_type.short_description }}{% endif %}
+                </span>
+              {% endif %}
+            </div>
+            {% if prof and prof.practice_name %}
+              <div class="text-xs text-[#555B6E]">{{ prof.practice_name }}</div>
+            {% endif %}
+            <div class="text-[11px] text-[#555B6E]/70">Invited • {{ c.created_at|date:'M d, Y' }}</div>
+          </div>
+          <div class="flex gap-2">
+            <button data-conn-accept="{{ c.id }}" class="px-3 py-1 rounded bg-[#89B0AE] text-white text-sm">Accept</button>
+            <button data-conn-delete="{{ c.id }}" class="px-3 py-1 rounded border border-[#BEE3DB] text-[#555B6E] text-sm">Ignore</button>
+          </div>
+        </div>
+        {% endwith %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-[#555B6E]">No invitations right now.</div>
+  {% endif %}
+</div>
+
+<script>
+(function(){
+  function getCookie(name){
+    const m = document.cookie.match('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g,'\\$1') + '=([^;]*)');
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  function csrftoken(){
+    var el=document.querySelector('input[name=csrfmiddlewaretoken]');
+    return el && el.value ? el.value : (getCookie('csrftoken') || '');
+  }
+  async function post(url){
+    try{ return await fetch(url,{method:'POST', headers:{'X-CSRFToken': csrftoken()}}); }catch(e){ return { ok:false }; }
+  }
+  async function del(url){
+    try{ return await fetch(url,{method:'POST', headers:{'X-CSRFToken': csrftoken(), 'X-HTTP-Method-Override':'DELETE'}}); }catch(e){ return { ok:false }; }
+  }
+  document.addEventListener('click', async function(e){
+    var accept = e.target.closest && e.target.closest('[data-conn-accept]');
+    var remove = e.target.closest && e.target.closest('[data-conn-delete]');
+    if (accept){
+      e.preventDefault(); var id = accept.getAttribute('data-conn-accept');
+      accept.disabled = true;
+      const res = await post(`/users/api/connections/${id}/accept/`);
+      if (res && res.ok){ var row = document.getElementById('conn-'+id); if (row) row.remove(); }
+      else { accept.disabled = false; }
+    } else if (remove){
+      e.preventDefault(); var id2 = remove.getAttribute('data-conn-delete');
+      remove.disabled = true;
+      const res2 = await del(`/users/api/connections/${id2}/delete/`);
+      if (res2 && res2.ok){ var row2 = document.getElementById('conn-'+id2); if (row2) row2.remove(); }
+      else { remove.disabled = false; }
+    }
+  });
+})();
+</script>
+{% endblock %}

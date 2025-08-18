@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-5xl mx-auto py-8 px-4 grid grid-cols-1 md:grid-cols-4 gap-6">
+  <aside class="md:col-span-1">
+    <div class="bg-white border border-[#BEE3DB] rounded-lg p-4">
+      <div class="font-semibold text-[#555B6E] mb-2">Manage My Network</div>
+      <ul class="text-sm text-[#89B0AE] space-y-1">
+        <li><a href="{% url 'members_my_connections' %}" class="hover:underline">My Connections{% if connections is not None %} ({{ connections|length }}){% endif %}</a></li>
+  <li><a href="{% url 'members_invitations' %}" class="hover:underline">Invitations{% if received_count is not None %} ({{ received_count }}){% endif %}</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="md:col-span-3">
+    <h1 class="text-2xl font-bold text-[#555B6E] mb-4">My Connections</h1>
+    {% if connections %}
+      <div class="space-y-3">
+        {% for c in connections %}
+          {% if c.requester_id == request.user.id %}
+            {% with peer=c.addressee prof=c.addressee.therapistprofile %}
+              <div class="rounded-xl border border-[#BEE3DB] bg-white p-3 flex items-center gap-3" id="conn-{{ c.id }}">
+                {% if prof and prof.profile_photo %}
+                  <img src="{{ prof.profile_photo.url }}" alt="" class="w-12 h-12 rounded-full object-cover"/>
+                {% else %}
+                  <div class="w-12 h-12 rounded-full bg-[#E5F4F2]"></div>
+                {% endif %}
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline gap-2">
+                    {% if prof and prof.slug %}
+                      <a href="/therapists/{{ prof.slug }}/" target="_blank" rel="noopener" class="font-semibold text-[#555B6E] hover:underline truncate">{{ prof.first_name }} {{ prof.last_name }}</a>
+                    {% else %}
+                      <span class="font-semibold text-[#555B6E] truncate">{{ peer.first_name }} {{ peer.last_name }}</span>
+                    {% endif %}
+                    {% if prof and prof.license_type %}
+                      <span class="text-xs font-medium text-[#116466]">{{ prof.license_type.name }}{% if prof.license_type.short_description %} · {{ prof.license_type.short_description }}{% endif %}</span>
+                    {% endif %}
+                  </div>
+                  {% if prof and prof.practice_name %}
+                    <div class="text-xs text-[#555B6E]">{{ prof.practice_name }}</div>
+                  {% endif %}
+                  <div class="text-[11px] text-[#555B6E]/70">Connected • {{ c.updated_at|date:'M d, Y' }}</div>
+                </div>
+                <div>
+                  <button data-conn-delete="{{ c.id }}" class="px-3 py-1 rounded border border-[#BEE3DB] text-[#555B6E] text-sm">Remove</button>
+                </div>
+              </div>
+            {% endwith %}
+          {% else %}
+            {% with peer=c.requester prof=c.requester.therapistprofile %}
+              <div class="rounded-xl border border-[#BEE3DB] bg-white p-3 flex items-center gap-3" id="conn-{{ c.id }}">
+                {% if prof and prof.profile_photo %}
+                  <img src="{{ prof.profile_photo.url }}" alt="" class="w-12 h-12 rounded-full object-cover"/>
+                {% else %}
+                  <div class="w-12 h-12 rounded-full bg-[#E5F4F2]"></div>
+                {% endif %}
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline gap-2">
+                    {% if prof and prof.slug %}
+                      <a href="/therapists/{{ prof.slug }}/" target="_blank" rel="noopener" class="font-semibold text-[#555B6E] hover:underline truncate">{{ prof.first_name }} {{ prof.last_name }}</a>
+                    {% else %}
+                      <span class="font-semibold text-[#555B6E] truncate">{{ peer.first_name }} {{ peer.last_name }}</span>
+                    {% endif %}
+                    {% if prof and prof.license_type %}
+                      <span class="text-xs font-medium text-[#116466]">{{ prof.license_type.name }}{% if prof.license_type.short_description %} · {{ prof.license_type.short_description }}{% endif %}</span>
+                    {% endif %}
+                  </div>
+                  {% if prof and prof.practice_name %}
+                    <div class="text-xs text-[#555B6E]">{{ prof.practice_name }}</div>
+                  {% endif %}
+                  <div class="text-[11px] text-[#555B6E]/70">Connected • {{ c.updated_at|date:'M d, Y' }}</div>
+                </div>
+                <div>
+                  <button data-conn-delete="{{ c.id }}" class="px-3 py-1 rounded border border-[#BEE3DB] text-[#555B6E] text-sm">Remove</button>
+                </div>
+              </div>
+            {% endwith %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-[#555B6E]">No connections yet.</div>
+    {% endif %}
+  </main>
+</div>
+
+<script>
+(function(){
+  function getCookie(name){
+    const m = document.cookie.match('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g,'\\$1') + '=([^;]*)');
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  function csrftoken(){
+    var el=document.querySelector('input[name=csrfmiddlewaretoken]');
+    return el && el.value ? el.value : (getCookie('csrftoken') || '');
+  }
+  async function del(url){
+    try{ return await fetch(url,{method:'POST', headers:{'X-CSRFToken': csrftoken(), 'X-HTTP-Method-Override':'DELETE'}}); }catch(e){ return { ok:false }; }
+  }
+  document.addEventListener('click', async function(e){
+    var remove = e.target.closest && e.target.closest('[data-conn-delete]');
+    if (remove){
+      e.preventDefault(); var id = remove.getAttribute('data-conn-delete');
+      remove.disabled = true;
+      const res = await del(`/users/api/connections/${id}/delete/`);
+      if (res && res.ok){ var row = document.getElementById('conn-'+id); if (row) row.remove(); }
+      else { remove.disabled = false; }
+    }
+  });
+})();
+</script>
+{% endblock %}

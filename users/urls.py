@@ -46,10 +46,23 @@ urlpatterns = [
     path('members/account/', views.members_account, name='members_account'),
     path('members/feed/', views.members_feed, name='members_feed'),
     path('members/connections/', views.members_connections, name='members_connections'),
+    path('members/connections/invitations/', views.members_invitations, name='members_invitations'),
+    path('members/connections/my/', views.members_my_connections, name='members_my_connections'),
     path('members/blog/', views.members_blog, name='members_blog'),
     path('members/stats/', views.members_stats, name='members_stats'),
     # Feed APIs
     path('api/feed/<int:post_id>/react/', views.api_feed_react, name='api_feed_react'),
     path('api/feed/<int:post_id>/comment/', views.api_feed_comment, name='api_feed_comment'),
     path('api/feed/<int:post_id>/media/', views.api_feed_media_upload, name='api_feed_media_upload'),
+    path('api/feed/<int:post_id>/repost/', views.api_feed_repost, name='api_feed_repost'),
+    path('api/feed/<int:post_id>/', views.api_feed_post_item, name='api_feed_post_item'),
+    path('api/feed/<int:post_id>/reactions/', views.api_feed_reactions, name='api_feed_reactions'),
+    path('api/feed/new_count/', views.api_feed_new_count, name='api_feed_new_count'),
+    # Stock images search for composer
+    path('api/feed/stock_images/', views.api_feed_stock_images, name='api_feed_stock_images'),
+    # Connections APIs
+    path('api/connections/<int:conn_id>/accept/', views.api_connection_accept, name='api_connection_accept'),
+    path('api/connections/<int:conn_id>/delete/', views.api_connection_delete, name='api_connection_delete'),
+    path('api/connections/request/<int:user_id>/', views.api_connection_request, name='api_connection_request'),
+    path('api/connections/discover/', views.api_connections_discover, name='api_connections_discover'),
 ]

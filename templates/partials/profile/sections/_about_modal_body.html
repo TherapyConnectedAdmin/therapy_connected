@@ -238,9 +238,9 @@
       </div>
       <div class="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3" data-gallery>
         <template x-for="(g,i) in $store.profileModal.therapist.gallery_images" :key="g.url || i">
-          <figure class="group relative overflow-hidden rounded-xl ring-1 ring-[#BEE3DB] bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-lg transition-all cursor-zoom-in" :class="g.is_primary ? 'col-span-3 md:col-span-3 row-span-2' : 'col-span-1'" data-lightbox-image @click="($store.mediaLightbox ? $store.mediaLightbox.openImage(g.url) : ($store.profileModal.lightboxImage=g.url))" tabindex="0" @keydown.enter.prevent="($store.mediaLightbox ? $store.mediaLightbox.openImage(g.url) : ($store.profileModal.lightboxImage=g.url))">
+          <figure data-gallery-zoom class="group relative overflow-hidden rounded-xl ring-1 ring-[#BEE3DB] bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-lg transition-all cursor-zoom-in" :class="g.is_primary ? 'col-span-3 md:col-span-3 row-span-2' : 'col-span-1'" :data-lightbox-image="g.url" @click="$store.profileModal.lightboxImage=g.url; if($store.mediaLightbox){ $store.mediaLightbox.openImage(g.url) }" tabindex="0" @keydown.enter.prevent="$store.profileModal.lightboxImage=g.url; if($store.mediaLightbox){ $store.mediaLightbox.openImage(g.url) }">
             <div class="w-full overflow-hidden flex items-center justify-center bg-[#F6FBFA]" :class="g.is_primary ? 'aspect-[4/3] md:aspect-[16/10]' : 'aspect-[4/3]'">
-              <img :src="g.url" :alt="g.caption || 'Gallery image'" loading="lazy" class="w-full h-full object-cover will-change-transform transition duration-500 ease-out group-hover:scale-105 group-focus:scale-105" />
+              <img :src="g.url" :data-lightbox-image="g.url" :alt="g.caption || 'Gallery image'" loading="lazy" class="w-full h-full object-cover will-change-transform transition duration-500 ease-out group-hover:scale-105 group-focus:scale-105 cursor-zoom-in" />
             </div>
             <div class="pointer-events-none absolute inset-0 flex flex-col justify-end">
               <div class="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 bg-gradient-to-t from-black/55 via-black/20 to-transparent p-2 md:p-2.5">

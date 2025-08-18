@@ -68,7 +68,7 @@ from django.utils.decorators import method_decorator
 from django.core.exceptions import ValidationError
 from django.db import transaction as db_transaction
 from users.utils.profile_completion import compute_profile_completion
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 
 # Temporary in-memory store for tokens (use a model for production)
 confirmation_tokens = {}
@@ -519,6 +519,7 @@ def public_therapist_profile(request, slug):
     data['gallery_images'] = images
 
     # Video Gallery (provide video_url + caption)
+    # Normalize any known blocked demo hosts (e.g., samplelib.com) to a permissive sample
     vids = []
     for vg in profile.video_gallery.all():
         try:
@@ -527,6 +528,9 @@ def public_therapist_profile(request, slug):
             vurl = None
         if not vurl:
             continue
+        # Some public sample hosts block hotlinking and return 403. Replace with a permissive CC0 demo clip.
+        if isinstance(vurl, str) and 'samplelib.com/mp4/' in vurl:
+            vurl = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'
         vids.append({
             'video_url': vurl,
             'caption': vg.caption,
@@ -684,14 +688,18 @@ def _profile_json(profile):
         for img in getattr(profile, 'gallery_images', []).all()
         if getattr(getattr(img, 'image', None), 'url', None)
     ]
-    video_gallery = [
-        {
-            'video_url': getattr(v.video, 'url', None) if getattr(v, 'video', None) else None,
+    # Normalize video URLs to avoid hosts that block hotlinking (403s). Use a permissive CC0 fallback.
+    video_gallery = []
+    for v in getattr(profile, 'video_gallery', []).all():
+        vurl = getattr(v.video, 'url', None) if getattr(v, 'video', None) else None
+        if not vurl:
+            continue
+        if isinstance(vurl, str) and 'samplelib.com/mp4/' in vurl:
+            vurl = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'
+        video_gallery.append({
+            'video_url': vurl,
             'caption': v.caption,
-        }
-        for v in getattr(profile, 'video_gallery', []).all()
-        if getattr(getattr(v, 'video', None), 'url', None)
-    ]
+        })
     # Resolve title & options; license_type options
     from users.models_profile import Title as TitleModel, LicenseType as LicenseTypeModel
     try:
@@ -2141,9 +2149,16 @@ def members_account(request):
 
 @login_required
 def members_feed(request):
+    # Optional sort selection (recent|top)
+    sort = (request.GET.get('sort') or '').strip().lower()
+    if sort not in {'recent', 'top'}:
+        sort = 'recent'
+    # Optional search query
+    query = (request.GET.get('q') or '').strip()
     # Create new post (simple form fallback)
     if request.method == 'POST' and request.POST.get('action') == 'create':
         content = (request.POST.get('content') or '').strip()
+        # Visibility: default to members for feed posts (UI doesn't expose a selector here)
         visibility = (request.POST.get('visibility') or 'members').strip()
         post_type = (request.POST.get('post_type') or 'text').strip()
         title = (request.POST.get('title') or '').strip() or None
@@ -2152,8 +2167,8 @@ def members_feed(request):
         event_location = (request.POST.get('event_location') or '').strip() or None
         event_url = (request.POST.get('event_url') or '').strip() or None
         celebrate_type = (request.POST.get('celebrate_type') or '').strip() or None
-        if content or title:
-            from .models import FeedPost
+        if content or title or (request.FILES.getlist('media') or []):
+            from .models import FeedPost, FeedMedia
             if visibility not in dict(FeedPost.VISIBILITY_CHOICES):
                 visibility = 'members'
             if post_type not in dict(FeedPost.POST_TYPE_CHOICES):
@@ -2182,9 +2197,66 @@ def members_feed(request):
             if post_type == 'celebrate':
                 post.celebrate_type = celebrate_type
             post.save()
+            # Handle media uploads from composer form (images/videos)
+            files = request.FILES.getlist('media') or []
+            if files:
+                # Optional per-file metadata (e.g., stock image attribution) sent as JSON mapping of filename -> meta
+                import json as _json
+                try:
+                    media_meta_map = _json.loads(request.POST.get('media_meta') or '{}')
+                except Exception:
+                    media_meta_map = {}
+                any_image = False
+                any_video = False
+                # Limit number of files to avoid abuse
+                # Single-media only for feed posts: take the first file
+                for f in files[:1]:
+                    ctype = (getattr(f, 'content_type', '') or '').lower()
+                    name = getattr(f, 'name', '') or ''
+                    ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+                    # Fallback detection by extension if content_type is missing or generic
+                    def guess_type():
+                        if ctype.startswith('image/'):
+                            return 'image'
+                        if ctype.startswith('video/'):
+                            return 'video'
+                        if ext in {'jpg','jpeg','png','gif','webp','bmp'}:
+                            return 'image'
+                        if ext in {'mp4','mov','m4v','webm','avi','mkv'}:
+                            return 'video'
+                        return ''
+                    mtype = guess_type()
+                    try:
+                        if mtype == 'image':
+                            # 10MB cap for images
+                            if getattr(f, 'size', 0) and f.size > 10 * 1024 * 1024:
+                                continue
+                            meta = None
+                            fname = getattr(f, 'name', '')
+                            if fname and isinstance(media_meta_map, dict):
+                                meta = media_meta_map.get(fname)
+                            FeedMedia.objects.create(post=post, file=f, type='image', meta=(meta or {}))
+                            any_image = True
+                        elif mtype == 'video':
+                            # 60MB cap for videos
+                            if getattr(f, 'size', 0) and f.size > 60 * 1024 * 1024:
+                                continue
+                            FeedMedia.objects.create(post=post, file=f, type='video', meta={})
+                            any_video = True
+                        else:
+                            # Skip unsupported types silently
+                            continue
+                    except Exception:
+                        # Skip problematic file but continue others
+                        continue
+                # Adjust post_type if it was left as text and media present
+                if post.post_type == 'text' and (any_image or any_video):
+                    post.post_type = 'video' if any_video else 'photo'
+                    post.save(update_fields=['post_type'])
+        # Post/Redirect/Get to avoid form resubmission
         return redirect('members_feed')
     # List visible posts
-    from .models import FeedPost, Connection
+    from .models import FeedPost, Connection, FeedReaction
     # Accepted connections for current user (either direction)
     accepted_ids = set(Connection.objects.filter(
         Q(requester=request.user, status='accepted') | Q(addressee=request.user, status='accepted')
@@ -2197,14 +2269,274 @@ def members_feed(request):
         if b:
             connected_user_ids.add(b)
     connected_user_ids.discard(request.user.id)
-    posts = FeedPost.objects.filter(
+    base_qs = FeedPost.objects.filter(
         Q(visibility__in=['public', 'members']) |
         Q(visibility='connections', author_id__in=list(connected_user_ids)) |
         Q(author=request.user)
-    ).select_related('author').prefetch_related('comments__author', 'reactions', 'media').order_by('-created_at')[:100]
+    )
+    # Apply search filter if present
+    if query:
+        search_q = (
+            Q(content__icontains=query) |
+            Q(title__icontains=query) |
+            Q(author__first_name__icontains=query) |
+            Q(author__last_name__icontains=query) |
+            Q(author__username__icontains=query) |
+            Q(repost_of__content__icontains=query) |
+            Q(repost_of__title__icontains=query)
+        )
+        base_qs = base_qs.filter(search_q)
+    posts = base_qs.select_related('author', 'repost_of', 'repost_of__author')\
+        .prefetch_related('comments__author', 'reactions', 'media', 'repost_of__media')\
+        .order_by('-created_at')[:100]
+    # Compute per-reaction counts for visible posts
+    from django.db.models import Count
+    post_list = list(posts)
+    if post_list:
+        counts = (
+            FeedReaction.objects
+            .filter(post__in=post_list)
+            .values('post_id', 'reaction')
+            .annotate(c=Count('id'))
+        )
+        # Initialize per post for ALL defined reaction choices dynamically (future-proof)
+        all_reactions = list(dict(FeedReaction.REACTION_CHOICES).keys())
+        rc_map = {}
+        for p in post_list:
+            rc_map[p.id] = {r: 0 for r in all_reactions}
+            rc_map[p.id]['total'] = 0
+        for row in counts:
+            pid = row['post_id']
+            r = row['reaction']
+            c = row['c'] or 0
+            if pid in rc_map and r in rc_map[pid]:
+                rc_map[pid][r] = c
+                rc_map[pid]['total'] += c
+        # Attach for template access
+        for p in post_list:
+            # Provide a safe default including total
+            default_counts = {r: 0 for r in (rc_map.get(p.id, {}) if rc_map.get(p.id, {}) else all_reactions)}
+            if isinstance(default_counts, list):
+                # If previous line produced list (when p.id missing), convert to dict
+                default_counts = {r: 0 for r in all_reactions}
+            default_counts['total'] = default_counts.get('total', 0)
+            setattr(p, 'reaction_counts', rc_map.get(p.id, default_counts))
+        # Reorder if sorting by top
+        if sort == 'top':
+            post_list.sort(key=lambda p: (getattr(p, 'reaction_counts', {}).get('total', 0), getattr(p, 'created_at', None)), reverse=True)
+    # Current user's avatar (if any) for composer
+    me_avatar_url = None
+    try:
+        from users.models_profile import TherapistProfile as _TP
+        _prof = _TP.objects.filter(user=request.user).first()
+        if _prof and getattr(_prof, 'profile_photo', None):
+            try:
+                me_avatar_url = _prof.profile_photo.url
+            except Exception:
+                me_avatar_url = None
+    except Exception:
+        me_avatar_url = None
+    # Attach author avatars for posts (and original authors for reposts) to avoid extra queries in template
+    try:
+        from users.models_profile import TherapistProfile as _TP2
+        author_ids = {p.author_id for p in post_list}
+        for p in post_list:
+            if getattr(p, 'repost_of', None):
+                author_ids.add(p.repost_of.author_id)
+        profiles = {pr.user_id: pr for pr in _TP2.objects.filter(user_id__in=author_ids)}
+        for p in post_list:
+            av = profiles.get(p.author_id)
+            setattr(p, 'author_avatar_url', (getattr(av, 'profile_photo', None).url if av and getattr(av, 'profile_photo', None) else None))
+            # Compose display name and license info for header
+            try:
+                u = p.author
+                first = (getattr(av, 'first_name', '') or getattr(u, 'first_name', '') or '').strip()
+                last = (getattr(av, 'last_name', '') or getattr(u, 'last_name', '') or '').strip()
+                display_name = (f"{first} {last}".strip()) or (getattr(u, 'username', '') or getattr(u, 'email', ''))
+                setattr(p, 'author_display_name', display_name)
+                lt_name = getattr(getattr(av, 'license_type', None), 'name', None)
+                lt_short = getattr(getattr(av, 'license_type', None), 'short_description', None)
+                setattr(p, 'author_license_type', lt_name)
+                setattr(p, 'author_license_type_short', lt_short)
+            except Exception:
+                setattr(p, 'author_display_name', getattr(p.author, 'get_full_name', lambda: '')() or p.author.username)
+                setattr(p, 'author_license_type', None)
+                setattr(p, 'author_license_type_short', None)
+            if getattr(p, 'repost_of', None):
+                pav = profiles.get(p.repost_of.author_id)
+                setattr(p, 'orig_author_avatar_url', (getattr(pav, 'profile_photo', None).url if pav and getattr(pav, 'profile_photo', None) else None))
+                try:
+                    ou = p.repost_of.author
+                    ofirst = (getattr(pav, 'first_name', '') or getattr(ou, 'first_name', '') or '').strip()
+                    olast = (getattr(pav, 'last_name', '') or getattr(ou, 'last_name', '') or '').strip()
+                    odisplay = (f"{ofirst} {olast}".strip()) or (getattr(ou, 'username', '') or getattr(ou, 'email', ''))
+                    setattr(p, 'orig_author_display_name', odisplay)
+                    olt_name = getattr(getattr(pav, 'license_type', None), 'name', None)
+                    olt_short = getattr(getattr(pav, 'license_type', None), 'short_description', None)
+                    setattr(p, 'orig_author_license_type', olt_name)
+                    setattr(p, 'orig_author_license_type_short', olt_short)
+                except Exception:
+                    setattr(p, 'orig_author_display_name', getattr(p.repost_of.author, 'get_full_name', lambda: '')() or p.repost_of.author.username)
+                    setattr(p, 'orig_author_license_type', None)
+                    setattr(p, 'orig_author_license_type_short', None)
+    except Exception:
+        pass
     return render(request, 'users/members/feed.html', {
-        'posts': posts,
+        'posts': post_list,
+        'current_sort': sort,
+        'me_avatar_url': me_avatar_url,
+    'query': query,
+        'me_id': request.user.id,
     })
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_feed_stock_images(request):
+    """Search royalty-free stock images for post composer. Returns a normalized list of results.
+
+    Query params:
+      - q: search term (required)
+      - page: page number (default 1)
+      - per_page: items per page (default 20, max 30)
+
+    Backends supported via settings API keys (prefer Pexels if both present):
+      - PEXELS_API_KEY: https://www.pexels.com/api/
+      - UNSPLASH_ACCESS_KEY: https://unsplash.com/documentation
+
+    For safety, only return URLs intended for hotlinking (provider-sanctioned) and attribution fields.
+    """
+    import math
+    from django.conf import settings
+    import requests
+    q = (request.GET.get('q') or '').strip()
+    try:
+        page = max(1, int(request.GET.get('page') or 1))
+    except Exception:
+        page = 1
+    try:
+        per_page = int(request.GET.get('per_page') or 20)
+    except Exception:
+        per_page = 20
+    per_page = max(1, min(per_page, 30))
+    if not q:
+        return JsonResponse({'results': [], 'total': 0, 'page': page, 'per_page': per_page})
+
+    PEXELS_KEY = getattr(settings, 'PEXELS_API_KEY', None)
+    UNSPLASH_KEY = getattr(settings, 'UNSPLASH_ACCESS_KEY', None)
+    results = []
+    total = 0
+    try:
+        if PEXELS_KEY:
+            url = 'https://api.pexels.com/v1/search'
+            headers = {'Authorization': PEXELS_KEY}
+            params = {'query': q, 'per_page': per_page, 'page': page}
+            resp = requests.get(url, headers=headers, params=params, timeout=8)
+            if resp.status_code == 200:
+                data = resp.json()
+                for p in data.get('photos', []):
+                    src = p.get('src', {})
+                    # Use large variant for composer preview; original available if needed
+                    results.append({
+                        'id': f"pexels_{p.get('id')}",
+                        'thumb_url': src.get('medium') or src.get('small') or src.get('tiny'),
+                        'full_url': src.get('large2x') or src.get('large') or src.get('original'),
+                        'width': p.get('width'),
+                        'height': p.get('height'),
+                        'provider': 'pexels',
+                        'attribution': (p.get('photographer') or '').strip(),
+                        'attribution_url': p.get('photographer_url'),
+                        'license': 'Pexels License',
+                        'license_url': 'https://www.pexels.com/license/',
+                    })
+                total = data.get('total_results', 0)
+            else:
+                # Propagate provider errors (e.g., 401 invalid key) with a generic error code
+                code = 'unauthorized' if resp.status_code in (401, 403) else 'provider_http'
+                return JsonResponse({'results': [], 'total': 0, 'page': page, 'per_page': per_page, 'error': code}, status=502)
+        elif UNSPLASH_KEY:
+            url = 'https://api.unsplash.com/search/photos'
+            headers = {'Authorization': f'Client-ID {UNSPLASH_KEY}'}
+            params = {'query': q, 'per_page': per_page, 'page': page, 'content_filter': 'high', 'orientation': 'landscape'}
+            resp = requests.get(url, headers=headers, params=params, timeout=8)
+            if resp.status_code == 200:
+                data = resp.json()
+                for p in data.get('results', []):
+                    urls = p.get('urls', {})
+                    user = p.get('user', {})
+                    results.append({
+                        'id': f"unsplash_{p.get('id')}",
+                        'thumb_url': urls.get('small') or urls.get('thumb'),
+                        'full_url': urls.get('regular') or urls.get('full'),
+                        'width': p.get('width'),
+                        'height': p.get('height'),
+                        'provider': 'unsplash',
+                        'attribution': (user.get('name') or user.get('username') or '').strip(),
+                        'attribution_url': user.get('links', {}).get('html') or user.get('portfolio_url'),
+                        'license': 'Unsplash License',
+                        'license_url': 'https://unsplash.com/license',
+                    })
+                total = data.get('total', 0)
+            else:
+                code = 'unauthorized' if resp.status_code in (401, 403) else 'provider_http'
+                return JsonResponse({'results': [], 'total': 0, 'page': page, 'per_page': per_page, 'error': code}, status=502)
+        else:
+            # No API keys; in DEBUG provide placeholder results so UI can be exercised
+            if getattr(settings, 'DEBUG', False):
+                import hashlib
+                count = per_page
+                base_id = (page - 1) * per_page
+                # Derive a deterministic seed from the search query so different queries yield different images
+                q_bytes = (q or 'default').encode('utf-8')
+                q_hash = int(hashlib.md5(q_bytes).hexdigest(), 16) % 10_000_000
+                results = []
+                for i in range(count):
+                    seed = (q_hash + base_id + i + 1)
+                    thumb = f'https://picsum.photos/seed/{seed}/300/200'
+                    full = f'https://picsum.photos/seed/{seed}/1200/800'
+                    results.append({
+                        'id': f'picsum_{seed}',
+                        'thumb_url': thumb,
+                        'full_url': full,
+                        'width': 1200,
+                        'height': 800,
+                        'provider': 'picsum.dev',
+                        'attribution': 'Lorem Picsum (demo)',
+                        'attribution_url': 'https://picsum.photos/',
+                        'license': 'Placeholder (dev only)',
+                        'license_url': 'https://picsum.photos/',
+                    })
+                return JsonResponse({'results': results, 'total': 9999, 'page': page, 'per_page': per_page, 'note': 'DEBUG placeholder images'})
+            # Otherwise return explicit setup note
+            return JsonResponse({'results': [], 'total': 0, 'page': page, 'per_page': per_page, 'note': 'No stock image provider configured'})
+    except Exception as ex:
+        return JsonResponse({'results': [], 'total': 0, 'page': page, 'per_page': per_page, 'error': 'provider_error'}, status=502)
+
+    return JsonResponse({'results': results, 'total': total, 'page': page, 'per_page': per_page})
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_feed_repost(request, post_id):
+    """Create a repost pointing to an existing post. Allows optional note content."""
+    from .models import FeedPost
+    orig = FeedPost.objects.filter(id=post_id).select_related('author').first()
+    if not orig:
+        return JsonResponse({'error': 'Not found'}, status=404)
+    # Optional content note
+    note = (request.POST.get('content') or '').strip()
+    try:
+        new_post = FeedPost.objects.create(
+            author=request.user,
+            content=note[:2000],
+            visibility='members',
+            post_type='text',
+            title=None,
+            repost_of=orig,
+        )
+    except Exception as ex:
+        return JsonResponse({'error': 'Create failed', 'detail': str(ex)}, status=500)
+    return JsonResponse({'ok': True, 'id': new_post.id})
 
 
 @login_required
@@ -2257,15 +2589,440 @@ def api_feed_media_upload(request, post_id):
 
 
 @login_required
+@require_http_methods(["DELETE", "POST"])
+def api_feed_post_item(request, post_id):
+    """Delete the current user's post (supports DELETE or POST with action=delete)."""
+    from .models import FeedPost
+    post = FeedPost.objects.filter(id=post_id, author=request.user).first()
+    if not post:
+        # Hide existence when not owner
+        return JsonResponse({'error': 'Not found'}, status=404)
+    # Allow HTML forms to POST with action=delete
+    if request.method == 'POST' and (request.POST.get('action') or '').lower() != 'delete':
+        return JsonResponse({'error': 'Unsupported'}, status=400)
+    try:
+        post.delete()
+    except Exception as ex:
+        return JsonResponse({'error': 'Delete failed', 'detail': str(ex)}, status=500)
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_feed_reactions(request, post_id):
+    """Return list of reactions for a post with user display, avatar, and license info."""
+    from .models import FeedPost, FeedReaction
+    post = FeedPost.objects.filter(id=post_id).first()
+    if not post:
+        return JsonResponse({'error': 'Not found'}, status=404)
+    qs = FeedReaction.objects.filter(post=post).select_related('user').order_by('-created_at')
+    user_ids = [r.user_id for r in qs]
+    profiles = {}
+    try:
+        from users.models_profile import TherapistProfile as _TP
+        profiles = {p.user_id: p for p in _TP.objects.filter(user_id__in=user_ids).select_related('license_type')}
+    except Exception:
+        profiles = {}
+    def display_name(u, p):
+        first = (getattr(p, 'first_name', '') or getattr(u, 'first_name', '') or '').strip()
+        last = (getattr(p, 'last_name', '') or getattr(u, 'last_name', '') or '').strip()
+        return (f"{first} {last}".strip()) or (getattr(u, 'username', '') or getattr(u, 'email', ''))
+    items = []
+    for r in qs:
+        u = r.user
+        p = profiles.get(r.user_id)
+        try:
+            avatar = (getattr(getattr(p, 'profile_photo', None), 'url', None) if p else None)
+        except Exception:
+            avatar = None
+        lt = getattr(getattr(p, 'license_type', None), 'name', None) if p else None
+        lt_short = getattr(getattr(p, 'license_type', None), 'short_description', None) if p else None
+        items.append({
+            'user_id': r.user_id,
+            'display_name': display_name(u, p),
+            'avatar_url': avatar,
+            'license_type': lt,
+            'license_type_short': lt_short,
+            'reaction': r.reaction,
+            'created_at': r.created_at.isoformat(),
+        })
+    # Optional: counts by reaction
+    from django.db.models import Count
+    counts_qs = (
+        FeedReaction.objects.filter(post=post)
+        .values('reaction')
+        .annotate(c=Count('id'))
+    )
+    counts = {row['reaction']: row['c'] for row in counts_qs}
+    return JsonResponse({'ok': True, 'reactions': items, 'counts': counts})
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_feed_new_count(request):
+    """Return count of new visible posts with id greater than since_id."""
+    from django.db.models import Q
+    from .models import FeedPost, Connection
+    try:
+        since_id = int(request.GET.get('since_id') or 0)
+    except (ValueError, TypeError):
+        since_id = 0
+    # Build connections set (same logic as members_feed)
+    accepted_ids = set(Connection.objects.filter(
+        Q(requester=request.user, status='accepted') | Q(addressee=request.user, status='accepted')
+    ).values_list('requester_id', 'addressee_id'))
+    connected_user_ids = set()
+    for a, b in accepted_ids:
+        if a: connected_user_ids.add(a)
+        if b: connected_user_ids.add(b)
+    connected_user_ids.discard(request.user.id)
+    qs = FeedPost.objects.filter(
+        Q(id__gt=since_id),
+        Q(visibility__in=['public', 'members']) |
+        Q(visibility='connections', author_id__in=list(connected_user_ids)) |
+        Q(author=request.user)
+    )
+    return JsonResponse({'ok': True, 'new_count': qs.count()})
+
+
+@login_required
+@ensure_csrf_cookie
 def members_connections(request):
+    from django.db.models import Q
     from .models import Connection
-    # Simple lists for now
-    received = Connection.objects.filter(addressee=request.user).order_by('-created_at')
-    sent = Connection.objects.filter(requester=request.user).order_by('-created_at')
+    # Lists: pending received, pending sent, and accepted
+    received = Connection.objects.filter(addressee=request.user, status='pending').order_by('-created_at')
+    sent = Connection.objects.filter(requester=request.user, status='pending').order_by('-created_at')
+    accepted = Connection.objects.filter(
+        status='accepted'
+    ).filter(
+        Q(requester=request.user) | Q(addressee=request.user)
+    ).order_by('-updated_at', '-created_at')
     return render(request, 'users/members/connections.html', {
         'received': received,
+    'received_count': received.count(),
         'sent': sent,
+        'accepted': accepted,
     })
+
+
+@login_required
+@ensure_csrf_cookie
+def members_invitations(request):
+    """Page listing all current pending invitations received by the user."""
+    from .models import Connection
+    received = Connection.objects.filter(addressee=request.user, status='pending').order_by('-created_at')
+    return render(request, 'users/members/invitations.html', {
+        'received': received,
+    'received_count': received.count(),
+    })
+
+
+@login_required
+def members_my_connections(request):
+    """List all accepted connections for the current user."""
+    from django.db.models import Q
+    from .models import Connection
+    connections = (Connection.objects
+                   .filter(status='accepted')
+                   .filter(Q(requester=request.user) | Q(addressee=request.user))
+                   .select_related('requester', 'addressee')
+                   .order_by('-updated_at', '-created_at'))
+    # Pending invitations received count (for sidebar badge)
+    received_count = Connection.objects.filter(addressee=request.user, status='pending').count()
+    return render(request, 'users/members/my_connections.html', {
+        'connections': connections,
+        'received_count': received_count,
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_connection_accept(request, conn_id: int):
+    """Accept a pending connection where current user is the addressee."""
+    from .models import Connection
+    try:
+        c = Connection.objects.select_related('requester', 'addressee').get(id=conn_id)
+    except Connection.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'not_found'}, status=404)
+    if c.addressee_id != request.user.id:
+        return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+    if c.status != 'pending':
+        return JsonResponse({'ok': False, 'error': 'not_pending'}, status=400)
+    c.status = 'accepted'
+    c.save(update_fields=['status', 'updated_at'])
+    # Peer is the requester when accepting
+    peer = c.requester
+    return JsonResponse({'ok': True, 'connection': {
+        'id': c.id,
+        'status': c.status,
+        'peer_id': peer.id,
+        'peer_name': f"{peer.first_name} {peer.last_name}".strip() or peer.email,
+        'peer_email': peer.email,
+    }})
+
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def api_connection_delete(request, conn_id: int):
+    """Delete a connection or pending request.
+    - If pending and addressee is current user: acts like decline.
+    - If pending and requester is current user: cancel sent request.
+    - If accepted and either side is current user: remove connection.
+    """
+    from .models import Connection
+    try:
+        c = Connection.objects.get(id=conn_id)
+    except Connection.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'not_found'}, status=404)
+    if c.requester_id != request.user.id and c.addressee_id != request.user.id:
+        return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+    c.delete()
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_connection_request(request, user_id: int):
+    """Send a connection request to another user.
+    Behavior:
+    - No-op if already connected or pending request exists from current user.
+    - If a pending request exists from the other user to current user, auto-accept it.
+    - Cannot connect to self.
+    Returns JSON with connection id and status (pending or accepted).
+    """
+    from django.db.models import Q
+    from .models import Connection
+    # Prevent self-connect
+    if user_id == request.user.id:
+        return JsonResponse({'ok': False, 'error': 'cannot_connect_to_self'}, status=400)
+    # Resolve peer
+    peer = User.objects.filter(id=user_id).first()
+    if not peer:
+        return JsonResponse({'ok': False, 'error': 'user_not_found'}, status=404)
+    # Existing same-direction request?
+    existing = Connection.objects.filter(requester=request.user, addressee=peer).first()
+    if existing:
+        # If already accepted or pending, just return it
+        return JsonResponse({'ok': True, 'connection': {
+            'id': existing.id,
+            'status': existing.status,
+            'peer_id': peer.id,
+            'peer_name': (f"{peer.first_name} {peer.last_name}".strip() or peer.email),
+            'peer_email': peer.email,
+        }})
+    # Reverse existing?
+    reverse = Connection.objects.filter(requester=peer, addressee=request.user).first()
+    if reverse:
+        if reverse.status == 'pending':
+            reverse.status = 'accepted'
+            reverse.save(update_fields=['status', 'updated_at'])
+        # accepted (or now accepted) -> return that
+        return JsonResponse({'ok': True, 'connection': {
+            'id': reverse.id,
+            'status': reverse.status,
+            'peer_id': peer.id,
+            'peer_name': (f"{peer.first_name} {peer.last_name}".strip() or peer.email),
+            'peer_email': peer.email,
+        }})
+    # Create new pending request
+    c = Connection.objects.create(requester=request.user, addressee=peer, status='pending')
+    return JsonResponse({'ok': True, 'connection': {
+        'id': c.id,
+        'status': c.status,
+        'peer_id': peer.id,
+        'peer_name': (f"{peer.first_name} {peer.last_name}".strip() or peer.email),
+        'peer_email': peer.email,
+    }}, status=201)
+
+
+@login_required
+@require_http_methods(["GET"]) 
+def api_connections_discover(request):
+    """Members-only discover endpoint to find other therapists to connect with.
+    Filters: q (name/email/text), school, practice, city, state, within (miles), sort (distance|name).
+    Behavior: excludes current user and existing accepted connections. Supports suggestions by shared schools.
+    Returns JSON list of up to 50 candidates with {id,name,license,city,state,distance}.
+    """
+    from django.db.models import Q
+    from .models import Connection
+    from users.models_profile import TherapistProfile, ZipCode
+    # Base queryset: active users (include those still completing onboarding to increase pool)
+    qs = (TherapistProfile.objects
+          .filter(user__is_active=True)
+          .select_related('license_type','user')
+          .prefetch_related('locations','educations'))
+    # Exclude self
+    qs = qs.exclude(user=request.user)
+    # Exclude already connected (accepted) with current user; allow pending to appear as suggestions
+    connected_pairs = Connection.objects.filter(
+        (Q(requester=request.user) | Q(addressee=request.user)) & Q(status='accepted')
+    ).values_list('requester_id','addressee_id')
+    exclude_ids = set()
+    for a,b in connected_pairs:
+        if a: exclude_ids.add(a)
+        if b: exclude_ids.add(b)
+    exclude_ids.discard(request.user.id)
+    if exclude_ids:
+        qs = qs.exclude(user_id__in=list(exclude_ids))
+
+    # Filters
+    q = (request.GET.get('q') or '').strip()
+    school = (request.GET.get('school') or '').strip()
+    practice = (request.GET.get('practice') or '').strip()
+    city = (request.GET.get('city') or '').strip()
+    state = (request.GET.get('state') or '').strip()
+    suggest = (request.GET.get('suggest') or '').lower() in {'1','true','yes'}
+    within = request.GET.get('within')
+    try:
+        within_miles = int(within) if within else 150
+    except (TypeError, ValueError):
+        within_miles = 150
+    sort = (request.GET.get('sort') or 'distance').strip()
+
+    if q:
+        name_q = Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(user__email__icontains=q)
+        text_q = Q(intro_statement__icontains=q) | Q(personal_statement_q1__icontains=q) | Q(personal_statement_q2__icontains=q) | Q(personal_statement_q3__icontains=q)
+        loc_q = Q(locations__city__icontains=q) | Q(locations__state__icontains=q)
+        qs = qs.filter(name_q | text_q | loc_q)
+    if school:
+        qs = qs.filter(educations__school__icontains=school)
+    if practice:
+        qs = qs.filter(practice_name__icontains=practice)
+    if city:
+        qs = qs.filter(locations__city__icontains=city)
+    if state:
+        from users.utils.state_normalize import normalize_state
+        st = normalize_state(state)
+        qs = qs.filter(Q(locations__state__iexact=st) | Q(locations__state__icontains=state))
+
+    # Suggestions by shared schools if requested and no explicit filters
+    if suggest and not (q or school or practice or city or state):
+        try:
+            my_schools = list({e.school.strip() for e in request.user.therapistprofile.educations.all() if (e.school or '').strip()})
+        except Exception:
+            my_schools = []
+        if my_schools:
+            sub = TherapistProfile.objects.filter(educations__school__in=my_schools)
+            qs = qs.filter(id__in=sub.values('id'))
+
+    qs = qs.distinct()
+
+    # Compute distances if user_zip known
+    user_zip = request.session.get('user_zip')
+    zip_row = None
+    if user_zip:
+        try:
+            import re
+            uz = re.match(r"\d{5}", user_zip or "")
+            uz = uz.group(0) if uz else user_zip
+            zip_row = ZipCode.objects.filter(pk=uz).first()
+        except Exception:
+            zip_row = None
+    results = []
+    def haversine(lat1, lon1, lat2, lon2):
+        import math
+        R = 3958.8
+        phi1 = math.radians(lat1); phi2 = math.radians(lat2)
+        dphi = math.radians(lat2 - lat1); dlambda = math.radians(lon2 - lon1)
+        a = math.sin(dphi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda/2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return R * c
+    # Prepare location zip rows
+    zip_rows = {}
+    if zip_row:
+        try:
+            loc_zips = set(qs.values_list('locations__zip', flat=True))
+            from users.models_profile import ZipCode as Z
+            zip_rows = {z.zip: z for z in Z.objects.filter(zip__in=loc_zips)}
+        except Exception:
+            zip_rows = {}
+    # Iterate limited set first for performance
+    candidates = list(qs[:200])
+    for prof in candidates:
+        dist = None
+        city_val = None
+        state_val = None
+        practice_val = None
+        # Determine primary practice from primary location if available, else profile.practice_name
+        try:
+            locs = list(prof.locations.all())
+        except Exception:
+            locs = []
+        if locs:
+            # choose first for city/state display; distance computed across all
+            city_val = getattr(locs[0], 'city', None)
+            state_val = getattr(locs[0], 'state', None)
+            try:
+                primary_loc = next((l for l in locs if getattr(l,'is_primary_address', False)), None)
+            except Exception:
+                primary_loc = None
+            if primary_loc and getattr(primary_loc, 'practice_name', None):
+                practice_val = primary_loc.practice_name
+        if zip_row and locs:
+            mind = None
+            for loc in locs:
+                zr = zip_rows.get(getattr(loc, 'zip', None))
+                if zr and zr.latitude and zr.longitude and zip_row.latitude and zip_row.longitude:
+                    try:
+                        d = haversine(float(zip_row.latitude), float(zip_row.longitude), float(zr.latitude), float(zr.longitude))
+                    except Exception:
+                        continue
+                    if mind is None or d < mind:
+                        mind = d
+                        city_val = getattr(loc, 'city', city_val)
+                        state_val = getattr(loc, 'state', state_val)
+            dist = round(mind, 1) if mind is not None else None
+        # Fallback practice name from profile
+        if not practice_val:
+            practice_val = getattr(prof, 'practice_name', None)
+        # Profile photo url (safe)
+        try:
+            photo_url = prof.profile_photo.url if getattr(prof, 'profile_photo', None) else None
+        except Exception:
+            photo_url = None
+        # Education: prefer latest graduation year if present
+        school_name = None
+        school_year = None
+        try:
+            edus = list(prof.educations.all())
+        except Exception:
+            edus = []
+        if edus:
+            # pick with greatest numeric year_graduated
+            def yr(e):
+                y = (getattr(e, 'year_graduated', '') or '').strip()
+                return int(y) if (y.isdigit() and len(y)==4) else None
+            by_year = sorted([e for e in edus if yr(e) is not None], key=lambda e: yr(e), reverse=True)
+            chosen = by_year[0] if by_year else edus[0]
+            school_name = getattr(chosen, 'school', None)
+            yv = (getattr(chosen, 'year_graduated', '') or '').strip()
+            school_year = yv if (yv.isdigit() and len(yv)==4) else None
+        results.append({
+            'id': prof.user_id,
+            'first_name': prof.first_name,
+            'last_name': prof.last_name,
+            'name': f"{prof.first_name} {prof.last_name}".strip(),
+            'license_type': getattr(getattr(prof,'license_type',None),'name', None),
+            'license_type_short': getattr(getattr(prof,'license_type',None),'short_description', None),
+            'city': city_val,
+            'state': state_val,
+            'distance': dist,
+            'photo_url': photo_url,
+            'practice_name': practice_val,
+            'school': school_name,
+            'school_year': school_year,
+            'slug': getattr(prof, 'slug', None),
+        })
+    # Filter by within miles if distance available
+    if zip_row and within_miles is not None:
+        results = [r for r in results if (r['distance'] is None or r['distance'] <= within_miles)]
+    # Sort
+    if sort == 'name':
+        results.sort(key=lambda r: (r['last_name'] or '', r['first_name'] or ''))
+    else:
+        results.sort(key=lambda r: (r['distance'] if r['distance'] is not None else float('inf')))
+    return JsonResponse({'ok': True, 'results': results[:50]})
 
 
 @login_required

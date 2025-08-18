@@ -91,9 +91,8 @@ def generate_gallery_image_url() -> str:
     # picsum with unique seed for variety
     return f"https://picsum.photos/seed/{uuid.uuid4().hex[:12]}/400/300"
 VIDEO_URLS = [
-    "https://samplelib.com/mp4/sample-5s.mp4",
-    "https://samplelib.com/mp4/sample-10s.mp4",
-    # Add more as needed
+    # Use a permissive CC0 demo clip; some sample hosts block hotlinking and return 403
+    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
 ]
 
 STATES = [fake.state_abbr() for _ in range(30)]  # ephemeral pool; license_state uses this

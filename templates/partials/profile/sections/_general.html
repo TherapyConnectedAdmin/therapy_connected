@@ -83,12 +83,17 @@
       <span class="absolute top-3 left-3 bg-[#F5E2D6] text-[#555B6E] px-3 py-1 rounded-full text-xs font-semibold shadow-sm border border-[#FF9950]/30" style="box-shadow:0 2px 4px rgba(0,0,0,0.1);">Approx. <span x-text="$store.profileModal.therapist.distance"></span> miles</span>
     </template>
     {% if not editable and profile_obj and profile_obj.profile_photo %}
-      <!-- Server-rendered fallback image (removed after Alpine hydrates) -->
-      <img src="{{ profile_obj.profile_photo.url }}" alt="{{ profile_obj.first_name }} {{ profile_obj.last_name }} profile photo" class="w-full h-full object-cover object-center" data-server-fallback>
+      <!-- Server-rendered fallback image (removed after Alpine hydrates); also enable lightbox -->
+      <img src="{{ profile_obj.profile_photo.url }}" data-lightbox-image="{{ profile_obj.profile_photo.url }}" alt="{{ profile_obj.first_name }} {{ profile_obj.last_name }} profile photo" class="w-full h-full object-cover object-center cursor-zoom-in" data-server-fallback>
     {% endif %}
     <!-- Existing photo -->
     <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.profile_photo_url">
-      <img :src="$store.profileModal.therapist.profile_photo_url" :alt="$store.profileModal.therapist.name || 'Profile photo'" class="w-full h-full object-cover object-center" />
+      <img :src="$store.profileModal.therapist.profile_photo_url"
+           :data-lightbox-image="$store.profileModal.therapist.profile_photo_url"
+           :alt="$store.profileModal.therapist.name || 'Profile photo'"
+           class="w-full h-full object-cover object-center cursor-zoom-in"
+           @click="$store.mediaLightbox ? $store.mediaLightbox.openImage($store.profileModal.therapist.profile_photo_url) : ($store.profileModal.lightboxImage=$store.profileModal.therapist.profile_photo_url)"
+      />
     </template>
     <!-- Placeholder (branded) -->
     <template x-if="!$store.profileModal.loading && !$store.profileModal.therapist.profile_photo_url">

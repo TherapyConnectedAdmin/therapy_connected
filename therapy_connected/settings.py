@@ -173,6 +173,10 @@ TAILWIND_APP_NAME = 'theme'
 STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
 
+# Stock Image Providers (optional)
+PEXELS_API_KEY = os.getenv('PEXELS_API_KEY')
+UNSPLASH_ACCESS_KEY = os.getenv('UNSPLASH_ACCESS_KEY')
+
 # Use custom login URL for @login_required
 LOGIN_URL = '/users/login/'
 

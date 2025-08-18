@@ -1,0 +1,59 @@
+{% load static %}
+{#
+	Global Therapist Profile Modal overlay
+	- Tied to Alpine store: $store.profileModal (defined in base layout)
+	- Used on Home and Therapists pages (and can be included site-wide)
+	- Renders loading, error, and content states
+	- Includes the shared profile modal body partial
+#}
+
+<div
+	x-cloak
+	x-data="{}"
+	x-show="$store.profileModal && $store.profileModal.show"
+	class="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+	@keydown.window.escape="$store.profileModal && $store.profileModal.close()"
+	@click.self="$store.profileModal && $store.profileModal.close()"
+>
+	<div
+		class="relative w-[95vw] max-w-5xl max-h-[88vh] rounded-2xl overflow-hidden bg-gradient-to-b from-white to-[#F2FAF9] ring-1 ring-[#BEE3DB] shadow-2xl"
+		x-trap.noscroll="$store.profileModal && $store.profileModal.show"
+	>
+		<!-- Close button -->
+		<button
+			type="button"
+			class="absolute top-3 right-3 z-[130] bg-[#FF9950] hover:bg-[#555B6E] text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE]"
+			aria-label="Close profile"
+			@click="$store.profileModal && $store.profileModal.close()"
+		>
+			<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' class='w-6 h-6'><path stroke-linecap='round' stroke-linejoin='round' d='M6 18L18 6M6 6l12 12'/></svg>
+		</button>
+
+		<!-- Scrollable content wrapper -->
+		<div class="h-[88vh] md:h-[86vh] overflow-y-auto custom-scrollbar p-0">
+			<!-- Loading state -->
+			<div x-show="$store.profileModal.loading" class="flex items-center justify-center py-16">
+				<div class="flex items-center gap-3 text-[#555B6E]">
+					<svg class="animate-spin h-5 w-5 text-[#116466]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+					</svg>
+					<span class="text-sm font-medium">Loading profile…</span>
+				</div>
+			</div>
+
+			<!-- Error state -->
+			<div x-show="!$store.profileModal.loading && $store.profileModal.error" class="py-6">
+				<div class="bg-red-100 text-red-700 text-sm rounded-md px-4 py-3">
+					Failed to load profile: <span x-text="$store.profileModal.error"></span>
+				</div>
+			</div>
+
+			<!-- Content state -->
+			<div x-show="!$store.profileModal.loading && $store.profileModal.contentVisible" x-transition.opacity>
+				{% include 'partials/profile_modal.html' with standalone=False %}
+			</div>
+		</div>
+	</div>
+</div>
+

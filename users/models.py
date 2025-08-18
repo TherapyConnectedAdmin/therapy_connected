@@ -100,6 +100,8 @@ class FeedPost(models.Model):
     event_url = models.URLField(blank=True, null=True)
     # Celebrate-specific optional fields
     celebrate_type = models.CharField(max_length=64, blank=True, null=True)
+    # Repost relationship (re-share another post)
+    repost_of = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='reposts')
 
     class Meta:
         ordering = ['-created_at']
@@ -130,6 +132,7 @@ class FeedReaction(models.Model):
         ('support', 'Support'),
         ('insightful', 'Insightful'),
         ('love', 'Love'),
+    ('laugh', 'Laugh'),
     ]
     post = models.ForeignKey(FeedPost, on_delete=models.CASCADE, related_name='reactions')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feed_reactions')

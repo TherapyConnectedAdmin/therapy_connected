@@ -1,176 +1,1017 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="max-w-3xl mx-auto py-8 px-4">
-  <h1 class="text-2xl font-bold text-[#555B6E] mb-4">Home</h1>
-  <!-- Composer (LinkedIn-like trigger) -->
-  <div class="rounded border border-[#BEE3DB] bg-white p-4 mb-6">
-    <div class="flex items-center gap-3">
-      <div class="flex-1">
-        <button id="open-composer" class="w-full text-left border border-[#BEE3DB] rounded-full px-4 py-2 text-[#555B6E]/80 hover:bg-[#F6FFF8]">Start a post</button>
+<div id="voyager-feed" class="w-full max-w-none py-4 px-0">
+  <style>
+    /* Three-column scaffold similar to LinkedIn */
+    .scaffold-layout{display:block}
+    .scaffold-layout__inner{max-width:1128px;margin:0 auto;padding:0 16px}
+    .scaffold-layout__row{display:flex;gap:16px;align-items:flex-start}
+    .scaffold-layout__sidebar,.scaffold-layout__aside{display:none}
+    .scaffold-layout__content{flex:1 1 auto;min-width:0}
+    @media(min-width:1024px){
+      .scaffold-layout__sidebar,.scaffold-layout__aside{display:block;position:relative;flex:0 0 300px}
+    }
+    @media(min-width:1280px){
+      .scaffold-layout__content{flex:0 0 50%;max-width:50%}
+    }
+    .artdeco-card{background:#fff;border:1px solid #BEE3DB;border-radius:8px}
+  /* Reaction picker */
+  .react-menu{backdrop-filter:saturate(120%) blur(4px)}
+  .react-option{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;margin:4px;border-radius:9999px;border:1px solid #BEE3DB;background:#fff;cursor:pointer;transition:transform .08s ease}
+  .react-option:focus,.react-option:hover{outline:none;transform:translateY(-2px);background:#F6FFF8}
+  /* Tiny spinner for uploading */
+  .tc-spinner{width:16px;height:16px;border:2px solid #BEE3DB;border-top-color:#89B0AE;border-radius:9999px;animation:tcspin .7s linear infinite}
+  @keyframes tcspin{to{transform:rotate(360deg)}}
+  /* Emoji picker */
+  .emoji-btn{border:1px solid #BEE3DB;background:#fff;border-radius:6px;line-height:1;padding:6px;cursor:pointer}
+  .emoji-btn:hover{background:#F6FFF8}
+  .emoji-popover{position:fixed;z-index:520;background:#fff;border:1px solid #BEE3DB;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:6px;width:260px}
+  .emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+  .emoji-cell{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;cursor:pointer}
+  .emoji-cell:hover{background:#F6FFF8}
+  </style>
+
+  <div class="scaffold-layout scaffold-layout--sidebar-main-aside">
+    <div class="scaffold-layout__inner">
+      <div class="scaffold-layout__row scaffold-layout__content--sidebar-main-aside">
+        <!-- Sidebar (left) -->
+        <aside class="scaffold-layout__sidebar" tabindex="-1">
+          <div role="region" aria-label="Side Bar" class="space-y-3">
+            <div class="artdeco-card p-4">
+              <div class="flex items-center gap-3">
+                {% if me_avatar_url %}
+                  <img src="{{ me_avatar_url }}" alt="" class="w-12 h-12 rounded-full object-cover" />
+                {% else %}
+                  <div class="w-12 h-12 rounded-full bg-[#BEE3DB]"></div>
+                {% endif %}
+                <div>
+                  <div class="text-[#555B6E] font-semibold">Welcome</div>
+                  <div class="text-sm text-[#555B6E]/80">Your professional feed lives here.</div>
+                </div>
+              </div>
+            </div>
+            <div class="artdeco-card p-4">
+              <div class="font-semibold text-[#555B6E] mb-2">Shortcuts</div>
+              <ul class="text-sm text-[#89B0AE] space-y-1">
+                <li><a href="/users/members/profile/" class="hover:underline">Edit Profile</a></li>
+                <li><a href="/users/members/blog/" class="hover:underline">Write a Blog</a></li>
+                <li><a href="/users/members/connections/" class="hover:underline">Connections</a></li>
+              </ul>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main (center) -->
+        <main class="scaffold-layout__content" aria-label="Main Feed">
+          <!-- Composer card -->
+          <div class="artdeco-card p-4 mb-3">
+            <div class="flex items-center gap-3">
+              {% if me_avatar_url %}
+                <img src="{{ me_avatar_url }}" alt="" class="w-10 h-10 rounded-full object-cover" />
+              {% else %}
+                <div class="w-10 h-10 rounded-full bg-[#BEE3DB]"></div>
+              {% endif %}
+              <button type="button" id="open-composer" onclick="(function(){var m=document.getElementById('composer-modal'); if(m){m.classList.remove('hidden');} var pt=document.getElementById('composer-post-type'); if(pt){pt.value='text';}})(); return false;" class="flex-1 text-left border border-[#BEE3DB] rounded-full px-4 py-2 text-[#555B6E]/80 hover:bg-[#F6FFF8]">Start a post</button>
+            </div>
+            <div class="mt-3 flex items-center gap-4 text-sm">
+              <button type="button" class="flex items-center gap-1 text-[#89B0AE]" data-type="photo" data-ctype onclick="(function(){var m=document.getElementById('composer-modal'); if(m){m.classList.remove('hidden');} var pt=document.getElementById('composer-post-type'); if(pt){pt.value='photo';} var tw=document.getElementById('composer-title-wrap'); if(tw){tw.classList.remove('hidden');}})(); return false;">Photo</button>
+              <button type="button" class="flex items-center gap-1 text-[#89B0AE]" data-type="video" data-ctype onclick="(function(){var m=document.getElementById('composer-modal'); if(m){m.classList.remove('hidden');} var pt=document.getElementById('composer-post-type'); if(pt){pt.value='video';} var tw=document.getElementById('composer-title-wrap'); if(tw){tw.classList.remove('hidden');}})(); return false;">Video</button>
+              <button type="button" class="flex items-center gap-1 text-[#89B0AE]" data-type="event" data-ctype onclick="(function(){var m=document.getElementById('composer-modal'); if(m){m.classList.remove('hidden');} var pt=document.getElementById('composer-post-type'); if(pt){pt.value='event';} var tw=document.getElementById('composer-title-wrap'); if(tw){tw.classList.remove('hidden');} var ef=document.getElementById('composer-event-fields'); if(ef){ef.classList.remove('hidden');} var cf=document.getElementById('composer-celebrate-fields'); if(cf){cf.classList.add('hidden');}})(); return false;">Event</button>
+              <button type="button" class="flex items-center gap-1 text-[#89B0AE]" data-type="celebrate" data-ctype onclick="(function(){var m=document.getElementById('composer-modal'); if(m){m.classList.remove('hidden');} var pt=document.getElementById('composer-post-type'); if(pt){pt.value='celebrate';} var tw=document.getElementById('composer-title-wrap'); if(tw){tw.classList.remove('hidden');} var ef=document.getElementById('composer-event-fields'); if(ef){ef.classList.add('hidden');} var cf=document.getElementById('composer-celebrate-fields'); if(cf){cf.classList.remove('hidden');}})(); return false;">Celebrate</button>
+            </div>
+          </div>
+
+          <!-- Search + Sort (site-styled) -->
+          <div class="mb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2 px-1">
+            <form method="get" class="flex-1 md:max-w-md">
+              <div class="flex items-stretch border border-[#BEE3DB] rounded-full overflow-hidden bg-white focus-within:ring-1 focus-within:ring-[#89B0AE]">
+                <input type="text" name="q" value="{{ query|default:'' }}" placeholder="Search posts, people, or titles" class="flex-1 px-4 py-2 text-sm text-[#555B6E] outline-none" />
+                {% if current_sort %}<input type="hidden" name="sort" value="{{ current_sort }}" />{% endif %}
+                <button class="px-4 py-2 text-sm font-semibold text-white" style="background:#89B0AE" type="submit">Search</button>
+              </div>
+            </form>
+            <details class="relative" role="listbox">
+              <summary class="list-none cursor-pointer flex items-center gap-2 select-none">
+                <span class="text-sm text-[#555B6E]/70">Sort by</span>
+                <span class="inline-flex items-center gap-1 border border-[#BEE3DB] rounded-full px-3 py-1.5 bg-white text-sm text-[#555B6E] hover:bg-[#F6FFF8]">
+                  {% if current_sort == 'top' %}Top{% else %}Recent{% endif %}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" stroke="#555B6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </summary>
+              <div class="absolute right-0 mt-2 w-40 artdeco-card py-1 shadow-lg z-20">
+           <a href="?sort=top{% if query %}&q={{ query|urlencode }}{% endif %}" role="option" aria-selected="{% if current_sort == 'top' %}true{% else %}false{% endif %}"
+             class="block px-3 py-2 text-sm hover:bg-[#F6FFF8] text-[#555B6E] {% if current_sort == 'top' %}bg-[#F6FFF8] font-semibold{% endif %}">
+                  Top
+                </a>
+           <a href="?sort=recent{% if query %}&q={{ query|urlencode }}{% endif %}" role="option" aria-selected="{% if current_sort == 'recent' %}true{% else %}false{% endif %}"
+             class="block px-3 py-2 text-sm hover:bg-[#F6FFF8] text-[#555B6E] {% if current_sort == 'recent' %}bg-[#F6FFF8] font-semibold{% endif %}">
+                  Recent
+                </a>
+              </div>
+            </details>
+          </div>
+
+          <!-- New posts floating pill (only shown when new posts exist) -->
+          <div id="new-posts-pill" class="fixed top-3 left-1/2 -translate-x-1/2 z-[140] hidden">
+            <button id="new-posts-btn" class="bg-[#89B0AE] text-white rounded-full px-4 py-2 text-sm shadow border border-[#BEE3DB]" type="button">
+              New posts
+            </button>
+          </div>
+
+          <!-- Feed items -->
+          <div class="space-y-3">
+            {% for post in posts %}
+              <article class="artdeco-card" id="post-{{ post.id }}" data-post-id="{{ post.id }}">
+                <!-- Header with avatar and name -->
+                <header class="px-4 pt-4 flex items-center gap-3">
+                  <img src="{{ post.author_avatar_url|default:'/static/placeholder-avatar.png' }}" class="w-10 h-10 rounded-full object-cover bg-[#BEE3DB]" alt=""/>
+                  <div class="min-w-0 flex-1">
+                    {% if post.repost_of %}
+                      <div class="text-sm text-[#555B6E] font-semibold truncate">{{ post.author_display_name|default:post.author.get_full_name }} <span class="font-normal text-[#555B6E]/70">reposted</span></div>
+                      <div class="text-xs text-[#555B6E]/60 truncate">
+                        {% if post.author_license_type %}
+                          {{ post.author_license_type }}{% if post.author_license_type_short %} • {{ post.author_license_type_short }}{% endif %}
+                        {% endif %}
+                      </div>
+                      <div class="text-xs text-[#555B6E]/70 truncate">
+                        Original: <span class="text-[#555B6E]">{{ post.orig_author_display_name|default:post.repost_of.author.get_full_name }}</span>
+                        {% if post.orig_author_license_type %}
+                          <span class="text-[#555B6E]/60"> ({{ post.orig_author_license_type }}{% if post.orig_author_license_type_short %} • {{ post.orig_author_license_type_short }}{% endif %})</span>
+                        {% endif %}
+                      </div>
+                      <div class="text-xs text-[#555B6E]/60">{{ post.created_at|date:'M d, Y H:i' }} • {{ post.visibility }}</div>
+                    {% else %}
+                      <div class="text-sm text-[#555B6E] font-semibold truncate">{{ post.author_display_name|default:post.author.get_full_name }}</div>
+                      <div class="text-xs text-[#555B6E]/60 truncate">
+                        {% if post.author_license_type %}
+                          {{ post.author_license_type }}{% if post.author_license_type_short %} • {{ post.author_license_type_short }}{% endif %}
+                        {% endif %}
+                      </div>
+                      <div class="text-xs text-[#555B6E]/60">{{ post.created_at|date:'M d, Y H:i' }} • {{ post.visibility }}</div>
+                    {% endif %}
+                  </div>
+                  {% if post.author_id == me_id %}
+                  <div>
+                    <button class="post-delete text-xs text-red-600 hover:underline px-2 py-1" data-post="{{ post.id }}" title="Delete">Delete</button>
+                  </div>
+                  {% endif %}
+                </header>
+                <!-- Media first -->
+                {% if post.repost_of %}
+                  {% with base=post.repost_of %}
+                    {% with media_list=base.media.all %}
+                      {% if media_list %}
+                      <div class="mt-3">
+                        {% if media_list|length == 1 %}
+                          {% for m in media_list %}
+                            {% if m.type == 'image' %}
+                              <img src="{{ m.file.url }}" alt="" class="w-full max-h-[640px] object-cover" />
+                            {% else %}
+                              <video class="w-full" controls src="{{ m.file.url }}"></video>
+                            {% endif %}
+                          {% endfor %}
+                        {% else %}
+                          <div class="grid grid-cols-2 gap-1">
+                            {% for m in media_list %}
+                              {% if m.type == 'image' %}
+                                <img src="{{ m.file.url }}" alt="" class="w-full h-60 object-cover" />
+                              {% else %}
+                                <video class="w-full" controls src="{{ m.file.url }}"></video>
+                              {% endif %}
+                            {% endfor %}
+                          </div>
+                        {% endif %}
+                      </div>
+                      {% endif %}
+                    {% endwith %}
+                  {% endwith %}
+                {% else %}
+                  {% with base=post %}
+                    {% with media_list=base.media.all %}
+                      {% if media_list %}
+                      <div class="mt-3">
+                        {% if media_list|length == 1 %}
+                          {% for m in media_list %}
+                            {% if m.type == 'image' %}
+                              <img src="{{ m.file.url }}" alt="" class="w-full max-h-[640px] object-cover" />
+                            {% else %}
+                              <video class="w-full" controls src="{{ m.file.url }}"></video>
+                            {% endif %}
+                          {% endfor %}
+                        {% else %}
+                          <div class="grid grid-cols-2 gap-1">
+                            {% for m in media_list %}
+                              {% if m.type == 'image' %}
+                                <img src="{{ m.file.url }}" alt="" class="w-full h-60 object-cover" />
+                              {% else %}
+                                <video class="w-full" controls src="{{ m.file.url }}"></video>
+                              {% endif %}
+                            {% endfor %}
+                          </div>
+                        {% endif %}
+                      </div>
+                      {% endif %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endif %}
+                <!-- Body text -->
+                <div class="px-4 pt-3 pb-1 text-[#555B6E]">
+                  {% if post.repost_of %}
+                    <div class="text-xs text-[#555B6E]/60 mb-1">Reposted from {{ post.repost_of.author.first_name }} {{ post.repost_of.author.last_name }}</div>
+                  {% endif %}
+                  {% if post.title %}<div class="font-semibold mb-1">{{ post.title }}</div>{% endif %}
+                  {{ post.content|linebreaksbr }}
+                </div>
+                <!-- Meta counts -->
+                <div class="px-4 py-2 text-xs text-[#555B6E]/70 flex items-center gap-2">
+                  <button id="react-count-{{ post.id }}" data-post="{{ post.id }}" class="react-count text-[#89B0AE] hover:underline" type="button">{% if post.reaction_counts.total %}{{ post.reaction_counts.total }} reactions{% else %}0 reactions{% endif %}</button>
+                  <span>•</span>
+                  <button type="button" class="text-[#89B0AE] hover:underline comments-toggle" data-post="{{ post.id }}">{{ post.comments.count }} comments</button>
+                </div>
+                <!-- Action bar -->
+                <div class="px-2 pb-2 grid grid-cols-4 gap-1 text-sm">
+                  <div class="relative react-picker" data-post="{{ post.id }}">
+                    <button class="react-btn px-2 py-2 rounded hover:bg-[#F6FFF8] text-[#555B6E]" data-post="{{ post.id }}" data-reaction="like" aria-haspopup="true" aria-expanded="false">👍 Like</button>
+                    <div class="react-menu absolute bottom-full left-0 mb-2 hidden artdeco-card px-2 py-1 shadow-lg rounded-full bg-white ring-1 ring-[#BEE3DB]" role="menu" aria-label="Reactions">
+                      <button type="button" class="react-option" data-reaction="like" title="Like" aria-label="Like">👍</button>
+                      <button type="button" class="react-option" data-reaction="celebrate" title="Celebrate" aria-label="Celebrate">🎉</button>
+                      <button type="button" class="react-option" data-reaction="support" title="Support" aria-label="Support">🤝</button>
+                      <button type="button" class="react-option" data-reaction="insightful" title="Insightful" aria-label="Insightful">💡</button>
+                      <button type="button" class="react-option" data-reaction="love" title="Love" aria-label="Love">❤️</button>
+                      <button type="button" class="react-option" data-reaction="laugh" title="Laugh" aria-label="Laugh">😂</button>
+                    </div>
+                  </div>
+                  <button class="comments-toggle px-2 py-2 rounded hover:bg-[#F6FFF8] text-[#555B6E]" data-post="{{ post.id }}">💬 Comment</button>
+                  <button class="repost-btn px-2 py-2 rounded hover:bg-[#F6FFF8] text-[#555B6E]" data-post="{{ post.id }}">🔁 Repost</button>
+                  <button class="share-btn px-2 py-2 rounded hover:bg-[#F6FFF8] text-[#555B6E]" data-post="{{ post.id }}">↗ Share</button>
+                </div>
+                <!-- Slide-out comments drawer -->
+                <div class="comments-drawer hidden px-4 pb-4" id="comments-{{ post.id }}">
+                  <div class="space-y-3">
+                    {% for c in post.comments.all %}
+                      <div class="border border-[#E6F2F0] rounded p-2">
+                        <div class="text-xs text-[#555B6E]/70">{{ c.author.first_name }} {{ c.author.last_name }} • {{ c.created_at|date:'M d, Y H:i' }}</div>
+                        <div class="text-sm text-[#555B6E]">{{ c.content|linebreaksbr }}</div>
+                      </div>
+                    {% endfor %}
+                    <form class="comment-form" data-post="{{ post.id }}">
+                      {% csrf_token %}
+                      <div class="flex gap-2 items-center">
+                        <input type="text" name="content" class="flex-1 border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E] text-sm" placeholder="Add a comment" />
+                        <button type="button" class="emoji-btn" data-emoji-comment title="Insert emoji">😊</button>
+                        <button class="px-3 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white">Comment</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </article>
+            {% empty %}
+              <!-- Default post when the feed is empty -->
+              <article class="artdeco-card p-4">
+                <header class="text-sm text-gray-500 flex items-center justify-between">
+                  <div>
+                    Therapy Connected Team • {% now "M d, Y H:i" %} • members
+                    <div class="font-semibold text-[#555B6E]">Welcome to your feed</div>
+                  </div>
+                  <div class="text-xs text-[#555B6E]/60">text</div>
+                </header>
+                <div class="mt-2 text-[#555B6E]">
+                  This is your professional home base. Share updates, celebrate wins, or post an event. To get started,
+                  click <em>Start a post</em> above and choose text, photo, video, or event. You can also schedule posts for later.
+                </div>
+                <div class="mt-3 flex items-center gap-4 text-sm text-[#555B6E]">
+                  <button type="button" id="welcome-start-post" onclick="(function(){var m=document.getElementById('composer-modal'); if(m){m.classList.remove('hidden');} var pt=document.getElementById('composer-post-type'); if(pt){pt.value='text';}})(); return false;" class="text-[#89B0AE] underline">Start a post</button>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        </main>
+
+        <!-- Aside (right) -->
+        <aside class="scaffold-layout__aside" aria-label="News & More">
+          <div class="space-y-3">
+            <div class="artdeco-card p-4">
+              <div class="font-semibold text-[#555B6E] mb-2">Suggestions</div>
+              <p class="text-sm text-[#555B6E]/80">People, topics, and groups coming soon.</p>
+            </div>
+            <div class="artdeco-card p-4">
+              <div class="font-semibold text-[#555B6E] mb-2">Coming soon</div>
+              <ul class="text-sm text-[#555B6E]/80 list-disc list-inside space-y-1">
+                <li>Trending topics</li>
+                <li>Who to follow</li>
+                <li>Sponsored content</li>
+              </ul>
+            </div>
+          </div>
+        </aside>
       </div>
-    </div>
-    <div class="mt-3 flex items-center gap-4 text-sm">
-      <button class="flex items-center gap-1 text-[#89B0AE]" data-type="photo" data-ctype>Photo</button>
-      <button class="flex items-center gap-1 text-[#89B0AE]" data-type="video" data-ctype>Video</button>
-      <button class="flex items-center gap-1 text-[#89B0AE]" data-type="event" data-ctype>Event</button>
-      <button class="flex items-center gap-1 text-[#89B0AE]" data-type="celebrate" data-ctype>Celebrate</button>
     </div>
   </div>
 
   <!-- Modal Composer -->
-  <div id="composer-modal" class="fixed inset-0 bg-black/40 hidden z-[120]">
+  <div id="composer-modal" class="fixed inset-0 bg-black/40 hidden z-[500]">
     <div class="max-w-2xl mx-auto mt-20 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
       <form method="post" enctype="multipart/form-data" id="composer-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="create" />
         <input type="hidden" name="post_type" id="composer-post-type" value="text" />
+  <input type="hidden" name="media_meta" id="composer-media-meta" value="{}" />
         <div class="px-4 py-3 border-b border-[#BEE3DB] flex items-center justify-between">
           <div class="font-semibold text-[#555B6E]">Create a post</div>
           <button type="button" id="close-composer" class="text-[#555B6E]">✕</button>
         </div>
         <div class="p-4 space-y-3">
+          
+          <div id="composer-title-wrap">
+            <label class="block text-sm text-[#555B6E]/80 mb-1">Title</label>
+            <div class="flex items-center gap-2">
+              <input id="composer-title-input" type="text" name="title" class="flex-1 border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" placeholder="Add a title" />
+              <button type="button" class="emoji-btn" data-emoji-target="#composer-title-input" title="Insert emoji">😊</button>
+            </div>
+          </div>
           <div>
-            <select name="visibility" class="border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]">
-              <option value="members">Members</option>
-              <option value="connections">Connections</option>
-              <option value="public">Public</option>
-            </select>
+            <label class="block text-sm text-[#555B6E]/80 mb-1">Content</label>
+            <div class="flex items-start gap-2">
+              <textarea id="composer-content" name="content" rows="4" class="flex-1 border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" placeholder="What do you want to talk about?"></textarea>
+              <button type="button" class="emoji-btn" data-emoji-target="#composer-content" title="Insert emoji">😊</button>
+            </div>
           </div>
-          <div id="composer-title-wrap" class="hidden">
-            <input type="text" name="title" placeholder="Title" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
-          </div>
-          <textarea name="content" rows="5" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" placeholder="What do you want to talk about?"></textarea>
-          <div id="composer-event-fields" class="hidden grid grid-cols-1 md:grid-cols-2 gap-2">
-            <input type="datetime-local" name="event_start_at" class="border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
-            <input type="text" name="event_location" placeholder="Location" class="border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
-            <input type="url" name="event_url" placeholder="Event URL" class="md:col-span-2 border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
-          </div>
-          <div id="composer-celebrate-fields" class="hidden">
-            <input type="text" name="celebrate_type" placeholder="What are you celebrating? (Promotion, Work anniversary, etc.)" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
-          </div>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3 text-sm">
-              <label class="cursor-pointer text-[#89B0AE]"><input type="file" name="media" class="hidden" /> Add media</label>
-              <div class="flex items-center gap-1">
-                <span class="text-[#555B6E]/70">Schedule:</span>
-                <input type="datetime-local" name="scheduled_at" class="border border-[#BEE3DB] rounded px-2 py-1 bg-[#FAF9F9] text-[#555B6E] text-xs" />
+          <div>
+            <label class="block text-sm text-[#555B6E]/80 mb-1">Media</label>
+            <div class="space-y-2">
+              <!-- Single-file inputs and actions -->
+              <input id="composer-media" type="file" name="media" accept="image/*,video/*" class="hidden" />
+              <input id="composer-camera" type="file" accept="image/*" capture="environment" class="hidden" />
+              <div class="flex gap-2">
+                <button type="button" id="btn-upload" class="px-3 py-2 rounded border border-[#BEE3DB] bg-white text-[#555B6E] text-sm">Upload photo/video</button>
+                <button type="button" id="btn-camera" class="px-3 py-2 rounded bg-[#BEE3DB] text-[#555B6E] text-sm">Use camera</button>
+              </div>
+              <div class="text-xs text-[#555B6E]/60">or pick a royalty‑free image</div>
+              <div class="flex gap-2">
+                <input id="stock-q" type="text" placeholder="Search stock images (e.g., therapy, wellness)" class="flex-1 border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E] text-sm" />
+                <button type="button" id="stock-search" class="px-3 py-2 rounded bg-[#BEE3DB] text-[#555B6E] text-sm">Search</button>
+              </div>
+              <div id="stock-status" class="text-xs text-[#555B6E]/60"></div>
+              <div id="stock-results" class="grid grid-cols-3 gap-2 max-h-56 overflow-auto"></div>
+              <div id="stock-selected" class="hidden">
+                <div class="flex items-center gap-3 p-2 border border-[#E6F2F0] rounded">
+                  <img id="stock-selected-thumb" alt="" class="w-20 h-14 object-cover rounded bg-[#BEE3DB]" />
+                  <div class="min-w-0 flex-1">
+                    <div id="stock-selected-meta" class="text-xs text-[#555B6E]/70 truncate"></div>
+                    <div class="mt-1 flex items-center gap-2">
+                      <div id="stock-uploading" class="hidden flex items-center gap-2 text-xs text-[#555B6E]/70">
+                        <span class="tc-spinner"></span>
+                        <span>Uploading…</span>
+                      </div>
+                      <button type="button" id="stock-clear" class="px-2 py-1 text-xs rounded border border-[#BEE3DB] text-[#555B6E]">Clear</button>
+                      <button type="button" id="stock-change" class="px-2 py-1 text-xs rounded bg-[#BEE3DB] text-[#555B6E]">Change</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="stock-note" class="hidden text-xs text-[#555B6E]/60">Images provided under provider license. Attribution will be added automatically.</div>
+              <div>
+                <div class="text-xs text-[#555B6E]/60 mb-1">Selected media preview</div>
+                <div id="composer-preview" class="grid grid-cols-3 gap-2"></div>
               </div>
             </div>
-            <div class="flex items-center gap-2">
-              <button type="button" id="composer-cancel" class="px-3 py-2 rounded font-semibold text-sm bg-[#BEE3DB] text-[#555B6E]">Cancel</button>
-              <button type="submit" class="px-4 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E]">Post</button>
+          </div>
+          <div id="composer-event-fields" class="hidden space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-sm text-[#555B6E]/80 mb-1">Event date</label>
+                <input type="date" name="event_date" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
+              </div>
+              <div>
+                <label class="block text-sm text-[#555B6E]/80 mb-1">Event time</label>
+                <input type="time" name="event_time" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm text-[#555B6E]/80 mb-1">Location</label>
+              <input type="text" name="event_location" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" placeholder="Location or meeting link" />
             </div>
           </div>
+          <div id="composer-celebrate-fields" class="hidden">
+            <label class="block text-sm text-[#555B6E]/80 mb-1">What are you celebrating?</label>
+            <input type="text" name="celebration" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" placeholder="Share your milestone" />
+          </div>
+        </div>
+        <div class="px-4 py-3 border-t border-[#BEE3DB] flex items-center justify-end gap-2 bg-[#F6FFF8]">
+          <button type="button" id="composer-cancel" class="px-4 py-2 rounded border border-[#BEE3DB] text-[#555B6E]">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded bg-[#89B0AE] text-white font-semibold">Post</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div class="space-y-4">
-    {% for post in posts %}
-      <div class="rounded border border-[#BEE3DB] bg-white p-4">
-        <div class="text-sm text-gray-500 flex items-center justify-between">
-          <div>
-            {{ post.author.first_name }} {{ post.author.last_name }} • {{ post.created_at|date:'M d, Y H:i' }} • {{ post.visibility }}
-            {% if post.title %}<div class="font-semibold text-[#555B6E]">{{ post.title }}</div>{% endif %}
-          </div>
-          <div class="text-xs text-[#555B6E]/60">{{ post.post_type }}</div>
+  <!-- Delete Confirmation Modal (site-styled) -->
+  <div id="delete-modal" class="fixed inset-0 bg-black/40 hidden z-[130]" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+    <div class="max-w-md mx-auto mt-40 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
+      <div class="px-4 py-3 border-b border-[#BEE3DB] flex items-center justify-between">
+        <div id="delete-modal-title" class="font-semibold text-[#555B6E]">Delete post</div>
+        <button type="button" id="delete-close" class="text-[#555B6E]" aria-label="Close">✕</button>
+      </div>
+      <div class="p-4 text-[#555B6E]">
+        Are you sure you want to delete this post? This action cannot be undone.
+      </div>
+      <div class="px-4 py-3 border-t border-[#BEE3DB] flex items-center justify-end gap-2 bg-[#F6FFF8]">
+        <button type="button" id="delete-cancel" class="px-4 py-2 rounded border border-[#BEE3DB] text-[#555B6E]">Cancel</button>
+        <button type="button" id="delete-confirm" class="px-4 py-2 rounded font-semibold text-white" style="background:#FF9950">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reactions Viewer Modal -->
+  <div id="reactions-modal" class="fixed inset-0 bg-black/40 hidden z-[125]" role="dialog" aria-modal="true" aria-labelledby="reactions-modal-title">
+    <div class="max-w-lg mx-auto mt-24 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
+      <div class="px-4 py-3 border-b border-[#BEE3DB] flex items-center justify-between">
+        <div id="reactions-modal-title" class="font-semibold text-[#555B6E]">Reactions</div>
+        <button type="button" id="reactions-close" class="text-[#555B6E]" aria-label="Close">✕</button>
+      </div>
+      <div class="px-4 pt-2 pb-3 text-xs text-[#555B6E]/70" id="reactions-summary"></div>
+      <div class="p-2 max-h-[60vh] overflow-auto custom-scrollbar" id="reactions-list">
+        <!-- filled by JS -->
+      </div>
+      <div class="px-4 py-3 border-t border-[#BEE3DB] flex items-center justify-end bg-[#F6FFF8]">
+        <button type="button" id="reactions-done" class="px-4 py-2 rounded border border-[#BEE3DB] text-[#555B6E]">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Camera Capture Modal -->
+  <div id="camera-modal" class="fixed inset-0 bg-black/50 hidden z-[510]" role="dialog" aria-modal="true" aria-labelledby="camera-modal-title">
+    <div class="max-w-2xl mx-auto mt-16 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
+      <div class="px-4 py-3 border-b border-[#BEE3DB] flex items-center justify-between">
+        <div id="camera-modal-title" class="font-semibold text-[#555B6E]">Use camera</div>
+        <button type="button" id="camera-close" class="text-[#555B6E]" aria-label="Close">✕</button>
+      </div>
+      <div class="p-4">
+        <div class="aspect-video w-full bg-black rounded overflow-hidden flex items-center justify-center">
+          <video id="camera-video" autoplay playsinline class="w-full h-full object-contain"></video>
         </div>
-        <div class="mt-2 text-[#555B6E]">{{ post.content|linebreaksbr }}</div>
-        {% if post.media.all %}
-          <div class="mt-2 grid grid-cols-2 gap-2">
-            {% for m in post.media.all %}
-              {% if m.type == 'image' %}
-                <img src="{{ m.file.url }}" alt="" class="rounded" />
-              {% else %}
-                <video class="rounded" controls src="{{ m.file.url }}"></video>
-              {% endif %}
-            {% endfor %}
-          </div>
-        {% endif %}
-        <div class="mt-3 flex items-center gap-4 text-sm text-[#555B6E]">
-          <button class="react-btn" data-post="{{ post.id }}" data-reaction="like">👍 Like</button>
-          <button class="react-btn" data-post="{{ post.id }}" data-reaction="celebrate">🎉 Celebrate</button>
-          <button class="react-btn" data-post="{{ post.id }}" data-reaction="support">🤝 Support</button>
-          <button class="react-btn" data-post="{{ post.id }}" data-reaction="insightful">💡 Insightful</button>
-          <button class="react-btn" data-post="{{ post.id }}" data-reaction="love">❤️ Love</button>
+        <div class="mt-3 text-xs text-[#555B6E]/70">Grant camera permission if prompted. Works on localhost without HTTPS.</div>
+      </div>
+      <div class="px-4 py-3 border-t border-[#BEE3DB] flex items-center justify-between bg-[#F6FFF8]">
+        <div class="flex items-center gap-2">
+          <button type="button" id="camera-capture" class="px-3 py-2 rounded bg-[#89B0AE] text-white text-sm">Capture</button>
+          <button type="button" id="camera-retake" class="px-3 py-2 rounded border border-[#BEE3DB] text-[#555B6E] text-sm hidden">Retake</button>
         </div>
-        <div class="mt-2 text-xs text-[#555B6E]/70">
-          {{ post.reactions.count }} reactions • {{ post.comments.count }} comments
-        </div>
-        <!-- Comments -->
-        <div class="mt-3 space-y-3">
-          {% for c in post.comments.all %}
-            <div class="border border-[#E6F2F0] rounded p-2">
-              <div class="text-xs text-[#555B6E]/70">{{ c.author.first_name }} {{ c.author.last_name }} • {{ c.created_at|date:'M d, Y H:i' }}</div>
-              <div class="text-sm text-[#555B6E]">{{ c.content|linebreaksbr }}</div>
-            </div>
-          {% endfor %}
-          <form class="comment-form" data-post="{{ post.id }}">
-            {% csrf_token %}
-            <div class="flex gap-2">
-              <input type="text" name="content" class="flex-1 border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E] text-sm" placeholder="Add a comment" />
-              <button class="px-3 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white">Comment</button>
-            </div>
-          </form>
+        <div class="flex items-center gap-2">
+          <button type="button" id="camera-use" class="px-3 py-2 rounded bg-[#89B0AE] text-white text-sm hidden">Use photo</button>
+          <button type="button" id="camera-cancel" class="px-3 py-2 rounded border border-[#BEE3DB] text-[#555B6E] text-sm">Cancel</button>
         </div>
       </div>
-    {% empty %}
-      <div class="text-[#555B6E]">No posts yet.</div>
-    {% endfor %}
+    </div>
   </div>
-</div>
 
 <script>
+// All client-side interactivity for the feed page
 (function(){
+  // Auto-open via URL hint: /users/members/feed/?compose=photo or #compose
+  function getParam(name){ try{ return new URLSearchParams(window.location.search).get(name); }catch(e){ return null; } }
+  function autoOpenFromUrl(){
+    var t = getParam('compose');
+    if (!t && (window.location.hash === '#compose' || window.location.hash === '#new-post')){
+      t = 'text';
+    }
+    if (t){
+      // define fallback if not yet
+      if (!window.tcOpenComposer){ window.tcOpenComposer = function(type){ var modal = document.getElementById('composer-modal'); if (modal) modal.classList.remove('hidden'); var pt = document.getElementById('composer-post-type'); if (pt) pt.value = type || 'text'; var titleWrap = document.getElementById('composer-title-wrap'); var eventFields = document.getElementById('composer-event-fields'); var celebrateFields = document.getElementById('composer-celebrate-fields'); if (titleWrap) titleWrap.classList.toggle('hidden', !(type==='photo' || type==='video' || type==='event' || type==='celebrate')); if (eventFields) eventFields.classList.toggle('hidden', type!=='event'); if (celebrateFields) celebrateFields.classList.toggle('hidden', type!=='celebrate'); }; }
+      window.tcOpenComposer(t);
+      // focus content
+      var ta = document.querySelector('#composer-modal textarea[name="content"]'); if (ta) try{ ta.focus(); }catch(e){}
+      // Clean URL to avoid re-opening on refresh
+      try{
+        if (window.history && window.history.replaceState){
+          var u = new URL(window.location.href);
+          u.searchParams.delete('compose');
+          if (u.hash === '#compose' || u.hash === '#new-post') u.hash = '';
+          window.history.replaceState({}, document.title, u.toString());
+        }
+      }catch(e){}
+    }
+  }
+  // Invoke on load
+  try { autoOpenFromUrl(); } catch(e) {}
+  // Global fallback opener for tricky browsers
+  window.tcOpenComposer = function(type){
+    var modal = document.getElementById('composer-modal');
+    if (modal) modal.classList.remove('hidden');
+    var pt = document.getElementById('composer-post-type');
+    if (pt) pt.value = type || 'text';
+    var titleWrap = document.getElementById('composer-title-wrap');
+    var eventFields = document.getElementById('composer-event-fields');
+    var celebrateFields = document.getElementById('composer-celebrate-fields');
+    if (titleWrap) titleWrap.classList.toggle('hidden', !(type==='photo' || type==='video' || type==='event' || type==='celebrate'));
+    if (eventFields) eventFields.classList.toggle('hidden', type!=='event');
+    if (celebrateFields) celebrateFields.classList.toggle('hidden', type!=='celebrate');
+  };
+  // Modal + composer wiring
   const modal = document.getElementById('composer-modal');
   const openBtn = document.getElementById('open-composer');
   const closeBtn = document.getElementById('close-composer');
   const cancelBtn = document.getElementById('composer-cancel');
-  const form = document.getElementById('composer-form');
   const postType = document.getElementById('composer-post-type');
   const titleWrap = document.getElementById('composer-title-wrap');
   const eventFields = document.getElementById('composer-event-fields');
   const celebrateFields = document.getElementById('composer-celebrate-fields');
+  const mediaInput = document.getElementById('composer-media');
 
   function setType(t){
+    if (!postType) return;
     postType.value = t;
-    titleWrap.classList.toggle('hidden', !(t==='photo' || t==='video' || t==='event' || t==='celebrate'));
-    eventFields.classList.toggle('hidden', t!=='event');
-    celebrateFields.classList.toggle('hidden', t!=='celebrate');
+    // Always show Title
+    if (titleWrap) titleWrap.classList.remove('hidden');
+    if (eventFields) eventFields.classList.toggle('hidden', t!=='event');
+    if (celebrateFields) celebrateFields.classList.toggle('hidden', t!=='celebrate');
   }
 
-  openBtn?.addEventListener('click', ()=>{ modal.classList.remove('hidden'); setType('text'); });
-  closeBtn?.addEventListener('click', ()=> modal.classList.add('hidden'));
-  cancelBtn?.addEventListener('click', ()=> modal.classList.add('hidden'));
-  document.querySelectorAll('[data-ctype]')?.forEach(btn=>{
-    btn.addEventListener('click', ()=>{ modal.classList.remove('hidden'); setType(btn.dataset.type||'text'); });
+  if (openBtn) openBtn.addEventListener('click', ()=>{ if (modal) modal.classList.remove('hidden'); setType('text'); });
+  if (closeBtn) closeBtn.addEventListener('click', ()=>{ if (modal) modal.classList.add('hidden'); });
+  if (cancelBtn) cancelBtn.addEventListener('click', ()=>{ if (modal) modal.classList.add('hidden'); });
+  var ctypeBtns = document.querySelectorAll('[data-ctype]');
+  if (ctypeBtns && ctypeBtns.forEach) ctypeBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){ if (modal) modal.classList.remove('hidden'); setType(btn.getAttribute('data-type')||'text'); });
   });
 
-  // Reactions
-  document.querySelectorAll('.react-btn').forEach(btn=>{
-    btn.addEventListener('click', async (e)=>{
-      e.preventDefault();
-      const postId = btn.dataset.post;
-      const reaction = btn.dataset.reaction;
-      const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value;
-      const res = await fetch(`/users/api/feed/${postId}/react/`, { method: 'POST', headers: {'X-CSRFToken': csrf} , body: new URLSearchParams({reaction})});
-      if(!res.ok) return;
-      location.reload();
-    });
+  // Delegated handler for broader compatibility (fixes missed bindings or older Safari)
+  function openComposer(type){
+    if (!modal) return; modal.classList.remove('hidden'); setType(type||'text');
+  }
+  document.addEventListener('click', function(e){
+    var trigger = null;
+    if (e && e.target && e.target.closest) {
+      trigger = e.target.closest('#open-composer, #welcome-start-post, [data-ctype]');
+    }
+    if (!trigger) return;
+    e.preventDefault();
+    var t = trigger.getAttribute && trigger.getAttribute('data-type');
+    openComposer(t || 'text');
   });
+
+  // Stock image search/attach
+  const stockQ = document.getElementById('stock-q');
+  const stockBtn = document.getElementById('stock-search');
+  const stockResults = document.getElementById('stock-results');
+  const stockStatus = document.getElementById('stock-status');
+  const stockNote = document.getElementById('stock-note');
+  const stockSelected = document.getElementById('stock-selected');
+  const stockSelectedThumb = document.getElementById('stock-selected-thumb');
+  const stockSelectedMeta = document.getElementById('stock-selected-meta');
+  const stockClearBtn = document.getElementById('stock-clear');
+  const stockChangeBtn = document.getElementById('stock-change');
+  const stockUploading = document.getElementById('stock-uploading');
+  const composerPreview = document.getElementById('composer-preview');
+  const mediaMetaField = document.getElementById('composer-media-meta');
+  const btnUpload = document.getElementById('btn-upload');
+  const btnCamera = document.getElementById('btn-camera');
+  const cameraInput = document.getElementById('composer-camera');
+  const formEl = document.getElementById('composer-form');
+
+  let mediaMeta = {};
+  let selectedStockFilename = null;
+  let stockBusy = false;
+  let stockPendingFile = null; // fallback instead of DataTransfer
+  // Camera modal elements/state
+  const camModal = document.getElementById('camera-modal');
+  const camVideo = document.getElementById('camera-video');
+  const camClose = document.getElementById('camera-close');
+  const camCancel = document.getElementById('camera-cancel');
+  const camCapture = document.getElementById('camera-capture');
+  const camRetake = document.getElementById('camera-retake');
+  const camUse = document.getElementById('camera-use');
+  let camStream = null;
+
+  function setStatus(msg){ if (stockStatus) stockStatus.textContent = msg || ''; }
+  // Hide camera button on devices that don't support capture (desktop browsers)
+  (function maybeHideCamera(){
+    try {
+      var test = document.createElement('input');
+      test.type = 'file';
+      var ua = navigator.userAgent || '';
+      var mobile = /Android|iPhone|iPad|iPod/i.test(ua);
+      var supportsNativeCapture = ('capture' in test) || mobile;
+      var supportsGUM = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+      if (!supportsNativeCapture && !supportsGUM && btnCamera) { btnCamera.style.display = 'none'; }
+    } catch (e) { /* ignore */ }
+  })();
+
+  function syncMediaMeta(){ if (mediaMetaField) mediaMetaField.value = JSON.stringify(mediaMeta); }
+  function clearResults(){ if (stockResults) stockResults.innerHTML = ''; }
+  function showSelectedPanel(meta){
+    if (!stockSelected || !stockSelectedThumb) return;
+    stockSelectedThumb.src = (meta && meta.thumb_url) || '';
+    const prov = (meta && meta.provider) ? ` • ${meta.provider}` : '';
+    const attr = (meta && meta.attribution) ? meta.attribution : '';
+    if (stockSelectedMeta) stockSelectedMeta.textContent = (attr || '') + prov;
+    if (stockResults) stockResults.classList.add('hidden');
+    stockSelected.classList.remove('hidden');
+  }
+  async function fetchStock(query, page=1){
+    const u = new URL(window.location.origin + '/users/api/feed/stock_images/');
+    u.searchParams.set('q', query);
+    u.searchParams.set('page', page);
+    u.searchParams.set('per_page', 18);
+    try{
+      const res = await fetch(u.toString());
+      if (!res.ok) return {results:[], total:0, error:'http'};
+      return await res.json();
+    }catch(e){ return {results:[], total:0, error:'network'}; }
+  }
+  async function attachImageByUrl(url, filename='stock.jpg', metaData=null){
+    if (stockBusy) return; stockBusy = true;
+    try{
+      setStatus('Attaching image…');
+      if (stockBtn) stockBtn.disabled = true;
+      if (stockClearBtn) stockClearBtn.disabled = true;
+      if (stockChangeBtn) stockChangeBtn.disabled = true;
+      showSelectedPanel(metaData);
+      if (stockUploading) stockUploading.classList.remove('hidden');
+      if (stockResults) stockResults.style.pointerEvents = 'none';
+
+      const r = await fetch(url);
+      const blob = await r.blob();
+      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+      stockPendingFile = file; // keep in memory and attach on submit
+      if (metaData){ mediaMeta[filename] = metaData; syncMediaMeta(); }
+      selectedStockFilename = filename;
+  if (stockNote) stockNote.classList.remove('hidden');
+      setType('photo');
+      refreshPreview();
+    }catch(e){
+      // Restore grid on error
+  if (stockSelected) stockSelected.classList.add('hidden');
+  if (stockResults) stockResults.classList.remove('hidden');
+      setStatus('Unable to attach image. Please try again.');
+    } finally {
+      if (stockBtn) stockBtn.disabled = false;
+      if (stockClearBtn) stockClearBtn.disabled = false;
+      if (stockChangeBtn) stockChangeBtn.disabled = false;
+  if (stockUploading) stockUploading.classList.add('hidden');
+  if (stockResults) stockResults.style.pointerEvents = '';
+  setStatus(''); stockBusy = false;
+    }
+  }
+  function renderStock(items){
+    clearResults(); if (!items || !items.length || !stockResults) return;
+    items.forEach(it=>{
+      const a = document.createElement('button'); a.type='button';
+      a.className = 'relative group border border-[#E6F2F0] rounded overflow-hidden';
+      a.style.height = '110px';
+      a.title = (it.attribution || '') + (it.provider ? ' • ' + it.provider : '');
+      a.innerHTML = `<img src="${it.thumb_url}" alt="" class="w-full h-full object-cover" />`+
+                    `<div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition"></div>`;
+      a.addEventListener('click', ()=>{
+        if (stockBusy) return;
+        attachImageByUrl(
+          it.full_url,
+          `${(it.provider||'stock')}-${(it.id||'')}.jpg`,
+          {
+            provider: it.provider,
+            attribution: it.attribution,
+            attribution_url: it.attribution_url,
+            license: it.license,
+            license_url: it.license_url,
+            thumb_url: it.thumb_url
+          }
+        );
+      });
+      stockResults.appendChild(a);
+    });
+  }
+  // Upload/Camera single-file handlers
+  function applySingleFile(file, source){
+    if (!file) return;
+    const isVideo = (file.type||'').startsWith('video/');
+    setType(isVideo ? 'video' : 'photo');
+    // Reset stock meta when replacing with manual/camera file
+    if (source !== 'stock' && mediaMetaField) mediaMetaField.value = '{}';
+    // Hide stock selected panel if visible
+    if (source !== 'stock'){
+      if (stockSelected) stockSelected.classList.add('hidden');
+      if (stockResults) stockResults.classList.remove('hidden');
+      setStatus('');
+      stockPendingFile = null;
+      selectedStockFilename = null;
+    }
+    refreshPreview();
+  }
+  if (btnUpload) btnUpload.addEventListener('click', function(){ if (mediaInput) mediaInput.click(); });
+  function isMobile(){ try { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent||''); } catch(e){ return false; } }
+  async function openCameraModal(){
+    if (!camModal || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      // Fallback to file dialog
+      if (cameraInput) return cameraInput.click(); else return;
+    }
+    try {
+      camRetake && camRetake.classList.add('hidden');
+      camUse && camUse.classList.add('hidden');
+      camCapture && camCapture.classList.remove('hidden');
+      camModal.classList.remove('hidden');
+      const constraints = { video: { facingMode: isMobile() ? { ideal: 'environment' } : 'user' } };
+      camStream = await navigator.mediaDevices.getUserMedia(constraints);
+      camVideo.srcObject = camStream;
+    } catch (err) {
+      // Permission denied or no device: fallback to file dialog
+      camModal.classList.add('hidden');
+      if (cameraInput) cameraInput.click();
+    }
+  }
+  function stopCam(){ try { if (camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream = null; } if (camVideo) camVideo.srcObject = null; } catch(e){} }
+  function closeCameraModal(){ if (camModal) camModal.classList.add('hidden'); stopCam(); camRetake && camRetake.classList.add('hidden'); camUse && camUse.classList.add('hidden'); camCapture && camCapture.classList.remove('hidden'); }
+  if (btnCamera) btnCamera.addEventListener('click', function(){
+    // Prefer native capture on mobile; use getUserMedia on desktop
+    const test = document.createElement('input'); test.type='file';
+    const supportsNativeCapture = ('capture' in test) && isMobile();
+    if (supportsNativeCapture && cameraInput) return cameraInput.click();
+    return openCameraModal();
+  });
+  if (camClose) camClose.addEventListener('click', closeCameraModal);
+  if (camCancel) camCancel.addEventListener('click', closeCameraModal);
+  if (camModal) camModal.addEventListener('click', function(e){ if (e.target === camModal) closeCameraModal(); });
+  if (camCapture) camCapture.addEventListener('click', async function(){
+    try {
+      const v = camVideo; if (!v) return;
+      const canvas = document.createElement('canvas');
+      const w = v.videoWidth || 1280; const h = v.videoHeight || 720;
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(v, 0, 0, w, h);
+      await new Promise(res=>canvas.toBlob(res, 'image/jpeg', 0.9));
+      canvas.toBlob(function(blob){
+        if (!blob) return;
+        stockPendingFile = new File([blob], 'camera.jpg', { type: 'image/jpeg' });
+        // Clear file inputs; use captured image
+        if (mediaInput) mediaInput.value = '';
+        if (cameraInput) cameraInput.value = '';
+        setType('photo');
+        refreshPreview();
+        // Reveal retake/use buttons
+        camCapture && camCapture.classList.add('hidden');
+        camRetake && camRetake.classList.remove('hidden');
+        camUse && camUse.classList.remove('hidden');
+      }, 'image/jpeg', 0.9);
+    } catch(e){}
+  });
+  if (camRetake) camRetake.addEventListener('click', function(){
+    // Discard captured image and resume stream
+    stockPendingFile = null; refreshPreview();
+    camRetake.classList.add('hidden'); camUse && camUse.classList.add('hidden'); camCapture && camCapture.classList.remove('hidden');
+  });
+  if (camUse) camUse.addEventListener('click', function(){ closeCameraModal(); });
+  if (mediaInput) mediaInput.addEventListener('change', function(){ const f = mediaInput.files && mediaInput.files[0]; applySingleFile(f, 'upload'); });
+  if (cameraInput) cameraInput.addEventListener('change', function(){ const f = cameraInput.files && cameraInput.files[0]; applySingleFile(f, 'camera'); });
+  function refreshPreview(){
+    if (!composerPreview) return;
+    composerPreview.innerHTML = '';
+    let f = null;
+    if (mediaInput && mediaInput.files && mediaInput.files[0]) f = mediaInput.files[0];
+    else if (cameraInput && cameraInput.files && cameraInput.files[0]) f = cameraInput.files[0];
+    else if (stockPendingFile) f = stockPendingFile;
+    if (!f) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'relative border border-[#E6F2F0] rounded overflow-hidden';
+    wrap.style.height = '110px';
+    const url = URL.createObjectURL(f);
+    const isVideo = (f.type||'').startsWith('video/');
+    wrap.innerHTML = isVideo ? `<video src="${url}" class="w-full h-full object-cover" muted></video>` : `<img src="${url}" class="w-full h-full object-cover" alt="" />`;
+    const rm = document.createElement('button');
+    rm.className = 'absolute top-1 right-1 text-xs px-1.5 py-0.5 rounded bg-black/50 text-white';
+    rm.textContent = '×';
+    rm.addEventListener('click', function(){ clearSelectedMedia(); });
+    wrap.appendChild(rm);
+    composerPreview.appendChild(wrap);
+  }
+  function clearSelectedMedia(){
+    if (mediaInput) mediaInput.value = '';
+    if (cameraInput) cameraInput.value = '';
+    if (stockPendingFile){
+      if (selectedStockFilename && mediaMeta[selectedStockFilename]){ delete mediaMeta[selectedStockFilename]; syncMediaMeta(); }
+      stockPendingFile = null; selectedStockFilename = null;
+    }
+    if (stockSelected) stockSelected.classList.add('hidden');
+    if (stockResults) stockResults.classList.remove('hidden');
+    setStatus('');
+    refreshPreview();
+  }
+  if (stockClearBtn) stockClearBtn.addEventListener('click', function(){ clearSelectedMedia(); });
+  if (stockChangeBtn) stockChangeBtn.addEventListener('click', ()=>{ if (stockClearBtn) stockClearBtn.click(); if (stockQ) stockQ.focus(); });
+  if (mediaInput) mediaInput.addEventListener('change', refreshPreview);
+  if (stockBtn) stockBtn.addEventListener('click', async ()=>{
+    const q = (stockQ?.value||'').trim(); if (!q) return;
+    stockBtn.disabled = true; const oldText = stockBtn.textContent; stockBtn.textContent = 'Searching…'; clearResults();
+    try{
+      setStatus('');
+      const data = await fetchStock(q, 1);
+      if (data.note){ setStatus('Setup required: no stock image provider is configured.'); }
+      if (data.error === 'unauthorized'){ setStatus('Provider rejected the API key. Check your PEXELS_API_KEY or UNSPLASH_ACCESS_KEY.'); return; }
+      if (data.error){ setStatus('Unable to fetch images right now. Please try again later.'); return; }
+      const items = data.results || [];
+      if (!items.length){ setStatus('No results found. Try a different keyword.'); }
+      else { renderStock(items); setStatus('Click an image to attach it to your post.'); }
+    } finally {
+      stockBtn.disabled = false; stockBtn.textContent = oldText || 'Search';
+    }
+  });
+  if (stockQ) stockQ.addEventListener('keydown', (e)=>{ if (e.key === 'Enter'){ e.preventDefault(); if (stockBtn) stockBtn.click(); }});
+
+  // Reactions (picker on each post)
+  (function initReactions(){
+  var csrfEl1 = document.querySelector('input[name=csrfmiddlewaretoken]');
+  const csrf = csrfEl1 ? csrfEl1.value : '';
+    document.querySelectorAll('.react-picker').forEach(wrapper=>{
+      if (wrapper.dataset.bound === '1') return; wrapper.dataset.bound = '1';
+      const postId = wrapper.dataset.post;
+      const btn = wrapper.querySelector('.react-btn');
+      const menu = wrapper.querySelector('.react-menu');
+      if (!btn || !menu) return;
+      const open = ()=>{ menu.classList.remove('hidden'); btn.setAttribute('aria-expanded','true'); };
+      const close = ()=>{ menu.classList.add('hidden'); btn.setAttribute('aria-expanded','false'); };
+      let hoverTimer = null;
+      wrapper.addEventListener('mouseenter', ()=>{ clearTimeout(hoverTimer); open(); });
+      wrapper.addEventListener('mouseleave', ()=>{ hoverTimer = setTimeout(close, 120); });
+      btn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); menu.classList.toggle('hidden'); btn.setAttribute('aria-expanded', menu.classList.contains('hidden') ? 'false' : 'true'); });
+      menu.querySelectorAll('.react-option').forEach(opt=>{
+        opt.addEventListener('click', async (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          const reaction = opt.getAttribute('data-reaction');
+          try {
+            const res = await fetch(`/users/api/feed/${postId}/react/`, { method:'POST', headers:{'X-CSRFToken': csrf, 'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({reaction}) });
+            if (res.ok){
+              const data = await res.json().catch(()=>({}));
+              btn.textContent = opt.textContent + ' ' + reaction.charAt(0).toUpperCase() + reaction.slice(1);
+              const countEl = document.getElementById(`react-count-${postId}`);
+              if (countEl && data && typeof data.created !== 'undefined'){
+                const m = (countEl.textContent||'').match(/(\d+)/); let current = m ? parseInt(m[1],10) : 0;
+                if (data.created) current += 1; countEl.textContent = `${current} reactions`;
+              }
+            }
+          } finally { close(); }
+        });
+      });
+    });
+  })();
+
+  // Reactions modal (list viewers)
+  (function initReactionsModal(){
+  const modalR = document.getElementById('reactions-modal');
+  const summary = document.getElementById('reactions-summary');
+  const list = document.getElementById('reactions-list');
+  const closeEls = [document.getElementById('reactions-close'), document.getElementById('reactions-done')];
+  function close(){ if (modalR) modalR.classList.add('hidden'); if (list) list.innerHTML=''; if (summary) summary.textContent=''; }
+  function open(){ if (modalR) modalR.classList.remove('hidden'); }
+  if (closeEls && closeEls.forEach) closeEls.forEach(function(el){ if (el) el.addEventListener('click', close); });
+  if (modalR) modalR.addEventListener('click', (e)=>{ if (e.target === modalR) close(); });
+  document.addEventListener('keydown', (e)=>{ if (modalR && !modalR.classList.contains('hidden') && e.key === 'Escape') close(); });
+    function reactionIcon(r){ switch(r){ case 'like': return '👍'; case 'love': return '❤️'; case 'celebrate': return '🎉'; case 'support': return '🤝'; case 'insightful': return '💡'; case 'laugh': return '😂'; default: return '👍'; } }
+    async function showFor(postId){
+      const res = await fetch(`/users/api/feed/${postId}/reactions/`); if (!res.ok) return; const data = await res.json();
+      const items = (data && data.reactions) || []; const counts = (data && data.counts) || {}; const total = items.length;
+      if (summary) summary.textContent = total ? `${total} total • ` + Object.entries(counts).map(([k,v])=>`${v} ${k}`).join(' • ') : 'No reactions yet';
+      if (list) list.innerHTML = items.map(it=>{
+        const avatar = it.avatar_url || '/static/placeholder-avatar.png';
+        const lic = it.license_type ? `${it.license_type}${it.license_type_short ? ' • '+it.license_type_short : ''}` : '';
+        return `<div class="flex items-center gap-3 p-2 rounded hover:bg-[#F6FFF8]"><img src="${avatar}" alt="" class="w-10 h-10 rounded-full object-cover bg-[#BEE3DB]" /><div class="min-w-0 flex-1"><div class="text-sm text-[#555B6E] font-semibold truncate">${reactionIcon(it.reaction)} ${it.display_name}</div><div class="text-xs text-[#555B6E]/60 truncate">${lic}</div></div></div>`;
+      }).join('');
+      open();
+    }
+  document.querySelectorAll('.react-count').forEach(function(btn){ if (btn.dataset.bound==='1') return; btn.dataset.bound='1'; btn.addEventListener('click', function(){ const pid = btn.dataset.post; if (pid) showFor(pid); }); });
+  })();
 
   // Comments
   document.querySelectorAll('.comment-form').forEach(f=>{
     f.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const postId = f.dataset.post;
-      const data = new FormData(f);
-      const res = await fetch(`/users/api/feed/${postId}/comment/`, { method:'POST', body:data });
-      if(!res.ok) return;
-      location.reload();
+      e.preventDefault(); const postId = f.dataset.post; const data = new FormData(f);
+      const res = await fetch(`/users/api/feed/${postId}/comment/`, { method:'POST', body:data }); if(!res.ok) return; location.reload();
     });
   });
+  // Welcome CTA
+  var welcomeBtn = document.getElementById('welcome-start-post');
+  if (welcomeBtn) welcomeBtn.addEventListener('click', function(){ var oc = document.getElementById('open-composer'); if (oc) oc.click(); });
+
+  // Comments drawer toggle
+  document.querySelectorAll('.comments-toggle').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const pid = btn.dataset.post; const drawer = document.getElementById(`comments-${pid}`); if (!drawer) return;
+      drawer.classList.toggle('hidden');
+      if (!drawer.classList.contains('hidden')){
+        drawer.style.maxHeight='0px'; drawer.style.overflow='hidden';
+        drawer.animate([{maxHeight:'0px'},{maxHeight:'600px'}],{duration:180,easing:'ease-out'}).onfinish=()=>{ drawer.style.maxHeight=''; drawer.style.overflow=''; };
+      }
+    });
+  });
+
+  // Repost
+  document.querySelectorAll('.repost-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const pid = btn.dataset.post; const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value;
+      const res = await fetch(`/users/api/feed/${pid}/repost/`, { method:'POST', headers:{'X-CSRFToken': csrf}, body: new URLSearchParams({content:''})}); if(!res.ok) return; location.reload();
+    });
+  });
+  // Share
+  document.querySelectorAll('.share-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const url = window.location.href;
+      if (navigator.share){ try { await navigator.share({title: document.title, url}); } catch(e){} }
+      else if (navigator.clipboard){ try { await navigator.clipboard.writeText(url); } catch(e){} }
+    });
+  });
+
+  // Delete modal
+  (function initDelete(){
+  var csrfEl2 = document.querySelector('input[name=csrfmiddlewaretoken]');
+  const csrf = csrfEl2 ? csrfEl2.value : '';
+  const modal = document.getElementById('delete-modal');
+    const confirmBtn = document.getElementById('delete-confirm');
+    const cancelBtn = document.getElementById('delete-cancel');
+    const closeBtn = document.getElementById('delete-close');
+    let targetPostId = null;
+  function openModal(pid){ targetPostId = pid; if (modal) modal.classList.remove('hidden'); }
+  function closeModal(){ if (modal) modal.classList.add('hidden'); targetPostId = null; if(confirmBtn) confirmBtn.disabled=false; }
+  document.querySelectorAll('.post-delete').forEach(function(btn){ if (btn.dataset.bound==='1') return; btn.dataset.bound='1'; btn.addEventListener('click', function(e){ e.preventDefault(); const pid = btn.dataset.post; if (!pid) return; openModal(pid); }); });
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (modal) modal.addEventListener('click', (e)=>{ if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', (e)=>{ if (modal && !modal.classList.contains('hidden') && e.key === 'Escape') closeModal(); });
+    confirmBtn?.addEventListener('click', async ()=>{
+      if (!targetPostId) return; if (confirmBtn) confirmBtn.disabled = true;
+      const res = await fetch(`/users/api/feed/${targetPostId}/`, { method:'DELETE', headers:{'X-CSRFToken': csrf} });
+      if (res.ok){ const card = document.getElementById(`post-${targetPostId}`); if (card) card.remove(); closeModal(); }
+      else if (confirmBtn) { confirmBtn.disabled = false; }
+    });
+  })();
+
+  // Composer submit (attach media via FormData; supports upload, camera, stock)
+  if (formEl) formEl.addEventListener('submit', async function(e){
+    e.preventDefault();
+    const fd = new FormData(formEl);
+    let haveMedia = false;
+    if (mediaInput && mediaInput.files && mediaInput.files[0]){ fd.set('media', mediaInput.files[0], mediaInput.files[0].name); haveMedia = true; }
+    else if (cameraInput && cameraInput.files && cameraInput.files[0]){ fd.set('media', cameraInput.files[0], cameraInput.files[0].name); haveMedia = true; }
+    else if (stockPendingFile){ fd.set('media', stockPendingFile, stockPendingFile.name || 'stock.jpg'); haveMedia = true; }
+    // POST
+    try {
+      const res = await fetch(window.location.pathname + window.location.search, { method:'POST', body: fd });
+      if (res.ok){ window.location.reload(); }
+    } catch (err) { /* swallow */ }
+  });
+
+  // New posts floating pill
+  (function initNewPostsPill(){
+    const pill = document.getElementById('new-posts-pill');
+    const btn = document.getElementById('new-posts-btn');
+  function currentMaxId(){ var max = 0; document.querySelectorAll('article[data-post-id]').forEach(function(el){ const v = parseInt(el.dataset.postId,10); if (!isNaN(v) && v>max) max=v; }); return max; }
+  async function check(){ try { const since = currentMaxId(); const res = await fetch(`/users/api/feed/new_count/?since_id=${since}`); if(!res.ok) return; const data = await res.json(); const n = (data && data.new_count) || 0; if (pill) pill.classList.toggle('hidden', !(n>0)); if (n>0 && btn){ btn.textContent = `${n} new ${n===1?'post':'posts'}`; } } catch(e){} }
+  const t = setInterval(check, 20000); setTimeout(check, 1500); if (btn) btn.addEventListener('click', ()=> location.reload()); window.addEventListener('beforeunload', ()=> clearInterval(t));
+  })();
+  
+  // Emoji picker (lightweight)
+  (function initEmojiPicker(){
+    var POP = null; var activeInput = null;
+    var EMOJIS = ['😀','😁','😂','🤣','😅','😊','🙂','😉','😍','😘','🤗','🤔','🤩','😎','😇','🙌','👍','👏','💯','🔥','🌟','🎉','✅','❌','⚠️','❤️','🧡','💛','💚','💙','💜','🤍','🤎','🖤','💪','🙏','🤝','💡','📣','📝','📅','📍','📈','💬','🧘','🩺','🧠','🌿','🌈','☀️','⭐','☕','🍎'];
+    function createPopover(){
+      var d = document.createElement('div'); d.className = 'emoji-popover';
+      var g = document.createElement('div'); g.className = 'emoji-grid';
+      EMOJIS.forEach(function(e){ var c = document.createElement('button'); c.type='button'; c.className='emoji-cell'; c.textContent=e; c.addEventListener('click', function(){ insertEmoji(e); close(); }); g.appendChild(c); });
+      d.appendChild(g); document.body.appendChild(d); return d;
+    }
+    function open(btn, input){
+      activeInput = input || null; if (!activeInput) return;
+      if (!POP) POP = createPopover();
+      var r = btn.getBoundingClientRect();
+      var top = r.bottom + 8 + window.scrollY; var left = r.left + window.scrollX;
+      POP.style.top = top + 'px'; POP.style.left = left + 'px';
+      POP.style.display = 'block';
+      setTimeout(function(){ document.addEventListener('click', onDoc, { once: true }); }, 0);
+    }
+    function close(){ if (POP) POP.style.display = 'none'; }
+    function onDoc(ev){ if (!POP) return; if (ev && POP.contains(ev.target)) return; close(); }
+    function insertEmoji(ch){
+      try{
+        var el = activeInput; if (!el) return; el.focus();
+        var start = el.selectionStart||0, end = el.selectionEnd||0;
+        var val = el.value||''; el.value = val.slice(0,start) + ch + val.slice(end);
+        var pos = start + ch.length; el.setSelectionRange && el.setSelectionRange(pos, pos);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }catch(e){}
+    }
+    // Hook up buttons
+    document.addEventListener('click', function(ev){
+      var t = ev.target; if (!t) return;
+      var btn = t.closest && t.closest('.emoji-btn'); if (!btn) return;
+      ev.preventDefault();
+      var sel = btn.getAttribute('data-emoji-target');
+      var input = sel ? document.querySelector(sel) : null;
+      if (!input && btn.hasAttribute('data-emoji-comment')){
+        var wrap = btn.closest('form'); if (wrap) input = wrap.querySelector('input[name="content"]');
+      }
+      if (input) open(btn, input);
+    });
+    document.addEventListener('keydown', function(e){ if (POP && POP.style.display==='block' && e.key==='Escape') close(); });
+  })();
 })();
 </script>
 {% endblock %}

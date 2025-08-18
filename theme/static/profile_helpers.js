@@ -1,6 +1,70 @@
 // Profile Helpers: shared Alpine component factories for profile modal, edit page, and public view.
 // Keeps large inline scripts out of templates for better caching and maintainability.
 (function(window){
+  // Video Manager Component (modal and edit use). Provides confirmDelete modal state used by _about_modal_body.html
+  window.videoManager = function(){
+    const csrf = window.TC_CSRF;
+    return {
+      video:(window.Alpine && Alpine.store('profileModal') && Alpine.store('profileModal').therapist && (Alpine.store('profileModal').therapist.video_gallery||[])[0]) || null,
+      file:null, caption:'', uploading:false, progress:0, error:'',
+      recording:false, mediaRecorder:null, chunks:[], stream:null, drag:false,
+      chosenType:null, trackFailed:false, previewUrl:null, videoLoadError:false,
+      // Delete confirmation state used by template
+      confirmDelete:false,
+      deleting:false,
+      openDelete(){ if(!this.video) return; this.error=''; this.confirmDelete=true; this.deleting=false; },
+      cancelDelete(){ if(this.deleting) return; this.confirmDelete=false; },
+      confirmDeleteAction(){ if(!this.video || this.deleting) return; this.deleting=true; fetch('/users/api/profile/video/', { method:'DELETE', headers:{'X-CSRFToken': csrf} })
+        .then(r=>r.json().then(d=>[r,d]))
+        .then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Delete failed'; return; } const s=window.Alpine && Alpine.store('profileModal'); if(s&&s.therapist){ s.therapist.video_gallery=d.video_gallery||[]; } this.video=null; this.confirmDelete=false; })
+        .catch(()=> this.error='Network error')
+        .finally(()=> this.deleting=false);
+      },
+      // Backward-compat alias
+      remove(){ this.openDelete(); },
+      reset(){
+        if(this.recording){ this.stopRecording(); }
+        this.stopStream();
+        if(this.previewUrl){ try{ URL.revokeObjectURL(this.previewUrl); }catch(_){} }
+        this.previewUrl=null; this.file=null; this.chunks=[]; this.chosenType=null; this.trackFailed=false;
+        this.error=''; this.progress=0; this.caption='';
+        if(this.$refs && this.$refs.vidFile) this.$refs.vidFile.value='';
+      },
+      setFile(f){ if(!f) return; try{ if(this.previewUrl){ URL.revokeObjectURL(this.previewUrl); } }catch(_){} this.file=f; try{ this.previewUrl = URL.createObjectURL(f); }catch(_) { this.previewUrl=null; } },
+      onFile(e){ const f=e?.target?.files?.[0]; if(f) this.setFile(f); },
+      handleTrackFailure(msg){ if(this.recording){ this.error=msg||'Camera stream ended unexpectedly'; this.trackFailed=true; } },
+      startRecording(){
+        if(!navigator.mediaDevices?.getUserMedia){ this.error='Recording not supported'; return; }
+        this.error=''; this.file=null; this.chunks=[]; this.chosenType=null; this.trackFailed=false;
+        navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(str=>{
+          this.stream=str;
+          if(this.$refs && this.$refs.livePreview){ try{ this.$refs.livePreview.srcObject=str; }catch(_){} }
+          const candidates=[
+            'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4',
+            'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'
+          ];
+          let chosen=null;
+          if(window.MediaRecorder && MediaRecorder.isTypeSupported){
+            chosen=candidates.find(t=>{ try { return MediaRecorder.isTypeSupported(t); } catch(_) { return false; } })||null;
+          }
+          this.chosenType=chosen;
+          str.getTracks().forEach(tr=>{ tr.addEventListener('ended', ()=> this.handleTrackFailure('Camera stopped (ended)')); });
+          try { this.mediaRecorder = chosen ? new MediaRecorder(str,{mimeType:chosen}) : new MediaRecorder(str); }
+          catch(e){ try{ this.mediaRecorder=new MediaRecorder(str); } catch(e2){ this.error='Unable to start recorder'; this.stopStream(); return; } }
+          this.chunks=[];
+          this.mediaRecorder.ondataavailable=ev=>{ if(ev.data?.size>0) this.chunks.push(ev.data); };
+          this.mediaRecorder.onstop=()=>{ const type=this.chosenType || (this.mediaRecorder && this.mediaRecorder.mimeType) || 'video/webm'; const ext=/mp4/.test(type)?'mp4':'webm'; const blob=new Blob(this.chunks,{type}); const f=new File([blob],'recording.'+ext,{type}); this.setFile(f); this.stopStream(); };
+          try { this.mediaRecorder.start(); } catch(e){ this.error='Recorder start failed'; this.stopStream(); return; }
+          this.recording=true;
+        }).catch(()=> this.error='Permission denied');
+      },
+      stopRecording(){ if(this.mediaRecorder && this.recording){ this.mediaRecorder.stop(); this.recording=false; } },
+      stopStream(){ if(this.$refs && this.$refs.livePreview){ try{ this.$refs.livePreview.srcObject=null; }catch(_){} } this.stream?.getTracks().forEach(t=>t.stop()); this.stream=null; },
+      upload(){ if(!this.file){ this.error='No video selected'; return;} this.error=''; this.uploading=true; const form=new FormData(); form.append('file',this.file); if(this.caption) form.append('caption',this.caption); fetch('/users/api/profile/video/',{method:'POST',headers:{'X-CSRFToken':csrf},body:form}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Upload failed'; return;} const s=Alpine.store('profileModal'); if(s?.therapist) s.therapist.video_gallery=d.video_gallery||[]; this.video=(d.video_gallery||[])[0]||null; this.reset(); }).catch(()=> this.error='Network error').finally(()=> this.uploading=false); },
+      updateCaption(){ if(!this.video) return; fetch('/users/api/profile/video/',{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},body:JSON.stringify({caption:this.video.caption||''})}).then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=d.error||'Save failed'; return;} const s=Alpine.store('profileModal'); if(s?.therapist) s.therapist.video_gallery=d.video_gallery||[]; this.video=(d.video_gallery||[])[0]||null; }).catch(()=> this.error='Network error'); }
+    };
+  };
+
   // Progress Tracker Component
   window.profileProgressTracker = function(){
     return {
@@ -34,7 +98,8 @@
           sec.completed = filled; sec.total = need; sec.percent = need ? Math.round((filled/need)*100) : 0;
           if(filled===need && need>0) completedSections++; totalSections++; totalFields += need; completedFields += filled;
         });
-        const percent = totalFields ? (completedFields/totalFields)*100 : 0;
+  const percent = totalFields ? (completedFields/totalFields)*100 : 0;
+
         this.overall={completedSections,totalSections,completedFields,totalFields,percent};
         // Minimal required set mirrors server-side ESSENTIAL_FIELDS + relations in compute_profile_completion
         const minFields = ['profile_photo_url','therapy_delivery_method','license_type','first_name','last_name','accepting_new_clients','intro_note','personal_statement_01'];

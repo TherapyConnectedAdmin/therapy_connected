@@ -1,14 +1,59 @@
 {% load static %}
 {# Comprehensive Therapist Profile Modal (lazy-loaded) #}
 <!-- Shared profile helper components (must load before sections using x-data references) -->
-<script src="{% static 'profile_helpers.js' %}"></script>
-{% include 'partials/profile/sections/_identity.html' %}
+<script src="{% static 'profile_helpers.js' %}?v=20250815"></script>
+{% if not standalone %}
+  <!-- Compact sticky header inside modal scroll area (full width flush to top) -->
+  <div class="sticky top-0 z-[120] bg-white border-b border-[#BEE3DB] px-4 md:px-6 py-3">
+    <div class="max-w-[1200px] mx-auto flex items-center gap-3">
+      <div class="w-10 h-10 rounded-full overflow-hidden ring-1 ring-[#BEE3DB] bg-[#F6FBFA] shrink-0">
+        <template x-if="$store.profileModal.therapist && $store.profileModal.therapist.profile_photo_url">
+          <img :src="$store.profileModal.therapist.profile_photo_url" alt="Profile" class="w-full h-full object-cover" />
+        </template>
+        <template x-if="!($store.profileModal.therapist && $store.profileModal.therapist.profile_photo_url)">
+          <div class="w-full h-full flex items-center justify-center text-[#116466]">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 12c2.21 0 4-1.79 4-4S14.21 4 12 4 8 5.79 8 8s1.79 4 4 4Z"/><path d="M4.8 20c1.02-3.21 3.92-5.5 7.2-5.5s6.18 2.29 7.2 5.5"/></svg>
+          </div>
+        </template>
+      </div>
+      <div class="min-w-0">
+        <div class="text-sm md:text-base font-extrabold tracking-tight text-[#2e4a49] truncate" x-text="[$store.profileModal.therapist?.title,$store.profileModal.therapist?.first_name,$store.profileModal.therapist?.last_name].filter(Boolean).join(' ')"></div>
+        <div class="text-[11px] text-[#116466] font-semibold flex items-center gap-2">
+          <template x-if="$store.profileModal.therapist?.license_type || $store.profileModal.therapist?.license_type_short">
+            <span class="px-1.5 py-0.5 rounded bg-[#E5F4F2] ring-1 ring-[#BEE3DB]">
+              <template x-if="$store.profileModal.therapist.license_type">
+                <span>
+                  <span x-text="$store.profileModal.therapist.license_type"></span>
+                  <template x-if="$store.profileModal.therapist.license_type_short">
+                    <span class="ml-1 text-[#587a79]" x-text="$store.profileModal.therapist.license_type_short"></span>
+                  </template>
+                </span>
+              </template>
+              <template x-if="!$store.profileModal.therapist.license_type && $store.profileModal.therapist.license_type_short">
+                <span x-text="$store.profileModal.therapist.license_type_short"></span>
+              </template>
+            </span>
+          </template>
+          <template x-if="$store.profileModal.therapist?.city || $store.profileModal.therapist?.state">
+            <span class="text-[#587a79]">
+              <span x-text="[$store.profileModal.therapist.city,$store.profileModal.therapist.state].filter(Boolean).join(', ')"></span>
+            </span>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
+{% include 'partials/profile/sections/_general.html' %}
+{% if standalone %}
+  {% include 'partials/profile/sections/_identity.html' %}
+{% endif %}
 {% include 'partials/profile/sections/_about.html' %}
 {% include 'partials/profile/sections/_locations.html' %}
 {% include 'partials/profile/sections/_identity_summary.html' %}
 {% include 'partials/profile/sections/_therapy_specialties.html' %}
-        <!-- Details Grid -->
-  <section class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-2">
+    <!-- Details Grid: single column in modal, two columns on standalone edit -->
+  <section class="{% if standalone %}grid grid-cols-1 md:grid-cols-2{% else %}grid grid-cols-1{% endif %} gap-5 mt-2">
           {% include 'partials/profile/sections/_fees_insurance.html' %}
           <!-- Qualifications (owner only) -->
           {% include 'partials/profile/sections/_client_focus.html' %}
@@ -317,12 +362,12 @@
     </div> <!-- gradient content wrapper -->
   </div>
  </div>
-<!-- Fallback inline lightbox if global mediaLightbox store not available -->
-<div x-cloak x-show="$store.profileModal.lightboxImage && !$store.mediaLightbox" class="fixed inset-0 z-[115] flex items-center justify-center bg-black/80" @click.self="$store.profileModal.lightboxImage=null" @keydown.escape.window="$store.profileModal.lightboxImage=null">
-  <div class="relative max-w-5xl w-[92vw]">
-  <button @click="$store.profileModal.lightboxImage=null" class="absolute -top-12 right-0 bg-[#FF9950] hover:bg-[#555B6E] text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg" aria-label="Close image">
+<!-- Local inline lightbox (always available as backup within modal) -->
+<div x-cloak x-show="$store.profileModal.lightboxImage" class="fixed inset-0 z-[135] flex items-center justify-center bg-black/90" @click.self="$store.profileModal.lightboxImage=null" @keydown.escape.window="$store.profileModal.lightboxImage=null">
+  <div class="relative w-screen h-screen">
+  <button @click="$store.profileModal.lightboxImage=null" class="absolute top-6 right-6 bg-[#FF9950] hover:bg-[#555B6E] text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg" aria-label="Close image">
       <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' class='w-7 h-7'><path stroke-linecap='round' stroke-linejoin='round' d='M6 18L18 6M6 6l12 12'/></svg>
     </button>
-  <img :src="$store.profileModal.lightboxImage" class="w-full max-h-[78vh] object-contain rounded-xl shadow-2xl" />
+  <img :src="$store.profileModal.lightboxImage" class="w-screen h-screen object-contain" />
   </div>
 </div>

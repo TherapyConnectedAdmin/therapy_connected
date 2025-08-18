@@ -112,10 +112,10 @@
         </script>
 </head>
 <body class="bg-gray-50 text-black font-serif leading-normal tracking-normal min-h-screen flex flex-col">
-        {# When authenticated, hide any generic marketing CTAs across the site #}
+        {# When authenticated, hide only the header's marketing CTA, not other buttons that reuse this class #}
         {% if request.user.is_authenticated %}
     <style>
-            .get-started-btn { display: none !important; }
+            .public-header .get-started-btn.signup-btn { display: none !important; }
         </style>
         {% endif %}
         <style>
@@ -340,33 +340,95 @@
         <!-- Global site JS (modal logic + geolocation ZIP helper) -->
         <script src="{% static 'home.js' %}"></script>
                 <script>
+                    // Debug flag for delegated lightbox handler
+                    window.TC_DEBUG_LIGHTBOX = true;
+                    if(window.TC_DEBUG_LIGHTBOX){ try{ console.log('[tc] lightbox delegate installing…'); }catch(_){} }
                     // Fallback delegation: if direct Alpine binding failed, allow data-lightbox-image/video attributes to trigger.
                     document.addEventListener('click', function(e){
-                        const fig = e.target.closest('[data-lightbox-image], [data-lightbox-video]');
-                        if(!fig) return;
-                        const store = (window.Alpine && Alpine.store && Alpine.store('mediaLightbox')) ? Alpine.store('mediaLightbox') : window.__mediaLightbox;
-                        if(!store) return;
-                        if(fig.dataset.lightboxImage){ store.openImage(fig.dataset.lightboxImage); }
-                        else if(fig.dataset.lightboxVideo){ store.openVideo(fig.dataset.lightboxVideo, fig.dataset.lightboxCaption||''); }
+                        try{
+                            let fig = e.target && e.target.closest ? e.target.closest('[data-lightbox-image], [data-lightbox-video]') : null;
+                            let inferredSrc = null;
+                            if(!fig && e.target && e.target.closest){
+                                const zoomFig = e.target.closest('figure[data-gallery-zoom]');
+                                if(zoomFig){
+                                    const imgEl = zoomFig.querySelector('img');
+                                    if(imgEl && imgEl.src){ inferredSrc = imgEl.src; fig = zoomFig; }
+                                }
+                            }
+                            if(window.TC_DEBUG_LIGHTBOX){
+                                try{ console.log('[tc] delegate click', { target:e.target && e.target.tagName, hasFig:!!fig, inferred:!!inferredSrc, src: inferredSrc || (fig && fig.dataset ? (fig.dataset.lightboxImage||fig.dataset.lightboxVideo||'') : '') }); }catch(_){ }
+                            }
+                            if(!fig && !inferredSrc) return;
+                            const store = (window.Alpine && Alpine.store && Alpine.store('mediaLightbox')) ? Alpine.store('mediaLightbox') : window.__mediaLightbox;
+                            if(!store){
+                                // Minimal non-Alpine fallback
+                                const src = inferredSrc || (fig && fig.dataset && fig.dataset.lightboxImage) || null;
+                                if(window.TC_DEBUG_LIGHTBOX){ try{ console.log('[tc] using fallback overlay', src); }catch(_){} }
+                                if(src){
+                                    (function tcShowFallbackLightbox(s){
+                                        let el=document.getElementById('tc-fallback-lightbox');
+                                        if(!el){
+                                            el=document.createElement('div');
+                                            el.id='tc-fallback-lightbox';
+                                            el.style.cssText='position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;';
+                                            const img=document.createElement('img');
+                                            img.style.cssText='max-width:100vw;max-height:100vh;object-fit:contain;';
+                                            el.appendChild(img);
+                                            el.addEventListener('click', (ev)=>{ if(ev.target===el){ el.remove(); }});
+                                            document.body.appendChild(el);
+                                        }
+                                        el.querySelector('img').src=s;
+                                        el.style.display='flex';
+                                    })(src);
+                                }
+                                return;
+                            }
+                            if(inferredSrc){ if(window.TC_DEBUG_LIGHTBOX){ try{ console.log('[tc] store.openImage (inferred)'); }catch(_){} } store.openImage(inferredSrc); }
+                            else if(fig && fig.dataset && fig.dataset.lightboxImage){ if(window.TC_DEBUG_LIGHTBOX){ try{ console.log('[tc] store.openImage (data attr)'); }catch(_){} } store.openImage(fig.dataset.lightboxImage); }
+                            else if(fig && fig.dataset && fig.dataset.lightboxVideo){ if(window.TC_DEBUG_LIGHTBOX){ try{ console.log('[tc] store.openVideo (data attr)'); }catch(_){} } store.openVideo(fig.dataset.lightboxVideo, fig.dataset.lightboxCaption||''); }
+                        } catch(err){ try{ console.error('[tc] lightbox delegate error', err); }catch(_){} }
                     });
+                    // Helper to test lightbox manually from console
+                    window.__openLightboxTest = function(url){
+                        const store = (window.Alpine && Alpine.store && Alpine.store('mediaLightbox')) ? Alpine.store('mediaLightbox') : null;
+                        if(store){ store.openImage(url); return 'store.openImage called'; }
+                        // fallback
+                        const ev = new Event('click'); ev.target = document.body; // no-op
+                        (function tcShowFallbackLightbox(s){
+                            let el=document.getElementById('tc-fallback-lightbox');
+                            if(!el){
+                                el=document.createElement('div');
+                                el.id='tc-fallback-lightbox';
+                                el.style.cssText='position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;';
+                                const img=document.createElement('img');
+                                img.style.cssText='max-width:100vw;max-height:100vh;object-fit:contain;';
+                                el.appendChild(img);
+                                el.addEventListener('click', (ev)=>{ if(ev.target===el){ el.remove(); }});
+                                document.body.appendChild(el);
+                            }
+                            el.querySelector('img').src=s;
+                            el.style.display='flex';
+                        })(url);
+                        return 'fallback overlay shown';
+                    }
                 </script>
         <!-- Leaflet (maps for profile modal locations) -->
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
-            <div x-cloak x-show="$store.mediaLightbox.open" x-transition class="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm" @keydown.window.escape="$store.mediaLightbox.close()" @click.self="$store.mediaLightbox.close()">
-                <div class="relative max-w-5xl w-[92vw] mx-auto" x-trap.noscroll="$store.mediaLightbox.open">
-                    <button @click="$store.mediaLightbox.close()" class="absolute -top-12 right-0 bg-[#FF9950] hover:bg-[#555B6E] text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg" aria-label="Close media">
+            <div x-cloak x-show="$store.mediaLightbox.open" x-transition class="fixed inset-0 z-[7000] flex items-center justify-center bg-black/90" @keydown.window.escape="$store.mediaLightbox.close()" @click.self="$store.mediaLightbox.close()">
+                <div class="relative w-screen h-screen" x-trap.noscroll="$store.mediaLightbox.open">
+                    <button @click="$store.mediaLightbox.close()" class="absolute top-6 right-6 bg-[#FF9950] hover:bg-[#555B6E] text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg" aria-label="Close media">
                         <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' class='w-7 h-7'><path stroke-linecap='round' stroke-linejoin='round' d='M6 18L18 6M6 6l12 12'/></svg>
                     </button>
                     <template x-if="$store.mediaLightbox.type==='image'">
-                        <img :src="$store.mediaLightbox.src" class="w-full max-h-[78vh] object-contain rounded-xl shadow-2xl" />
+                        <img :src="$store.mediaLightbox.src" class="w-screen h-screen object-contain" />
                     </template>
                     <template x-if="$store.mediaLightbox.type==='video'">
-                        <div class="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
+                        <div class="w-screen h-screen bg-black">
                             <video :src="$store.mediaLightbox.src" controls autoplay class="w-full h-full object-contain"></video>
                         </div>
                     </template>
-                    <div class="mt-4 text-center text-sm text-white/80" x-show="$store.mediaLightbox.caption" x-text="$store.mediaLightbox.caption"></div>
+                    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 text-center text-sm text-white/90 px-3 py-1 rounded" x-show="$store.mediaLightbox.caption" x-text="$store.mediaLightbox.caption"></div>
                 </div>
             </div>
         <script>

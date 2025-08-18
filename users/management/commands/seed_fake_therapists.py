@@ -27,8 +27,8 @@ randomuser_used = set()
 STREET_SUFFIXES = ['St', 'Ave', 'Blvd', 'Rd', 'Ln', 'Dr', 'Ct', 'Way', 'Pl']
 
 VIDEO_URLS = [
-    "https://samplelib.com/mp4/sample-5s.mp4",
-    "https://samplelib.com/mp4/sample-10s.mp4",
+    # Use permissive CC0 demo clip; some sample hosts block hotlinking and return 403
+    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
 ]
 
 MENTAL_HEALTH_ROLE_BY_CATEGORY = {
