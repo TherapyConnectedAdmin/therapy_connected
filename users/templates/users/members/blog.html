@@ -150,14 +150,26 @@
                 {% endfor %}
               </ul>
             </div>
-    <div class="artdeco-card p-4">
+            <div class="artdeco-card p-4" x-data="{ expanded: false }">
               <div class="font-semibold text-[#555B6E] mb-2">Tags</div>
               <div class="flex flex-wrap gap-2">
-                {% for t in tags %}
-      <a href="?q={{ t.name|urlencode }}&sort={{ current_sort }}" class="px-3 py-1 rounded-full bg-[#BEE3DB] text-[#555B6E] text-[11px] font-semibold">{{ t.name }}</a>
-                {% empty %}
+                {% if tags_top %}
+                  {% for t in tags_top %}
+                    <a href="?q={{ t.name|urlencode }}&sort={{ current_sort }}" class="px-3 py-1 rounded-full bg-[#BEE3DB] text-[#555B6E] text-[11px] font-semibold">{{ t.name }}</a>
+                  {% endfor %}
+                  {% if tags_rest %}
+                    <template x-if="expanded">
+                      <div class="contents">
+                        {% for t in tags_rest %}
+                          <a href="?q={{ t.name|urlencode }}&sort={{ current_sort }}" class="px-3 py-1 rounded-full bg-[#BEE3DB] text-[#555B6E] text-[11px] font-semibold">{{ t.name }}</a>
+                        {% endfor %}
+                      </div>
+                    </template>
+                    <button type="button" class="mt-2 px-3 py-1.5 rounded-full border border-[#BEE3DB] text-[#555B6E] text-xs hover:bg-[#F6FFF8]" @click="expanded = !expanded" x-text="expanded ? 'Show less' : 'Load more'"></button>
+                  {% endif %}
+                {% else %}
                   <span class="text-xs text-[#555B6E]/60">No tags yet.</span>
-                {% endfor %}
+                {% endif %}
               </div>
             </div>
           </div>

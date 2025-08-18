@@ -3066,14 +3066,18 @@ def members_blog(request):
     page_obj = paginator.get_page(page_number)
     # Sidebar data
     recent_posts = BlogPost.objects.filter(published=True, visibility__in=['members','both','public']).order_by('-created_at')[:6]
-    tags = BlogTag.objects.all().order_by('name')
+    # Tags: expose top 15 + the rest for a 'Load more' UI
+    tags_all = list(BlogTag.objects.all().order_by('name'))
+    tags_top = tags_all[:15]
+    tags_rest = tags_all[15:]
     return render(request, 'users/members/blog.html', {
         'page_obj': page_obj,
         'q': q,
         'current_sort': sort,
         'me_avatar_url': me_avatar_url,
         'recent_posts': recent_posts,
-        'tags': tags,
+        'tags_top': tags_top,
+        'tags_rest': tags_rest,
     })
 
 
