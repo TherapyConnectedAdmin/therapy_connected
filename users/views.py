@@ -3041,7 +3041,7 @@ def members_blog(request):
     sort = (request.GET.get('sort') or 'recent').strip().lower()
     posts = (
         BlogPost.objects
-        .filter(published=True, visibility__in=['members','both'])
+        .filter(published=True, visibility__in=['members','both','public'])
         .select_related('author')
         .prefetch_related('tags', 'media')
     )
@@ -3065,7 +3065,7 @@ def members_blog(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     # Sidebar data
-    recent_posts = BlogPost.objects.filter(published=True, visibility__in=['members','both']).order_by('-created_at')[:6]
+    recent_posts = BlogPost.objects.filter(published=True, visibility__in=['members','both','public']).order_by('-created_at')[:6]
     tags = BlogTag.objects.all().order_by('name')
     return render(request, 'users/members/blog.html', {
         'page_obj': page_obj,
