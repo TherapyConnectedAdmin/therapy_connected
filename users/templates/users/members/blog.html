@@ -80,19 +80,30 @@
                 </a>
                 <div class="mt-3 pt-3 border-t border-[#E6F2F0] flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
                   <div class="text-xs text-[#555B6E]/70">Visibility: <strong>{{ post.visibility }}</strong> • {% if post.published %}<span class="text-[#2E7D32]">Published</span>{% else %}<span class="text-[#AF4448]">Draft</span>{% endif %}</div>
-                  <form method="post" action="{% url 'user_blog_update_visibility' pk=post.pk %}" class="flex items-center gap-2">
+                  {% if post.author_id == request.user.id %}
+                  <form method="post" action="{% url 'user_blog_update_visibility' pk=post.pk %}" class="flex items-center gap-2 relative">
                     {% csrf_token %}
                     <input type="hidden" name="q" value="{{ q }}"/>
                     <input type="hidden" name="sort" value="{{ current_sort }}"/>
                     <input type="hidden" name="page" value="{{ page_obj.number }}"/>
-                    <select name="visibility" class="border border-[#BEE3DB] rounded px-2 py-1 text-sm bg-white text-[#555B6E]">
-                      <option value="members" {% if post.visibility == 'members' %}selected{% endif %}>Members</option>
-                      <option value="public" {% if post.visibility == 'public' %}selected{% endif %}>Public</option>
-                      <option value="both" {% if post.visibility == 'both' %}selected{% endif %}>Everywhere</option>
-                    </select>
-                    <label class="inline-flex items-center gap-1 text-sm text-[#555B6E]"><input type="checkbox" name="published" {% if post.published %}checked{% endif %}/> Published</label>
-                    <button class="px-3 py-1.5 rounded bg-[#89B0AE] text-white text-sm">Update</button>
+                    <details class="relative" role="listbox">
+                      <summary class="list-none cursor-pointer">
+                        <span class="inline-flex items-center gap-2 border border-[#BEE3DB] rounded-full px-3 py-1.5 bg-white text-sm text-[#555B6E] hover:bg-[#F6FFF8]">
+                          {{ post.visibility|title }}
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M7 10l5 5 5-5" stroke="#555B6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </span>
+                      </summary>
+                      <div class="absolute right-0 mt-2 w-44 artdeco-card py-1 shadow-lg z-20">
+                        <button type="submit" name="visibility" value="members" class="block w-full text-left px-3 py-2 text-sm hover:bg-[#F6FFF8] text-[#555B6E] {% if post.visibility == 'members' %}bg-[#F6FFF8] font-semibold{% endif %}">Members</button>
+                        <button type="submit" name="visibility" value="public" class="block w-full text-left px-3 py-2 text-sm hover:bg-[#F6FFF8] text-[#555B6E] {% if post.visibility == 'public' %}bg-[#F6FFF8] font-semibold{% endif %}">Public</button>
+                        <button type="submit" name="visibility" value="both" class="block w-full text-left px-3 py-2 text-sm hover:bg-[#F6FFF8] text-[#555B6E] {% if post.visibility == 'both' %}bg-[#F6FFF8] font-semibold{% endif %}">Everywhere</button>
+                      </div>
+                    </details>
+                    <label class="inline-flex items-center gap-1 text-sm text-[#555B6E]">
+                      <input type="checkbox" name="published" {% if post.published %}checked{% endif %}/> Published
+                    </label>
                   </form>
+                  {% endif %}
                 </div>
               </article>
             {% empty %}

@@ -183,8 +183,11 @@ def user_blog_update_visibility(request, pk):
     Accepts POST with fields: visibility (required), published (optional: 'on'/truthy).
     Redirects back to members_blog preserving q/sort/page when provided.
     """
-    post = get_object_or_404(BlogPost, pk=pk, author=request.user)
+    post = get_object_or_404(BlogPost, pk=pk)
     if request.method != 'POST':
+        return redirect('members_blog')
+    # Server-side guard: only author can update
+    if post.author_id != request.user.id:
         return redirect('members_blog')
     vis = (request.POST.get('visibility') or '').strip()
     valid = {k for k, _ in BlogPost.VISIBILITY_CHOICES}
