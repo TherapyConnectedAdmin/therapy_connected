@@ -333,8 +333,9 @@
       btn.addEventListener('click', ()=>{
         const v = btn.getAttribute('data-vis');
         if (visInput) visInput.value = v;
-        if (visSummary) visSummary.firstChild.nodeValue = v === 'both' ? 'Everywhere' : (v.charAt(0).toUpperCase()+v.slice(1));
-        btn.closest('details')?.removeAttribute('open');
+  if (visSummary) visSummary.firstChild.nodeValue = v === 'both' ? 'Everywhere' : (v.charAt(0).toUpperCase()+v.slice(1));
+  var det = btn.closest ? btn.closest('details') : null;
+  if (det) det.removeAttribute('open');
       });
     });
 
@@ -427,8 +428,8 @@
       items.forEach(it=>{
         const btn = document.createElement('button'); btn.type='button'; btn.className='relative group border border-[#E6F2F0] rounded overflow-hidden'; btn.style.height='110px';
         btn.title = (it.attribution||'') + (it.provider?' • '+it.provider:'');
-        btn.innerHTML = `<img src="${it.thumb_url}" alt="" class="w-full h-full object-cover" />`+
-                        `<div class=\"absolute inset-0 bg-black/0 group-hover:bg-black/20 transition\"></div>`;
+  btn.innerHTML = `<img src="${it.thumb_url}" alt="" class="w-full h-full object-cover" />`+
+      `<div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition"></div>`;
         btn.addEventListener('click', async ()=>{
           setStatus('Attaching image…'); btn.disabled = true;
           try{
@@ -445,7 +446,7 @@
       });
     }
     stockBtn && stockBtn.addEventListener('click', async ()=>{
-      const q = (stockQ?.value||'').trim(); if (!q) return;
+  const q = ((stockQ && stockQ.value) || '').trim(); if (!q) return;
       stockBtn.disabled = true; const old = stockBtn.textContent; stockBtn.textContent = 'Searching…'; setStatus('');
       try{ const data = await fetchStock(q,1); if (data.error){ setStatus('Unable to fetch images.'); return; }
         const items = data.results||[]; if (!items.length) setStatus('No results.'); renderStock(items); }
