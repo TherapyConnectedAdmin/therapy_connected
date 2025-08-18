@@ -12,7 +12,7 @@
     </div>
     <div>
       <label class="block text-sm font-medium text-[#555B6E] mb-1">Attach Media (up to 8)</label>
-      {{ form.media }}
+      <input type="file" name="media" multiple accept="image/*,video/*" class="border border-gray-300 rounded px-3 py-2 w-full bg-[#FAF9F9] text-[#555B6E]" />
       <input type="hidden" name="media_meta" id="blog-form-media-meta" value="{}" />
       <div id="blog-form-media-preview" class="mt-2 grid grid-cols-3 gap-2"></div>
       <p class="text-xs text-[#555B6E]/70 mt-1">Tip: to place media inline in your article, insert tokens like <code class="px-1 rounded bg-[#F6FFF8] border border-[#BEE3DB]">[[media:1]]</code> where you want the first attached item to appear, <code class="px-1 rounded bg-[#F6FFF8] border border-[#BEE3DB]">[[media:2]]</code> for the second, etc.</p>

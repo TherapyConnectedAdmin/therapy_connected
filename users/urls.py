@@ -61,6 +61,7 @@ urlpatterns = [
     path('api/feed/new_count/', views.api_feed_new_count, name='api_feed_new_count'),
     # Stock images search for composer
     path('api/feed/stock_images/', views.api_feed_stock_images, name='api_feed_stock_images'),
+    path('api/proxy/image/', views.api_proxy_image, name='api_proxy_image'),
     # Connections APIs
     path('api/connections/<int:conn_id>/accept/', views.api_connection_accept, name='api_connection_accept'),
     path('api/connections/<int:conn_id>/delete/', views.api_connection_delete, name='api_connection_delete'),

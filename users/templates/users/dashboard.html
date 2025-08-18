@@ -43,7 +43,7 @@
                     <span class="text-xs px-2 py-1 rounded-full {% if post.published %}bg-[#BEE3DB] text-[#555B6E]{% else %}bg-gray-200 text-gray-500{% endif %}">{% if post.published %}Published{% else %}Draft{% endif %}</span>
                   </div>
                   <div class="text-xs text-gray-500 mb-1">{{ post.created_at|date:"M d, Y" }}</div>
-                  <div class="line-clamp-2 text-sm text-[#555B6E]">{{ post.content|truncatewords:15|safe }}</div>
+                  <div class="line-clamp-2 text-sm text-[#555B6E]">{{ post.content|striptags|truncatewords:15 }}</div>
                   <div class="flex gap-3 mt-1">
                     {% if post.slug %}
                       <a href="{% url 'blog_detail' slug=post.slug %}" class="text-[#89B0AE] hover:underline text-xs inline-block">View Post</a>

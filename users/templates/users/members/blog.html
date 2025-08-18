@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block content %}
 <div id="members-blog" class="w-full max-w-none py-4 px-0">
   <style>
@@ -10,6 +11,32 @@
     @media(min-width:1024px){ .scaffold-layout__aside{display:block;position:relative;flex:0 0 300px} }
     @media(min-width:1280px){ .scaffold-layout__content{flex:0 0 65%;max-width:65%} }
     .artdeco-card{background:#fff;border:1px solid #BEE3DB;border-radius:8px}
+
+  /* Emoji picker */
+  .emoji-btn{border:1px solid #BEE3DB;background:#fff;border-radius:6px;line-height:1;padding:6px;cursor:pointer}
+  .emoji-btn:hover{background:#F6FFF8}
+  .emoji-popover{position:fixed;z-index:520;background:#fff;border:1px solid #BEE3DB;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:6px;width:260px}
+  .emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+  .emoji-cell{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;cursor:pointer}
+  .emoji-cell:hover{background:#F6FFF8}
+  /* Tiny spinner for uploading */
+  .tc-spinner{width:16px;height:16px;border:2px solid #BEE3DB;border-top-color:#89B0AE;border-radius:9999px;animation:tcspin .7s linear infinite}
+  @keyframes tcspin{to{transform:rotate(360deg)}}
+  /* Rich text editor */
+  .tc-toolbar{display:flex;flex-wrap:wrap;gap:6px;padding:6px;border:1px solid #BEE3DB;border-bottom:0;border-top-left-radius:8px;border-top-right-radius:8px;background:#fff}
+  .tc-tool{border:1px solid #BEE3DB;background:#fff;border-radius:6px;padding:4px 8px;font-size:12px;color:#555B6E;cursor:pointer}
+  .tc-tool:hover{background:#F6FFF8}
+  .tc-editor{min-height:180px;border:1px solid #BEE3DB;border-bottom-left-radius:8px;border-bottom-right-radius:8px;background:#FAF9F9;padding:10px;outline:none}
+  .tc-editor:empty:before{content:attr(data-placeholder); color:#9AA5B1}
+  /* Media preview grid */
+  .tc-media-tile{position:relative;border:1px solid #BEE3DB;border-radius:8px;overflow:hidden;background:#FAF9F9}
+  .tc-media-tile img{display:block;width:100%;height:100%;object-fit:cover}
+  .tc-media-cover{position:absolute;left:6px;top:6px;background:rgba(255,255,255,.92);border:1px solid #BEE3DB;border-radius:6px;padding:3px 6px;font-size:11px;color:#555B6E;display:flex;align-items:center;gap:6px}
+  .tc-media-video{display:flex;align-items:center;justify-content:center;color:#555B6E;height:100%;font-size:12px}
+  .tc-media-remove{position:absolute;right:6px;top:6px;background:rgba(255,255,255,.92);border:1px solid #BEE3DB;border-radius:9999px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:#555B6E;cursor:pointer}
+  .tc-media-remove:hover{background:#F6FFF8}
+  /* Modal panel scroll */
+  .tc-modal-panel{max-height:85vh;overflow-y:auto;overscroll-behavior:contain}
   </style>
 
   <div class="scaffold-layout scaffold-layout--content-aside">
@@ -18,14 +45,14 @@
         <!-- Main (center) -->
         <main class="scaffold-layout__content" aria-label="Members Blog">
           <!-- Composer card -->
-          <div class="artdeco-card p-4 mb-3">
+      <div class="artdeco-card p-4 mb-3">
             <div class="flex items-center gap-3">
               {% if me_avatar_url %}
                 <img src="{{ me_avatar_url }}" alt="" class="w-10 h-10 rounded-full object-cover" />
               {% else %}
                 <div class="w-10 h-10 rounded-full bg-[#BEE3DB]"></div>
               {% endif %}
-              <button type="button" id="open-blog-composer" class="flex-1 text-left border border-[#BEE3DB] rounded-full px-4 py-2 text-[#555B6E]/80 hover:bg-[#F6FFF8]">Start a post</button>
+        <a href="#" id="open-blog-create" class="flex-1 text-left border border-[#BEE3DB] rounded-full px-4 py-2 text-[#555B6E]/80 hover:bg-[#F6FFF8]">Start a post</a>
             </div>
           </div>
 
@@ -58,20 +85,12 @@
             {% for post in page_obj %}
               <article class="artdeco-card p-4">
                 <a href="{% url 'members_blog_detail' slug=post.slug %}" class="block">
-                  {% with first_media=post.media.all|first %}
-                    {% if first_media %}
-                      {% if first_media.type == 'image' %}
-                        <img src="{{ first_media.file.url }}" alt="" class="w-full h-48 object-cover rounded mb-3" />
-                      {% else %}
-                        <video src="{{ first_media.file.url }}" class="w-full h-48 object-cover rounded mb-3" muted></video>
-                      {% endif %}
-                    {% elif post.image %}
-                      <img src="{{ post.image.url }}" alt="" class="w-full h-48 object-cover rounded mb-3" />
-                    {% endif %}
-                  {% endwith %}
+                  {% if post.image %}
+                    <img src="{{ post.image.url }}" alt="" class="w-full h-48 object-cover rounded mb-3" />
+                  {% endif %}
                   <div class="font-semibold text-lg text-[#555B6E] mb-1">{{ post.title }}</div>
                   <div class="text-xs text-[#555B6E]/70 mb-2">{{ post.created_at|date:'M d, Y' }} • {{ post.visibility }}</div>
-                  <div class="text-sm text-[#555B6E] line-clamp-3">{{ post.content|truncatewords:40|safe }}</div>
+                  <div class="text-sm text-[#555B6E] line-clamp-3">{{ post.content|striptags|truncatewords:40 }}</div>
                   <div class="mt-2 flex flex-wrap gap-2">
                     {% for tag in post.tags.all %}
                       <span class="bg-[#BEE3DB] text-[#555B6E] px-2 py-0.5 rounded-full text-[11px] font-semibold">{{ tag.name }}</span>
@@ -103,6 +122,13 @@
                       <input type="checkbox" name="published" {% if post.published %}checked{% endif %}/> Published
                     </label>
                   </form>
+                    <form id="tc-del-form-{{ post.pk }}" method="post" action="{% url 'user_blog_delete' pk=post.pk %}" class="sm:ml-auto tc-delete-post-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="q" value="{{ q }}"/>
+                      <input type="hidden" name="sort" value="{{ current_sort }}"/>
+                      <input type="hidden" name="page" value="{{ page_obj.number }}"/>
+                      <button type="button" data-form-id="tc-del-form-{{ post.pk }}" data-title="{{ post.title|escape }}" class="tc-delete-post-btn px-3 py-1.5 rounded-full border border-[#AF4448] text-[#AF4448] text-sm hover:bg-[#FFF5F5]">Delete</button>
+                    </form>
                   {% endif %}
                 </div>
               </article>
@@ -142,8 +168,10 @@
               <ul class="divide-y divide-[#E6F2F0]">
                 {% for p in recent_posts %}
                   <li class="py-2 first:pt-0 last:pb-0">
-                    <div class="text-sm text-[#116466] font-medium line-clamp-2">{{ p.title }}</div>
-                    <div class="text-[10px] text-[#555B6E]/60 mt-0.5">{{ p.created_at|date:'M d, Y' }}</div>
+                    <a href="{% url 'members_blog_detail' slug=p.slug %}" class="block">
+                      <div class="text-sm text-[#116466] font-medium line-clamp-2 hover:underline">{{ p.title }}</div>
+                      <div class="text-[10px] text-[#555B6E]/60 mt-0.5">{{ p.created_at|date:'M d, Y' }}</div>
+                    </a>
                   </li>
                 {% empty %}
                   <li class="py-2 text-xs text-[#555B6E]/60">No posts yet.</li>
@@ -178,337 +206,688 @@
     </div>
   </div>
 
-  <!-- Modal Composer (blog, enhanced) -->
-  <div id="blog-composer" class="fixed inset-0 bg-black/40 hidden z-[500]">
-    <div class="max-w-2xl mx-auto mt-20 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
-      <form method="post" action="{% url 'user_blog_create' %}" enctype="multipart/form-data" id="blog-composer-form">
+  <!-- New: Blog Create Modal (clean start) -->
+  <div id="blog-create-modal" class="fixed inset-0 bg-black/40 hidden z-[500]">
+    <div class="tc-modal-panel max-w-2xl mx-auto my-10 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
+      <form method="post" action="{% url 'user_blog_create' %}" enctype="multipart/form-data" id="blog-create-form">
         {% csrf_token %}
-        <input type="hidden" name="media_meta" id="blog-media-meta" value="{}" />
+  <input type="hidden" name="media_meta" id="blog-media-meta" value="{}" />
         <div class="px-4 py-3 border-b border-[#BEE3DB] flex items-center justify-between">
           <div class="font-semibold text-[#555B6E]">Create a blog post</div>
-          <button type="button" id="blog-close" class="text-[#555B6E]">✕</button>
+          <button type="button" id="blog-create-close" class="text-[#555B6E]">✕</button>
         </div>
-        <div class="p-4 space-y-3">
+        <div class="p-4 space-y-4">
           <div>
             <label class="block text-sm text-[#555B6E]/80 mb-1">Title</label>
             <div class="flex items-center gap-2">
-              <input id="blog-title" type="text" name="title" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" placeholder="Add a title" />
-              <button type="button" class="emoji-btn" data-emoji-target="#blog-title" title="Insert emoji">😊</button>
+              <input id="blog-title-input" type="text" name="title" class="flex-1 w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" placeholder="Add a title" />
+              <button type="button" class="emoji-btn" data-emoji-target="#blog-title-input" title="Insert emoji" aria-label="Insert emoji">😊</button>
             </div>
           </div>
           <div>
             <label class="block text-sm text-[#555B6E]/80 mb-1">Content</label>
             <div class="flex items-start gap-2">
-              <textarea id="blog-content" name="content" rows="8" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" placeholder="Write your post... Use [[media:1]] to place the first attached media inline."></textarea>
-              <button type="button" class="emoji-btn" data-emoji-target="#blog-content" title="Insert emoji">😊</button>
+              <div class="flex-1 w-full">
+                <div class="tc-toolbar" aria-label="Formatting toolbar">
+                  <button type="button" class="tc-tool" data-cmd="bold"><strong>B</strong></button>
+                  <button type="button" class="tc-tool" data-cmd="italic"><em>I</em></button>
+                  <button type="button" class="tc-tool" data-cmd="underline"><u>U</u></button>
+                  <span class="mx-1 w-px h-5 bg-[#E6F2F0]"></span>
+                  <button type="button" class="tc-tool" data-block="p">P</button>
+                  <button type="button" class="tc-tool" data-block="h2">H2</button>
+                  <button type="button" class="tc-tool" data-block="h3">H3</button>
+                  <span class="mx-1 w-px h-5 bg-[#E6F2F0]"></span>
+                  <button type="button" class="tc-tool" data-cmd="insertUnorderedList">• List</button>
+                  <button type="button" class="tc-tool" data-cmd="insertOrderedList">1. List</button>
+                  <button type="button" class="tc-tool" data-cmd="formatBlock" data-arg="blockquote">“ Quote”</button>
+                  <button type="button" class="tc-tool" data-link>Link</button>
+                  <button type="button" class="tc-tool" data-clear>Clear</button>
+                </div>
+                <div id="blog-content-editor" class="tc-editor" contenteditable="true" data-placeholder="Write your post..."></div>
+                <p class="text-xs text-[#555B6E]/60 mt-1">Tip: After you add images below, drag any image thumbnail from “Attach media” into this editor to place it inline.</p>
+                <textarea id="blog-content-textarea" name="content" class="sr-only"></textarea>
+              </div>
+              <button type="button" class="emoji-btn" data-emoji-target="#blog-content-editor" title="Insert emoji" aria-label="Insert emoji">😊</button>
             </div>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label class="block text-sm text-[#555B6E]/80 mb-1">Cover image</label>
-              <!-- Hidden native input; UI lets you pick any attached image as cover -->
-              <input id="blog-cover" type="file" name="image" accept="image/*" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-white text-[#555B6E]" />
-              <p class="text-xs text-[#555B6E]/60 mt-1">Tip: mark any attached image below as the cover. We’ll sync it here automatically.</p>
-            </div>
-            <div>
-              <label class="block text-sm text-[#555B6E]/80 mb-1">Publish to</label>
+          <!-- Hidden cover input kept for JS-driven cover selection -->
+          <input id="blog-cover-input" type="file" name="image" accept="image/*" class="sr-only" />
+          <div class="mt-1 flex items-center flex-wrap gap-4">
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-[#555B6E]/70">Visibility</span>
               <input type="hidden" name="visibility" id="blog-visibility" value="members" />
-              <details class="relative" role="listbox">
-                <summary class="list-none cursor-pointer inline-flex items-center gap-2 select-none">
-                  <span class="inline-flex items-center gap-2 border border-[#BEE3DB] rounded-full px-3 py-1.5 bg-white text-sm text-[#555B6E] hover:bg-[#F6FFF8]" id="blog-visibility-summary">
-                    Members
+              <details class="relative" id="blog-visibility-dd" role="listbox">
+                <summary class="list-none cursor-pointer">
+                  <span class="inline-flex items-center gap-2 border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-sm text-[#555B6E]">
+                    <span id="blog-visibility-text">Members</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M7 10l5 5 5-5" stroke="#555B6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </span>
                 </summary>
-                <div class="absolute z-20 mt-2 w-44 artdeco-card py-1 shadow-lg">
-                  <button type="button" class="block w-full text-left px-3 py-2 text-sm hover:bg-[#F6FFF8] text-[#555B6E]" data-vis="members">Members</button>
-                  <button type="button" class="block w-full text-left px-3 py-2 text-sm hover:bg-[#F6FFF8] text-[#555B6E]" data-vis="public">Public</button>
-                  <button type="button" class="block w-full text-left px-3 py-2 text-sm hover:bg-[#F6FFF8] text-[#555B6E]" data-vis="both">Everywhere</button>
+                <div class="absolute right-0 mt-2 w-44 artdeco-card py-1 shadow-lg z-20">
+                  <button type="button" data-value="members" class="block w-full text-left px-3 py-2 text-sm hover:bg-[#F6FFF8] text-[#555B6E]">Members</button>
+                  <button type="button" data-value="public" class="block w-full text-left px-3 py-2 text-sm hover:bg-[#F6FFF8] text-[#555B6E]">Public</button>
+                  <button type="button" data-value="both" class="block w-full text-left px-3 py-2 text-sm hover:bg-[#F6FFF8] text-[#555B6E]">Everywhere</button>
                 </div>
               </details>
-              <label class="mt-2 inline-flex items-center gap-2 text-sm text-[#555B6E]"><input type="checkbox" name="published" class="h-4 w-4 text-[#89B0AE] focus:ring-[#89B0AE] border-[#BEE3DB] rounded" checked /> Publish now</label>
             </div>
+            <label class="inline-flex items-center gap-2 text-sm text-[#555B6E] ml-auto"><input type="checkbox" name="published" class="h-4 w-4 text-[#89B0AE] focus:ring-[#89B0AE] border-[#BEE3DB] rounded" checked /> Publish now</label>
           </div>
           <div>
-            <label class="block text-sm text-[#555B6E]/80 mb-1">Attach media (up to 8)</label>
-            <input id="blog-media" type="file" name="media" multiple accept="image/*,video/*" class="hidden" />
-            <input id="blog-camera" type="file" accept="image/*" capture="environment" class="hidden" />
-            <div class="flex gap-2 mb-2">
-              <button type="button" id="blog-btn-upload" class="px-3 py-2 rounded border border-[#BEE3DB] bg-white text-[#555B6E] text-sm">Upload photo/video</button>
-              <button type="button" id="blog-btn-camera" class="px-3 py-2 rounded bg-[#BEE3DB] text-[#555B6E] text-sm">Use camera</button>
+            <div class="flex items-center justify-between mb-1">
+              <label for="blog-media-input" class="block text-sm text-[#555B6E]/80">Attach media (up to 8)</label>
+              <div class="flex items-center gap-2">
+                <button type="button" id="blog-camera-btn" class="px-3 py-2 rounded border border-[#BEE3DB] text-[#555B6E] text-sm bg-[#FAF9F9]" aria-label="Capture from camera">Camera</button>
+                <button type="button" id="blog-media-add-btn" class="px-3 py-2 rounded border border-[#BEE3DB] text-[#555B6E] text-sm bg-[#FAF9F9]">Add media</button>
+              </div>
             </div>
-            <div class="text-xs text-[#555B6E]/60">or pick royalty‑free images</div>
-            <div class="flex gap-2 mt-1">
-              <input id="blog-stock-q" type="text" placeholder="Search stock images (e.g., therapy, wellness)" class="flex-1 border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E] text-sm" />
-              <button type="button" id="blog-stock-search" class="px-3 py-2 rounded bg-[#BEE3DB] text-[#555B6E] text-sm">Search</button>
-            </div>
-            <div id="blog-stock-status" class="text-xs text-[#555B6E]/60 mt-1"></div>
-            <div id="blog-stock-results" class="grid grid-cols-3 gap-2 max-h-56 overflow-auto mt-1"></div>
+            <input id="blog-media-input" type="file" name="media" multiple accept="image/*" class="sr-only" />
+            <input id="blog-camera-input" type="file" accept="image/*" capture="environment" class="sr-only" />
+            <div id="blog-media-preview" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+            <p class="text-xs text-[#555B6E]/60 mt-1">You can add images. Only the featured image is used in previews. Choose one image as the featured image below.</p>
             <div class="mt-3">
-              <div class="text-xs text-[#555B6E]/60 mb-1">Selected media</div>
-              <div id="blog-preview" class="grid grid-cols-3 gap-2"></div>
+              <div class="flex items-stretch gap-2">
+                <input id="blog-stock-q" type="text" class="flex-1 border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" placeholder="Search stock images (e.g., mindfulness, coffee)" />
+                <button type="button" id="blog-stock-search" class="px-3 py-2 rounded border border-[#BEE3DB] bg-[#FAF9F9] text-[#555B6E] text-sm">Search</button>
+              </div>
+              <div id="blog-stock-status" class="text-xs text-[#555B6E]/60 mt-1"></div>
+              <div id="blog-stock-results" class="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+              <div id="blog-stock-selected" class="hidden mt-2">
+                <div class="flex items-center gap-3 p-2 border border-[#E6F2F0] rounded">
+                  <img id="blog-stock-selected-thumb" alt="" class="w-20 h-14 object-cover rounded bg-[#BEE3DB]" />
+                  <div class="min-w-0 flex-1">
+                    <div id="blog-stock-selected-meta" class="text-xs text-[#555B6E]/70 truncate"></div>
+                    <div class="mt-1 flex items-center gap-2">
+                      <div id="blog-stock-uploading" class="hidden flex items-center gap-2 text-xs text-[#555B6E]/70">
+                        <span class="tc-spinner"></span>
+                        <span>Uploading…</span>
+                      </div>
+                      <button type="button" id="blog-stock-clear" class="px-2 py-1 text-xs rounded border border-[#BEE3DB] text-[#555B6E]">Clear</button>
+                      <button type="button" id="blog-stock-change" class="px-2 py-1 text-xs rounded bg-[#BEE3DB] text-[#555B6E]">Change</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="blog-stock-note" class="hidden text-xs text-[#555B6E]/60 mt-1">Images are provided under the provider’s license. Attribution is added automatically.</div>
             </div>
           </div>
         </div>
         <div class="px-4 py-3 border-t border-[#BEE3DB] flex items-center justify-end gap-2 bg-[#F6FFF8]">
-          <button type="button" id="blog-cancel" class="px-4 py-2 rounded border border-[#BEE3DB] text-[#555B6E]">Cancel</button>
-          <button type="submit" class="px-4 py-2 rounded bg-[#89B0AE] text-white font-semibold">Post</button>
+          <div id="blog-submit-status" class="mr-auto text-xs text-[#AF4448] hidden"></div>
+          <button type="button" id="blog-create-cancel" class="px-4 py-2 rounded border border-[#BEE3DB] text-[#555B6E]">Cancel</button>
+          <button type="submit" id="blog-submit-btn" class="px-4 py-2 rounded bg-[#89B0AE] text-white font-semibold">Post</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Camera Capture Modal (blog) -->
-  <div id="blog-camera-modal" class="fixed inset-0 bg-black/50 hidden z-[510]" role="dialog" aria-modal="true" aria-labelledby="blog-camera-modal-title">
-    <div class="max-w-2xl mx-auto mt-16 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
+  <!-- Camera Capture Modal (desktop) -->
+  <div id="blog-camera-modal" class="fixed inset-0 bg-black/60 hidden z-[600]">
+    <div class="tc-modal-panel max-w-lg mx-auto my-10 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
       <div class="px-4 py-3 border-b border-[#BEE3DB] flex items-center justify-between">
-        <div id="blog-camera-modal-title" class="font-semibold text-[#555B6E]">Use camera</div>
-        <button type="button" id="blog-camera-close" class="text-[#555B6E]" aria-label="Close">✕</button>
+        <div class="font-semibold text-[#555B6E]">Capture photo</div>
+        <button type="button" id="tc-cam-close" class="text-[#555B6E]">✕</button>
       </div>
-      <div class="p-4">
-        <div class="aspect-video w-full bg-black rounded overflow-hidden flex items-center justify-center">
-          <video id="blog-camera-video" autoplay playsinline class="w-full h-full object-contain"></video>
+      <div class="p-3">
+        <div class="relative rounded-lg overflow-hidden border border-[#BEE3DB] bg-black">
+          <video id="tc-cam-video" class="w-full h-64 object-cover" autoplay playsinline muted></video>
+          <canvas id="tc-cam-canvas" class="hidden"></canvas>
+          <img id="tc-cam-preview" alt="" class="hidden w-full h-64 object-cover" />
         </div>
-        <div class="mt-3 text-xs text-[#555B6E]/70">Grant camera permission if prompted.</div>
-      </div>
-      <div class="px-4 py-3 border-t border-[#BEE3DB] flex items-center justify-between bg-[#F6FFF8]">
-        <div class="flex items-center gap-2">
-          <button type="button" id="blog-camera-capture" class="px-3 py-2 rounded bg-[#89B0AE] text-white text-sm">Capture</button>
-          <button type="button" id="blog-camera-retake" class="px-3 py-2 rounded border border-[#BEE3DB] text-[#555B6E] text-sm hidden">Retake</button>
+        <div class="mt-3 flex items-center justify-end gap-2">
+          <button type="button" id="tc-cam-retake" class="hidden px-4 py-2 rounded border border-[#BEE3DB] text-[#555B6E]">Retake</button>
+          <button type="button" id="tc-cam-capture" class="px-4 py-2 rounded bg-[#89B0AE] text-white font-semibold">Capture</button>
+          <button type="button" id="tc-cam-use" class="hidden px-4 py-2 rounded bg-[#89B0AE] text-white font-semibold">Add</button>
         </div>
-        <div class="flex items-center gap-2">
-          <button type="button" id="blog-camera-use" class="px-3 py-2 rounded bg-[#89B0AE] text-white text-sm hidden">Use photo</button>
-          <button type="button" id="blog-camera-cancel" class="px-3 py-2 rounded border border-[#BEE3DB] text-[#555B6E] text-sm">Cancel</button>
-        </div>
+        <div id="tc-cam-error" class="text-xs text-[#AF4448] mt-2"></div>
       </div>
     </div>
   </div>
 
-  <style>
-    .emoji-btn{border:1px solid #BEE3DB;background:#fff;border-radius:6px;line-height:1;padding:6px;cursor:pointer}
-    .emoji-btn:hover{background:#F6FFF8}
-    .emoji-popover{position:fixed;z-index:520;background:#fff;border:1px solid #BEE3DB;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:6px;width:260px}
-    .emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
-    .emoji-cell{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;cursor:pointer}
-    .emoji-cell:hover{background:#F6FFF8}
-  </style>
-
   <script>
-  (function(){
-    const modal = document.getElementById('blog-composer');
-    const openBtn = document.getElementById('open-blog-composer');
-    const closeBtn = document.getElementById('blog-close');
-    const cancelBtn = document.getElementById('blog-cancel');
-    const formEl = document.getElementById('blog-composer-form');
-    const contentEl = document.getElementById('blog-content');
-    const preview = document.getElementById('blog-preview');
-    const mediaInput = document.getElementById('blog-media');
-    const coverInput = document.getElementById('blog-cover');
-    const mediaMetaField = document.getElementById('blog-media-meta');
-    const btnUpload = document.getElementById('blog-btn-upload');
-    const btnCamera = document.getElementById('blog-btn-camera');
-    const camModal = document.getElementById('blog-camera-modal');
-    const camVideo = document.getElementById('blog-camera-video');
-    const camClose = document.getElementById('blog-camera-close');
-    const camCancel = document.getElementById('blog-camera-cancel');
-    const camCapture = document.getElementById('blog-camera-capture');
-    const camRetake = document.getElementById('blog-camera-retake');
-    const camUse = document.getElementById('blog-camera-use');
-    const cameraInput = document.getElementById('blog-camera');
-    const stockQ = document.getElementById('blog-stock-q');
-    const stockBtn = document.getElementById('blog-stock-search');
-    const stockResults = document.getElementById('blog-stock-results');
-    const stockStatus = document.getElementById('blog-stock-status');
-    const visInput = document.getElementById('blog-visibility');
-    const visSummary = document.getElementById('blog-visibility-summary');
+    (function(){
+      var modal = document.getElementById('blog-create-modal');
+      var openBtn = document.getElementById('open-blog-create');
+      var closeBtn = document.getElementById('blog-create-close');
+      var cancelBtn = document.getElementById('blog-create-cancel');
+  function lockBody(){ document.documentElement.style.overflow='hidden'; document.body.style.overflow='hidden'; }
+  function unlockBody(){ document.documentElement.style.overflow=''; document.body.style.overflow=''; }
+  function open(){ if(modal){ modal.classList.remove('hidden'); lockBody(); } }
+  function close(){ if(modal){ modal.classList.add('hidden'); unlockBody(); } }
+      if (openBtn) openBtn.addEventListener('click', function(e){ e.preventDefault(); open(); });
+      if (closeBtn) closeBtn.addEventListener('click', close);
+      if (cancelBtn) cancelBtn.addEventListener('click', close);
+      if (modal) modal.addEventListener('click', function(e){ if (e.target === modal) close(); });
+      document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) close(); });
 
-    function open(){ modal && modal.classList.remove('hidden'); }
-    function close(){ modal && modal.classList.add('hidden'); }
-    openBtn && openBtn.addEventListener('click', open);
-    closeBtn && closeBtn.addEventListener('click', close);
-    cancelBtn && cancelBtn.addEventListener('click', close);
-
-    // Styled visibility dropdown
-    document.querySelectorAll('[data-vis]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const v = btn.getAttribute('data-vis');
-        if (visInput) visInput.value = v;
-  if (visSummary) visSummary.firstChild.nodeValue = v === 'both' ? 'Everywhere' : (v.charAt(0).toUpperCase()+v.slice(1));
-  var det = btn.closest ? btn.closest('details') : null;
-  if (det) det.removeAttribute('open');
-      });
-    });
-
-    // Media state
-    let mediaItems = []; // [{file, type: 'image'|'video', name, cover:boolean}]
-    let camStream = null;
-    let mediaMeta = {}; // filename -> meta
-    function syncMeta(){ if (mediaMetaField) mediaMetaField.value = JSON.stringify(mediaMeta); }
-    function setStatus(msg){ if (stockStatus) stockStatus.textContent = msg || ''; }
-    function isVideo(f){ return (f.type||'').startsWith('video/'); }
-    function clamp8(){ if (mediaItems.length > 8) mediaItems = mediaItems.slice(0,8); }
-    function refreshPreview(){
-      if (!preview) return;
-      preview.innerHTML = '';
-      mediaItems.forEach((it, idx)=>{
-        const url = URL.createObjectURL(it.file);
-        const card = document.createElement('div');
-        card.className = 'relative border border-[#E6F2F0] rounded overflow-hidden';
-        card.style.height = '110px';
-        card.innerHTML = (it.type==='video') ? `<video src="${url}" class="w-full h-full object-cover" muted></video>` : `<img src="${url}" class="w-full h-full object-cover" alt=""/>`;
-        // Controls overlay
-        const bar = document.createElement('div');
-        bar.className = 'absolute bottom-0 left-0 right-0 bg-black/40 text-white text-[11px] flex items-center justify-between px-1 py-0.5';
-        bar.innerHTML = `
-          <div class="flex items-center gap-1">
-            <label class="inline-flex items-center gap-1 cursor-pointer">
-              <input type="checkbox" ${it.cover?'checked':''} /> Cover
-            </label>
-            <button type="button" class="px-1 py-0.5 rounded bg-black/30 hover:bg-black/50" data-insert>Insert</button>
-          </div>
-          <div class="flex items-center gap-1">
-            <button type="button" class="px-1 py-0.5 rounded bg-black/30 hover:bg-black/50" data-up>↑</button>
-            <button type="button" class="px-1 py-0.5 rounded bg-black/30 hover:bg-black/50" data-down>↓</button>
-            <button type="button" class="px-1 py-0.5 rounded bg-red-600/80 hover:bg-red-600" data-remove>×</button>
-          </div>`;
-        // Wire controls
-        const chk = bar.querySelector('input[type=checkbox]');
-        chk.addEventListener('change', ()=>{ mediaItems.forEach(m=>m.cover=false); it.cover = chk.checked; syncCoverFile(); refreshPreview(); });
-        bar.querySelector('[data-insert]').addEventListener('click', ()=> insertTokenAtCursor(idx+1));
-        bar.querySelector('[data-up]').addEventListener('click', ()=>{ if (idx>0){ const t=mediaItems[idx]; mediaItems[idx]=mediaItems[idx-1]; mediaItems[idx-1]=t; refreshPreview(); } });
-        bar.querySelector('[data-down]').addEventListener('click', ()=>{ if (idx<mediaItems.length-1){ const t=mediaItems[idx]; mediaItems[idx]=mediaItems[idx+1]; mediaItems[idx+1]=t; refreshPreview(); } });
-        bar.querySelector('[data-remove]').addEventListener('click', ()=>{ mediaItems.splice(idx,1); // clear cover if removed
-          if (!mediaItems.some(m=>m.cover)) clearCoverFile(); refreshPreview(); });
-        card.appendChild(bar);
-        preview.appendChild(card);
-      });
-    }
-    function insertTokenAtCursor(n){
-      const el = contentEl; if (!el) return;
-      try{
-        el.focus();
-        const token = `[[media:${n}]]`;
-        const start = el.selectionStart||0, end = el.selectionEnd||0;
-        const val = el.value||''; el.value = val.slice(0,start) + token + val.slice(end);
-        const pos = start + token.length; el.setSelectionRange && el.setSelectionRange(pos, pos);
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-      }catch(e){}
-    }
-    function clearCoverFile(){ try{ if (coverInput){ coverInput.value = ''; } }catch(e){}
-    function syncCoverFile(){
-      // Copy the marked image into the hidden native cover input via DataTransfer
-      try{
-        if (!coverInput) return;
-        const sel = mediaItems.find(m=>m.cover && m.type==='image');
-        if (!sel){ coverInput.value=''; return; }
-        const dt = new DataTransfer();
-        dt.items.add(new File([sel.file], sel.file.name || 'cover.jpg', { type: sel.file.type || 'image/jpeg' }));
-        coverInput.files = dt.files;
-      }catch(e){ /* ignore */ }
-    }
-    function addFile(file, meta){
-      if (!file) return;
-      const item = { file, type: isVideo(file) ? 'video' : 'image', name: file.name || `blob-${Date.now()}`, cover:false };
-      mediaItems.push(item); clamp8();
-      if (meta){ mediaMeta[item.name] = meta; syncMeta(); }
-      refreshPreview();
-    }
-    // Upload button -> native input
-    btnUpload && btnUpload.addEventListener('click', ()=> mediaInput && mediaInput.click());
-    mediaInput && mediaInput.addEventListener('change', ()=>{ const list = Array.from(mediaInput.files||[]); list.forEach(f=> addFile(f)); refreshPreview(); });
-
-    // Stock search/attach (adds to list, not replace)
-    async function fetchStock(query, page=1){
-      const u = new URL(window.location.origin + '/users/api/feed/stock_images/');
-      u.searchParams.set('q', query); u.searchParams.set('page', page); u.searchParams.set('per_page', 18);
-      try{ const res = await fetch(u.toString()); if(!res.ok) return {results:[], total:0, error:'http'}; return await res.json(); }catch(e){ return {results:[], total:0, error:'network'}; }
-    }
-    function renderStock(items){
-      if (!stockResults) return; stockResults.innerHTML='';
-      items.forEach(it=>{
-        const btn = document.createElement('button'); btn.type='button'; btn.className='relative group border border-[#E6F2F0] rounded overflow-hidden'; btn.style.height='110px';
-        btn.title = (it.attribution||'') + (it.provider?' • '+it.provider:'');
-  btn.innerHTML = `<img src="${it.thumb_url}" alt="" class="w-full h-full object-cover" />`+
-      `<div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition"></div>`;
-        btn.addEventListener('click', async ()=>{
-          setStatus('Attaching image…'); btn.disabled = true;
-          try{
-            const r = await fetch(it.full_url); const blob = await r.blob();
-            const fname = `${(it.provider||'stock')}-${(it.id||Date.now())}.jpg`;
-            const file = new File([blob], fname, { type: blob.type||'image/jpeg' });
-            addFile(file, {
-              provider: it.provider, attribution: it.attribution, attribution_url: it.attribution_url,
-              license: it.license, license_url: it.license_url, thumb_url: it.thumb_url
-            });
-          } finally { btn.disabled=false; setStatus(''); }
+      // Visibility dropdown wiring
+      var visInput = document.getElementById('blog-visibility');
+      var visText = document.getElementById('blog-visibility-text');
+      var visDd = document.getElementById('blog-visibility-dd');
+      if (visDd && visInput && visText){
+        visDd.querySelectorAll('button[data-value]').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var val = btn.getAttribute('data-value');
+            var label = btn.textContent.trim();
+            visInput.value = val;
+            visText.textContent = label;
+            visDd.open = false;
+          });
         });
-        stockResults.appendChild(btn);
-      });
-    }
-    stockBtn && stockBtn.addEventListener('click', async ()=>{
-  const q = ((stockQ && stockQ.value) || '').trim(); if (!q) return;
-      stockBtn.disabled = true; const old = stockBtn.textContent; stockBtn.textContent = 'Searching…'; setStatus('');
-      try{ const data = await fetchStock(q,1); if (data.error){ setStatus('Unable to fetch images.'); return; }
-        const items = data.results||[]; if (!items.length) setStatus('No results.'); renderStock(items); }
-      finally{ stockBtn.disabled=false; stockBtn.textContent = old || 'Search'; }
-    });
-    stockQ && stockQ.addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ e.preventDefault(); stockBtn && stockBtn.click(); }});
-
-    // Camera handling
-    function isMobile(){ try { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent||''); } catch(e){ return false; } }
-    async function openCam(){ if (!camModal) return; camModal.classList.remove('hidden');
-      try{
-        const constraints = { video: { facingMode: isMobile()? { ideal:'environment' } : 'user' } };
-        camStream = await (navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? navigator.mediaDevices.getUserMedia(constraints) : Promise.reject());
-        if (camVideo) camVideo.srcObject = camStream;
-        camRetake && camRetake.classList.add('hidden'); camUse && camUse.classList.add('hidden'); camCapture && camCapture.classList.remove('hidden');
-      }catch(e){ camModal.classList.add('hidden'); cameraInput && cameraInput.click(); }
-    }
-    function stopCam(){ try{ if (camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } if (camVideo) camVideo.srcObject=null; }catch(e){} }
-    function closeCam(){ if (camModal) camModal.classList.add('hidden'); stopCam(); }
-    btnCamera && btnCamera.addEventListener('click', ()=>{
-      const test = document.createElement('input'); test.type='file'; const supportsNative = ('capture' in test) && isMobile(); if (supportsNative && cameraInput) return cameraInput.click(); else openCam();
-    });
-    camClose && camClose.addEventListener('click', closeCam);
-    camCancel && camCancel.addEventListener('click', closeCam);
-    camModal && camModal.addEventListener('click', (e)=>{ if (e.target===camModal) closeCam(); });
-    camCapture && camCapture.addEventListener('click', async ()=>{
-      try{ const v = camVideo; if (!v) return; const canvas=document.createElement('canvas'); const w=v.videoWidth||1280, h=v.videoHeight||720; canvas.width=w; canvas.height=h; const ctx=canvas.getContext('2d'); ctx.drawImage(v,0,0,w,h);
-        canvas.toBlob(function(blob){ if (!blob) return; const file = new File([blob], 'camera-'+Date.now()+'.jpg', { type:'image/jpeg' }); addFile(file); camCapture.classList.add('hidden'); camRetake.classList.remove('hidden'); camUse.classList.remove('hidden'); }, 'image/jpeg', 0.9);
-      }catch(e){}
-    });
-    camRetake && camRetake.addEventListener('click', ()=>{ camRetake.classList.add('hidden'); camUse && camUse.classList.add('hidden'); camCapture && camCapture.classList.remove('hidden'); });
-    camUse && camUse.addEventListener('click', closeCam);
-    cameraInput && cameraInput.addEventListener('change', ()=>{ const f = cameraInput.files && cameraInput.files[0]; if (f) addFile(f); });
-
-    // Emoji picker (reused lightweight)
-    (function initEmojiPicker(){
-      var POP = null; var activeInput = null;
-      var EMOJIS = ['😀','😁','😂','🤣','😅','😊','🙂','😉','😍','😘','🤗','🤔','🤩','😎','😇','🙌','👍','👏','💯','🔥','🌟','🎉','✅','❌','⚠️','❤️','🧡','💛','💚','💙','💜','🤍','🤎','🖤','💪','🙏','🤝','💡','📣','📝','📅','📍','📈','💬','🧘','🩺','🧠','🌿','🌈','☀️','⭐','☕','🍎'];
-      function createPopover(){ var d=document.createElement('div'); d.className='emoji-popover'; var g=document.createElement('div'); g.className='emoji-grid'; EMOJIS.forEach(function(e){ var c=document.createElement('button'); c.type='button'; c.className='emoji-cell'; c.textContent=e; c.addEventListener('click', function(){ insertEmoji(e); closePop(); }); g.appendChild(c); }); d.appendChild(g); document.body.appendChild(d); return d; }
-      function openPop(btn, input){ activeInput = input || null; if (!activeInput) return; if (!POP) POP = createPopover(); var r=btn.getBoundingClientRect(); var top=r.bottom+8+window.scrollY, left=r.left+window.scrollX; POP.style.top=top+'px'; POP.style.left=left+'px'; POP.style.display='block'; setTimeout(function(){ document.addEventListener('click', onDoc, { once: true }); },0); }
-      function closePop(){ if (POP) POP.style.display='none'; }
-      function onDoc(ev){ if (!POP) return; if (ev && POP.contains(ev.target)) return; closePop(); }
-      function insertEmoji(ch){ try{ var el=activeInput; if (!el) return; el.focus(); var s=el.selectionStart||0, e=el.selectionEnd||0; var v=el.value||''; el.value=v.slice(0,s)+ch+v.slice(e); var pos=s+ch.length; el.setSelectionRange && el.setSelectionRange(pos,pos); el.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){} }
-      document.addEventListener('click', function(ev){ var t=ev.target; if (!t) return; var btn=t.closest && t.closest('.emoji-btn'); if (!btn) return; ev.preventDefault(); var sel=btn.getAttribute('data-emoji-target'); var input=sel?document.querySelector(sel):null; if (input) openPop(btn,input); });
-      document.addEventListener('keydown', function(e){ if (POP && POP.style.display==='block' && e.key==='Escape') closePop(); });
+      }
     })();
 
-    // Build ordered submission
-    formEl && formEl.addEventListener('submit', function(e){
-      // We need to intercept to control file ordering and include cover
-      e.preventDefault();
-      const fd = new FormData(formEl);
-      // Clear any existing media from native input by not using its FileList; use our ordered mediaItems instead.
-      // Append media in order
-      mediaItems.forEach(it=>{ fd.append('media', it.file, it.file.name); });
-      // Ensure meta synced
-      syncMeta();
-      // cover is already synced into coverInput via DataTransfer when checked; if not, keep user-uploaded coverInput file
-      fetch(formEl.action, { method:'POST', body: fd }).then(r=>{ if (r.ok) window.location.href = '{% url "members_blog" %}'; });
-    });
+    // Media preview and cover selection
+    (function(){
+  var mediaInput = document.getElementById('blog-media-input');
+  var cameraBtn = document.getElementById('blog-camera-btn');
+  var cameraInput = document.getElementById('blog-camera-input');
+  var camModal = document.getElementById('blog-camera-modal');
+  var camVideo = document.getElementById('tc-cam-video');
+  var camCanvas = document.getElementById('tc-cam-canvas');
+  var camPreview = document.getElementById('tc-cam-preview');
+  var camCapture = document.getElementById('tc-cam-capture');
+  var camUse = document.getElementById('tc-cam-use');
+  var camRetake = document.getElementById('tc-cam-retake');
+  var camClose = document.getElementById('tc-cam-close');
+  var camError = document.getElementById('tc-cam-error');
+  var camStream = null;
+      var coverInput = document.getElementById('blog-cover-input');
+      var addBtn = document.getElementById('blog-media-add-btn');
+      var grid = document.getElementById('blog-media-preview');
+      var pendingPrev = null;
+      var metaField = document.getElementById('blog-media-meta');
+      function fileKey(f){ return [f.name, f.size, f.type || '', f.lastModified||0].join('|'); }
+      function getCoverKey(){
+        if (!coverInput || !coverInput.files || !coverInput.files.length) return null;
+        var f = coverInput.files[0];
+        return fileKey(f);
+      }
+      function setCoverFile(file){
+        if (!coverInput) return;
+        var dt = new DataTransfer();
+        if (file) dt.items.add(file);
+        coverInput.files = dt.files;
+      }
+      function readMeta(){ try{ return JSON.parse(metaField && metaField.value || '{}'); }catch(_){ return {}; } }
+      function writeMeta(obj){ if(metaField) metaField.value = JSON.stringify(obj||{}); }
+      function removeEditorImagesByName(name){
+        var editor = document.getElementById('blog-content-editor');
+        if (!editor || !name) return;
+        editor.querySelectorAll('img[data-tc-media]')
+          .forEach(function(img){ if (img.getAttribute('data-tc-media') === name){ img.remove(); } });
+      }
+      function removeFileFromMedia(keyToRemove, nameToRemove){
+        if (!mediaInput) return;
+        var current = mediaInput.files ? Array.from(mediaInput.files) : [];
+        var dt = new DataTransfer();
+        current.forEach(function(f){ if (fileKey(f) !== keyToRemove){ dt.items.add(f); } });
+        mediaInput.files = dt.files;
+        // Clear featured if it was this file
+        var currentCover = getCoverKey();
+        if (currentCover && currentCover === keyToRemove){ setCoverFile(null); }
+        // Remove any stored meta (e.g., stock attribution)
+        if (nameToRemove){ var meta = readMeta(); if (meta[nameToRemove]){ delete meta[nameToRemove]; writeMeta(meta); } }
+        // Remove any inline images in editor that referenced this file
+        removeEditorImagesByName(nameToRemove);
+        render();
+      }
+      function render(){
+        if (!grid) return;
+        grid.innerHTML = '';
+  var files = (mediaInput && mediaInput.files) ? Array.from(mediaInput.files).filter(function(f){ return (f.type||'').startsWith('image/'); }) : [];
+        var currentCover = getCoverKey();
+        var keys = new Set(files.map(fileKey));
+        // If cover no longer present in media files, clear it
+        if (currentCover && !keys.has(currentCover)) setCoverFile(null), currentCover = null;
+        files.forEach(function(f, idx){
+          var tile = document.createElement('div');
+          tile.className = 'tc-media-tile';
+          tile.style.height = '110px';
+          if ((f.type||'').startsWith('image/')){
+            var img = document.createElement('img');
+            img.src = URL.createObjectURL(f);
+            img.alt = '';
+            img.draggable = true;
+            img.dataset.filename = f.name || ('image-'+idx);
+            img.addEventListener('dragstart', function(ev){ try{ ev.dataTransfer.setData('text/x-tc-media-filename', img.dataset.filename); ev.dataTransfer.effectAllowed='copy'; }catch(_){ } });
+            tile.appendChild(img);
+            // Cover checkbox (images only)
+            var coverWrap = document.createElement('label');
+            coverWrap.className = 'tc-media-cover cursor-pointer';
+            var cb = document.createElement('input'); cb.type='checkbox'; cb.className='h-3 w-3';
+            var span = document.createElement('span'); span.textContent = 'Featured';
+            coverWrap.appendChild(cb); coverWrap.appendChild(span);
+            tile.appendChild(coverWrap);
+            var key = fileKey(f);
+            if (currentCover && currentCover === key){ cb.checked = true; }
+            cb.addEventListener('change', function(){
+              if (cb.checked){
+                // Uncheck all others and set cover input
+                grid.querySelectorAll('input[type="checkbox"]').forEach(function(other){ if (other !== cb) other.checked = false; });
+                setCoverFile(f);
+              } else {
+                // If unchecked and it was the cover, clear cover input
+                var ckey = getCoverKey();
+                if (ckey && ckey === key){ setCoverFile(null); }
+              }
+            });
+            // Remove button
+            var rm = document.createElement('button');
+            rm.type = 'button';
+            rm.className = 'tc-media-remove';
+            rm.setAttribute('aria-label', 'Remove image');
+            rm.innerHTML = '&times;';
+            rm.addEventListener('click', function(e){ e.preventDefault(); removeFileFromMedia(key, f.name || null); });
+            tile.appendChild(rm);
+          }
+          grid.appendChild(tile);
+        });
+      }
+  function openCamModal(){ if (camModal){ camModal.classList.remove('hidden'); document.documentElement.style.overflow='hidden'; document.body.style.overflow='hidden'; } }
+  function closeCamModal(){ if (camModal){ camModal.classList.add('hidden'); document.documentElement.style.overflow=''; document.body.style.overflow=''; } stopStream(); resetPreview(); }
+      function isLikelyDesktop(){ try{ return window.matchMedia && window.matchMedia('(pointer: fine)').matches; }catch(_){ return true; } }
+      function stopStream(){ try{ if (camStream){ camStream.getTracks().forEach(function(t){ try{ t.stop(); }catch(_){ } }); camStream = null; } }catch(_){ }
+        if (camVideo) camVideo.srcObject = null; }
+      function resetPreview(){ if (camPreview) camPreview.classList.add('hidden'); if (camRetake) camRetake.classList.add('hidden'); if (camUse) camUse.classList.add('hidden'); if (camCapture) camCapture.classList.remove('hidden'); if (camError) camError.textContent=''; }
+      async function startCamera(){
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ throw new Error('unsupported'); }
+        var constraints = { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+        try{
+          camStream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (camVideo){ camVideo.srcObject = camStream; }
+        }catch(e){ throw e; }
+      }
+      function dataURLtoFile(dataUrl, fileName){ var arr = dataUrl.split(','), mime = arr[0].match(/:(.*?);/)[1], bstr = atob(arr[1]); var n = bstr.length, u8arr = new Uint8Array(n); while(n--){ u8arr[n]=bstr.charCodeAt(n); } return new File([u8arr], fileName, {type:mime}); }
+      // Camera capture: open camera input on mobile, modal with getUserMedia on desktop
+      if (addBtn && mediaInput){
+        addBtn.addEventListener('click', function(){
+          // Snapshot existing files to allow append semantics on next change
+          pendingPrev = mediaInput.files ? Array.from(mediaInput.files) : [];
+          mediaInput.click();
+        });
+      }
+      // Camera capture: open camera input and merge into media input
+      function mergeIntoMedia(filesToAdd){
+        if (!mediaInput) return;
+        var current = mediaInput.files ? Array.from(mediaInput.files) : [];
+        var dt = new DataTransfer();
+        current.concat(Array.from(filesToAdd||[])).filter(function(f){ return (f.type||'').startsWith('image/'); }).slice(0,8).forEach(function(f){ dt.items.add(f); });
+        mediaInput.files = dt.files;
+        render();
+      }
+      if (cameraBtn && cameraInput){
+        cameraBtn.addEventListener('click', async function(){
+          // Prefer desktop camera via getUserMedia; fallback to input capture
+          if (isLikelyDesktop() && navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+            try{
+              openCamModal();
+              await startCamera();
+            }catch(e){
+              if (camError) camError.textContent = 'Unable to access camera. Falling back to file picker.';
+              closeCamModal();
+              cameraInput.value = '';
+              cameraInput.click();
+            }
+          } else {
+            cameraInput.value = '';
+            cameraInput.click();
+          }
+        });
+        cameraInput.addEventListener('change', function(){
+          if (cameraInput.files && cameraInput.files.length){ mergeIntoMedia(cameraInput.files); }
+        });
+      }
+      // Camera modal controls
+      if (camClose){ camClose.addEventListener('click', closeCamModal); }
+      if (camModal){ camModal.addEventListener('click', function(e){ if (e.target === camModal) closeCamModal(); }); }
+      if (camCapture){ camCapture.addEventListener('click', function(){
+        if (!camVideo) return;
+        try{
+          var vw = camVideo.videoWidth || 1280, vh = camVideo.videoHeight || 720;
+          if (camCanvas){ camCanvas.width = vw; camCanvas.height = vh; var ctx = camCanvas.getContext('2d'); ctx.drawImage(camVideo, 0, 0, vw, vh); }
+          var dataUrl = camCanvas.toDataURL('image/jpeg', 0.92);
+          if (camPreview){ camPreview.src = dataUrl; camPreview.classList.remove('hidden'); }
+          if (camCapture) camCapture.classList.add('hidden'); if (camUse) camUse.classList.remove('hidden'); if (camRetake) camRetake.classList.remove('hidden');
+          stopStream();
+        }catch(_){ if (camError) camError.textContent='Capture failed. Try again.'; }
+      }); }
+      if (camRetake){ camRetake.addEventListener('click', async function(){ resetPreview(); try{ await startCamera(); }catch(e){ if (camError) camError.textContent='Unable to access camera.'; } }); }
+      if (camUse){ camUse.addEventListener('click', function(){
+        if (!camPreview || !camPreview.src) return;
+        var name = 'camera-' + new Date().toISOString().replace(/[:.]/g,'-') + '.jpg';
+        try{ var file = dataURLtoFile(camPreview.src, name); mergeIntoMedia([file]); }catch(_){ if (camError) camError.textContent='Unable to add photo.'; }
+        closeCamModal();
+      }); }
+      if (mediaInput){
+        mediaInput.addEventListener('change', function(){
+          // If we have a previous snapshot, merge it with new selection, enforce max=8
+          if (pendingPrev && pendingPrev.length){
+            var dt = new DataTransfer();
+            var now = Array.from(mediaInput.files || []);
+            pendingPrev.concat(now).slice(0,8).forEach(function(f){ dt.items.add(f); });
+            mediaInput.files = dt.files;
+            pendingPrev = null;
+          } else {
+            // Enforce max=8 if user selected many
+            var cur = Array.from(mediaInput.files || []);
+            if (cur.length > 8){
+              var dt2 = new DataTransfer();
+              cur.slice(0,8).forEach(function(f){ dt2.items.add(f); });
+              mediaInput.files = dt2.files;
+            }
+          }
+          render();
+        });
+      }
+      // Expose render so other scripts (stock attach) can refresh the grid
+      window.__tcBlogRenderMediaPreview = render;
+    })();
 
-  })();
+    // Emoji picker for blog create modal (fixed popover appended to body)
+    (function(){
+      var EMOJIS = ['😀','😁','😂','🤣','😅','😊','🙂','😉','😍','😘','🤗','🤔','🤩','😎','😇','🙌','👍','👏','💯','🔥','🌟','🎉','✅','❌','⚠️','❤️','🧡','💛','💚','💙','💜','🤍','🤎','🖤','💪','🙏','🤝','💡','📣','📝','📅','📍','📈','💬','🧘','🩺','🧠','🌿','🌈','☀️','⭐','☕','🍎'];
+      var pop=null, activeInput=null;
+      function makePopover(){
+        var d=document.createElement('div'); d.className='emoji-popover'; d.style.display='none';
+        var g=document.createElement('div'); g.className='emoji-grid';
+        EMOJIS.forEach(function(e){ var b=document.createElement('button'); b.type='button'; b.className='emoji-cell'; b.textContent=e; b.addEventListener('click', function(){ insertEmoji(e); hide(); }); g.appendChild(b); });
+        d.appendChild(g); document.body.appendChild(d); return d;
+      }
+      function showFor(btn){
+        if(!pop) pop = makePopover();
+        var rect = btn.getBoundingClientRect();
+        pop.style.top = (rect.bottom + 6) + 'px';
+        var left = Math.min(rect.left, window.innerWidth - pop.offsetWidth - 8);
+        pop.style.left = Math.max(8, left) + 'px';
+        pop.style.display='block';
+        setTimeout(function(){ document.addEventListener('click', onDoc); }, 0);
+      }
+      function hide(){ if(pop){ pop.style.display='none'; document.removeEventListener('click', onDoc); } }
+      function onDoc(ev){ if(pop && !pop.contains(ev.target)){ hide(); } }
+      function insertEmoji(char){
+        var el = activeInput; if(!el) return;
+        if (el.isContentEditable){
+          var sel = window.getSelection(); if(!sel) return;
+          var range = sel.rangeCount ? sel.getRangeAt(0) : null;
+          if (!range || !el.contains(range.startContainer)){
+            el.focus(); sel = window.getSelection(); range = document.createRange();
+            range.selectNodeContents(el); range.collapse(false); sel.removeAllRanges(); sel.addRange(range);
+          }
+          var node = document.createTextNode(char);
+          range.insertNode(node);
+          range.setStartAfter(node); range.setEndAfter(node);
+          sel.removeAllRanges(); sel.addRange(range);
+          el.focus();
+        } else {
+          var start = el.selectionStart || 0, end = el.selectionEnd || 0;
+          var val = el.value || '';
+          el.value = val.slice(0,start) + char + val.slice(end);
+          var pos = start + char.length; el.setSelectionRange(pos,pos); el.focus();
+        }
+      }
+      document.querySelectorAll('.emoji-btn[data-emoji-target]').forEach(function(btn){
+        var targetSel = btn.getAttribute('data-emoji-target');
+        var target = document.querySelector(targetSel);
+        if(!target) return;
+        btn.addEventListener('click', function(e){
+          e.preventDefault(); e.stopPropagation();
+          activeInput = target; showFor(btn);
+        });
+      });
+    })();
+
+    // Stock image search and attach (reuses the existing /users/api/feed/stock_images/ endpoint)
+    (function(){
+      var qEl = document.getElementById('blog-stock-q');
+  var btn = document.getElementById('blog-stock-search');
+      var resultsEl = document.getElementById('blog-stock-results');
+      var statusEl = document.getElementById('blog-stock-status');
+      var selectedWrap = document.getElementById('blog-stock-selected');
+      var selThumb = document.getElementById('blog-stock-selected-thumb');
+      var selMeta = document.getElementById('blog-stock-selected-meta');
+      var uploading = document.getElementById('blog-stock-uploading');
+      var noteEl = document.getElementById('blog-stock-note');
+      var clearBtn = document.getElementById('blog-stock-clear');
+      var changeBtn = document.getElementById('blog-stock-change');
+  var mediaInput = document.getElementById('blog-media-input');
+      var metaField = document.getElementById('blog-media-meta');
+      var selectedFilename = null;
+      function setStatus(msg){ if(statusEl) statusEl.textContent = msg || ''; }
+      function readMeta(){ try{ return JSON.parse(metaField && metaField.value || '{}'); }catch(_){ return {}; } }
+      function writeMeta(obj){ if(metaField) metaField.value = JSON.stringify(obj||{}); }
+      async function searchStock(query, page){
+        var u = new URL(window.location.origin + '/users/api/feed/stock_images/');
+        u.searchParams.set('q', query);
+        u.searchParams.set('page', page||1);
+        u.searchParams.set('per_page', 18);
+        try{ var r = await fetch(u.toString()); if(!r.ok) return {results:[], error:'http'}; return await r.json(); }catch(e){ return {results:[], error:'network'}; }
+      }
+      function showSelected(meta){
+        if (!selectedWrap) return;
+        if (resultsEl) resultsEl.classList.add('hidden');
+        selectedWrap.classList.remove('hidden');
+        if (selThumb) selThumb.src = meta && meta.thumb_url || '';
+        if (selMeta) selMeta.textContent = ((meta && meta.attribution) || '') + ((meta && meta.provider) ? (' • ' + meta.provider) : '');
+      }
+      function hideSelected(){ if (selectedWrap) selectedWrap.classList.add('hidden'); if (resultsEl) resultsEl.classList.remove('hidden'); }
+      function render(list){ if(!resultsEl) return; resultsEl.innerHTML='';
+        list.forEach(function(it){
+          var b = document.createElement('button'); b.type='button'; b.className='relative group border border-[#BEE3DB] rounded overflow-hidden'; b.style.height='110px';
+          b.title = (it.attribution||'') + (it.provider ? ' • ' + it.provider : '');
+          b.innerHTML = '<img src="'+(it.thumb_url||'')+'" alt="" class="w-full h-full object-cover"/>'+
+                        '<div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition"></div>';
+          b.addEventListener('click', async function(){
+            if(!mediaInput) return; setStatus(''); b.disabled=true;
+            try{
+              // Close grid, show selected panel and spinner
+              showSelected(it);
+              if (uploading) uploading.classList.remove('hidden');
+              // Fetch via proxy and attach
+              var proxy = new URL('/users/api/proxy/image/', window.location.origin);
+              proxy.searchParams.set('url', it.full_url);
+              var r = await fetch(proxy.toString());
+              if (!r.ok) throw new Error('proxy_http');
+              var blob = await r.blob();
+              var fname = (it.provider||'stock') + '-' + (it.id||Date.now()) + '.jpg';
+              selectedFilename = fname;
+              var file = new File([blob], fname, { type: blob.type||'image/jpeg' });
+              var dt = new DataTransfer();
+              var existing = mediaInput.files ? Array.from(mediaInput.files) : [];
+              existing.concat([file]).slice(0,8).forEach(function(f){ dt.items.add(f); });
+              mediaInput.files = dt.files;
+              var meta = readMeta();
+              meta[fname] = { provider: it.provider, attribution: it.attribution, attribution_url: it.attribution_url, license: it.license, license_url: it.license_url, thumb_url: it.thumb_url };
+              writeMeta(meta);
+              if (noteEl) noteEl.classList.remove('hidden');
+              // refresh preview grid
+              if (window.__tcBlogRenderMediaPreview) window.__tcBlogRenderMediaPreview();
+            } catch(e){
+              hideSelected(); setStatus('Unable to attach image. Please try again.');
+            } finally { b.disabled=false; if (uploading) uploading.classList.add('hidden'); }
+          });
+          resultsEl.appendChild(b);
+        });
+      }
+      function clearSelected(){
+        // Remove the stock file from the input
+        if (mediaInput){
+          var files = mediaInput.files ? Array.from(mediaInput.files) : [];
+          var dt = new DataTransfer();
+          files.filter(function(f){ return f.name !== selectedFilename; }).forEach(function(f){ dt.items.add(f); });
+          mediaInput.files = dt.files;
+        }
+        // Remove meta
+        if (selectedFilename){ var meta = readMeta(); if (meta[selectedFilename]){ delete meta[selectedFilename]; writeMeta(meta);} }
+        selectedFilename = null;
+        hideSelected(); setStatus(''); if (noteEl) noteEl.classList.add('hidden');
+      }
+      if (clearBtn) clearBtn.addEventListener('click', clearSelected);
+      if (changeBtn) changeBtn.addEventListener('click', function(){ clearSelected(); if (qEl) qEl.focus(); });
+      if (btn){
+        btn.addEventListener('click', async function(){
+          var q = (qEl && qEl.value || '').trim(); if(!q) return;
+          btn.disabled=true; var old = btn.textContent; btn.textContent='Searching…'; setStatus('');
+          try{ hideSelected(); var data = await searchStock(q,1); if(data.error){ setStatus('Unable to fetch images.'); return; }
+            var items = data.results||[]; if(!items.length) setStatus('No results.'); render(items); }
+          finally{ btn.disabled=false; btn.textContent = old || 'Search'; }
+        });
+      }
+      if (qEl){ qEl.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); btn && btn.click(); } }); }
+    })();
+
+    // Rich text: toolbar actions and form submission sync
+    (function(){
+      var editor = document.getElementById('blog-content-editor');
+      var hidden = document.getElementById('blog-content-textarea');
+      var form = document.getElementById('blog-create-form');
+      var titleInput = document.getElementById('blog-title-input');
+      var submitBtn = document.getElementById('blog-submit-btn');
+      var statusEl = document.getElementById('blog-submit-status');
+      function runCmd(cmd, arg){ try{ document.execCommand(cmd, false, arg || null); }catch(_){} editor && editor.focus(); }
+      function setBlock(tag){ runCmd('formatBlock', tag); }
+      document.querySelectorAll('.tc-toolbar .tc-tool').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          if (!editor) return;
+          if (btn.hasAttribute('data-link')){ var url = prompt('Enter URL'); if(url){ runCmd('createLink', url); } return; }
+          if (btn.hasAttribute('data-clear')){ runCmd('removeFormat'); runCmd('unlink'); return; }
+          var block = btn.getAttribute('data-block'); if (block){ setBlock(block); return; }
+          var cmd = btn.getAttribute('data-cmd'); var arg = btn.getAttribute('data-arg'); if (cmd){ runCmd(cmd, arg); }
+        });
+      });
+      // Allow dropping uploaded images into editor
+      var mediaInput = document.getElementById('blog-media-input');
+      function findFileByName(name){
+        var files = mediaInput && mediaInput.files ? Array.from(mediaInput.files) : [];
+        return files.find(function(f){ return (f && f.name) === name && (f.type||'').startsWith('image/'); });
+      }
+      function insertImageAtPoint(x, y, file){
+        if (!editor || !file) return;
+        var url = URL.createObjectURL(file);
+        var img = document.createElement('img');
+        img.src = url; img.alt = '';
+        img.setAttribute('data-tc-media', file.name || '');
+        var range = null;
+        if (document.caretRangeFromPoint){ range = document.caretRangeFromPoint(x, y); }
+        else if (document.caretPositionFromPoint){ var pos = document.caretPositionFromPoint(x, y); if(pos){ range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); range.collapse(true);} }
+        if (!range){ editor.focus(); var sel = window.getSelection(); range = document.createRange(); range.selectNodeContents(editor); range.collapse(false); sel.removeAllRanges(); sel.addRange(range); }
+        range.insertNode(img);
+      }
+      if (editor){
+        editor.addEventListener('dragover', function(e){
+          var types = e.dataTransfer && e.dataTransfer.types ? Array.from(e.dataTransfer.types) : [];
+          if (types.indexOf('text/x-tc-media-filename') !== -1){ e.preventDefault(); e.dataTransfer.dropEffect='copy'; }
+        });
+        editor.addEventListener('drop', function(e){
+          var name = e.dataTransfer && e.dataTransfer.getData ? e.dataTransfer.getData('text/x-tc-media-filename') : '';
+          if (name){ e.preventDefault(); var f = findFileByName(name); if (f && (f.type||'').startsWith('image/')){ insertImageAtPoint(e.clientX, e.clientY, f); } }
+        });
+      }
+      async function submitViaAjax(e){
+        e.preventDefault();
+        if (!form) return;
+  // Pre-validate: server requires both title and content
+  var titleVal = (titleInput && titleInput.value || '').trim();
+  var contentText = (editor && editor.innerText || '').trim();
+  if (!titleVal){ if (statusEl){ statusEl.textContent = 'Please add a title.'; statusEl.classList.remove('hidden'); } return; }
+  if (!contentText){ if (statusEl){ statusEl.textContent = 'Please add some content.'; statusEl.classList.remove('hidden'); } return; }
+        // Build submission HTML from a clone to avoid mutating the live editor (prevents 404s from placeholder src)
+        if (hidden){
+          var htmlForSubmit = '';
+          if (editor){
+            var tmp = editor.cloneNode(true);
+            tmp.querySelectorAll('img[data-tc-media]').forEach(function(img){
+              var name = img.getAttribute('data-tc-media') || '';
+              if (name){ img.setAttribute('src', '[[MEDIA:'+name+']]'); }
+            });
+            htmlForSubmit = (tmp.innerHTML || '').trim();
+          }
+          hidden.value = htmlForSubmit;
+        }
+        if (statusEl){ statusEl.textContent = ''; statusEl.classList.add('hidden'); }
+        var origText = submitBtn ? submitBtn.textContent : '';
+        if (submitBtn){ submitBtn.disabled = true; submitBtn.textContent = 'Posting…'; }
+        try{
+          var fd = new FormData(form);
+          var csrfInput = form.querySelector('input[name="csrfmiddlewaretoken"]');
+          var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+          if (csrfInput && csrfInput.value){ headers['X-CSRFToken'] = csrfInput.value; }
+          var resp = await fetch(form.action, { method: 'POST', body: fd, headers: headers, redirect: 'follow' });
+          // Follow normal redirect if provided by server
+          if (resp.redirected){ window.location.href = resp.url; return; }
+          // Try JSON body first for AJAX-aware responses
+          var isJson = (resp.headers.get('Content-Type')||'').includes('application/json');
+          if (isJson){
+            var data = await resp.json().catch(function(){ return null; });
+            if (data && data.redirect){ window.location.href = data.redirect; return; }
+            if (!resp.ok){
+              var msg = 'Unable to create post.';
+              if (data && data.error === 'media_save_failed' && data.detail){ msg = 'Media upload failed: ' + data.detail; }
+              else if (data && data.errors){ msg = 'Please fix the highlighted fields.'; }
+              if (statusEl){ statusEl.textContent = msg; statusEl.classList.remove('hidden'); }
+              return;
+            }
+            // Unknown JSON but OK status – prompt user
+            if (statusEl){ statusEl.textContent = 'Please check your inputs and try again.'; statusEl.classList.remove('hidden'); }
+            return;
+          }
+          // Fallback: non-JSON OK likely returned a full HTML form (validation). Keep user here.
+          if (resp.ok){ if (statusEl){ statusEl.textContent = 'Please check your inputs and try again.'; statusEl.classList.remove('hidden'); } }
+          else { if (statusEl){ statusEl.textContent = 'Unable to create post right now. Please try again.'; statusEl.classList.remove('hidden'); } }
+        } catch(_){
+          if (statusEl){ statusEl.textContent = 'Network error. Please try again.'; statusEl.classList.remove('hidden'); }
+        } finally {
+          if (submitBtn){ submitBtn.disabled = false; submitBtn.textContent = origText || 'Post'; }
+        }
+      }
+      if (form){ form.addEventListener('submit', submitViaAjax); }
+    })();
+  </script>
+  <!-- Styled delete confirm modal -->
+  <div id="tc-confirm-overlay" class="fixed inset-0 bg-black/40 hidden z-[650]">
+    <div class="tc-modal-panel max-w-md mx-auto my-24 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
+      <div class="px-4 py-3 border-b border-[#BEE3DB] flex items-center justify-between">
+        <div class="font-semibold text-[#555B6E]">Delete post?</div>
+        <button type="button" id="tc-confirm-close" class="text-[#555B6E]">✕</button>
+      </div>
+      <div class="p-4 text-[#555B6E]">
+        Are you sure you want to delete “<span id="tc-confirm-title" class="font-semibold"></span>”? This action cannot be undone.
+      </div>
+      <div class="px-4 py-3 border-t border-[#BEE3DB] bg-[#F6FFF8] flex items-center justify-end gap-2">
+        <button type="button" id="tc-confirm-cancel" class="px-4 py-2 rounded border border-[#BEE3DB] text-[#555B6E]">Cancel</button>
+        <button type="button" id="tc-confirm-ok" class="px-4 py-2 rounded border border-[#AF4448] bg-[#AF4448] text-white font-semibold">Delete</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function(){
+      var overlay = document.getElementById('tc-confirm-overlay');
+      var titleEl = document.getElementById('tc-confirm-title');
+      var btnOk = document.getElementById('tc-confirm-ok');
+      var btnCancel = document.getElementById('tc-confirm-cancel');
+      var btnClose = document.getElementById('tc-confirm-close');
+      var currentForm = null;
+      function lock(){ document.documentElement.style.overflow='hidden'; document.body.style.overflow='hidden'; }
+      function unlock(){ document.documentElement.style.overflow=''; document.body.style.overflow=''; }
+      function open(title, form){ currentForm = form; if(titleEl) titleEl.textContent = title||''; if(overlay){ overlay.classList.remove('hidden'); lock(); } }
+      function close(){ if(overlay){ overlay.classList.add('hidden'); unlock(); } currentForm=null; }
+      document.querySelectorAll('.tc-delete-post-btn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var id = btn.getAttribute('data-form-id');
+          var title = btn.getAttribute('data-title') || '';
+          var form = id ? document.getElementById(id) : btn.closest('form');
+          open(title, form);
+        });
+      });
+      if(btnCancel) btnCancel.addEventListener('click', close);
+      if(btnClose) btnClose.addEventListener('click', close);
+      if(overlay) overlay.addEventListener('click', function(e){ if(e.target===overlay) close(); });
+      if(btnOk){
+        btnOk.addEventListener('click', function(){
+          if(!currentForm) return; btnOk.disabled=true; try{ currentForm.submit(); } finally { btnOk.disabled=false; }
+        });
+      }
+      document.addEventListener('keydown', function(e){ if(e.key==='Escape' && overlay && !overlay.classList.contains('hidden')) close(); });
+    })();
   </script>
 </div>
 {% endblock %}

@@ -2514,6 +2514,41 @@ def api_feed_stock_images(request):
 
     return JsonResponse({'results': results, 'total': total, 'page': page, 'per_page': per_page})
 
+@login_required
+@require_http_methods(["GET"])
+def api_proxy_image(request):
+    """Proxy stock image URLs to avoid CORS on the client.
+
+    Accepts ?url=... where host is whitelisted (unsplash, pexels, picsum).
+    """
+    import requests
+    from urllib.parse import urlparse
+    url = (request.GET.get('url') or '').strip()
+    if not url:
+        return JsonResponse({'error': 'missing_url'}, status=400)
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return JsonResponse({'error': 'invalid_url'}, status=400)
+    allowed_hosts = {
+        'images.unsplash.com', 'unsplash.com', 'source.unsplash.com',
+        'www.pexels.com', 'images.pexels.com', 'cdn.pexels.com',
+        'picsum.photos', 'fastly.picsum.photos'
+    }
+    if parsed.scheme not in ('http', 'https') or parsed.netloc not in allowed_hosts:
+        return JsonResponse({'error': 'forbidden_host'}, status=400)
+    try:
+        resp = requests.get(url, stream=True, timeout=10)
+        if resp.status_code != 200:
+            return JsonResponse({'error': 'upstream', 'status': resp.status_code}, status=502)
+        content_type = resp.headers.get('Content-Type', 'image/jpeg')
+        from django.http import HttpResponse
+        out = HttpResponse(resp.content, content_type=content_type)
+        out['Cache-Control'] = 'public, max-age=3600'
+        return out
+    except Exception:
+        return JsonResponse({'error': 'fetch_failed'}, status=502)
+
 
 @login_required
 @require_http_methods(["POST"])
