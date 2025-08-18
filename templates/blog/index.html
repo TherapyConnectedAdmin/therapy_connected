@@ -76,7 +76,14 @@
   <div class="flex flex-col gap-12 py-8 px-2 sm:px-4" style="background-color: #FFF6ED;">
       {% for post in page_obj %}
   <a href="{% url 'blog_detail' slug=post.slug %}" class="block rounded-2xl shadow-lg p-10 sm:p-14 mx-auto transition-transform hover:-translate-y-1 hover:shadow-xl" style="background-color: #FAF9F9; color: #555B6E; width:80%; min-width:280px; max-width:1100px;">
-        {% if post.image %}
+        {% with first_media=post.media.all|first %}
+        {% if first_media %}
+          {% if first_media.type == 'image' %}
+            <img src="{{ first_media.file.url }}" alt="{{ post.title }}" class="w-full h-48 object-cover rounded mb-4" loading="lazy" decoding="async" />
+          {% else %}
+            <video src="{{ first_media.file.url }}" class="w-full h-48 object-cover rounded mb-4" muted></video>
+          {% endif %}
+        {% elif post.image %}
           {% load therapist_extras %}
           {% image_srcset post 'webp' as post_ss_webp %}
           {% image_srcset post 'jpg' as post_ss_jpg %}
@@ -89,6 +96,7 @@
             <img src="{{ post.image.url }}" alt="{{ post.title }}" class="w-full h-48 object-cover rounded mb-4" loading="lazy" decoding="async" />
           {% endif %}
         {% endif %}
+        {% endwith %}
         <h3 class="text-2xl font-bold mb-4" style="color: #555B6E;">{{ post.title }}</h3>
         {% load therapist_extras %}
         {% with profile=post.author.therapistprofile %}

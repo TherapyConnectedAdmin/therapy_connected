@@ -4943,6 +4943,11 @@
     }
   }
   @media (width >= 40rem) {
+    .sm\:flex-shrink-0 {
+      flex-shrink: 0;
+    }
+  }
+  @media (width >= 40rem) {
     .sm\:grid-cols-2 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }

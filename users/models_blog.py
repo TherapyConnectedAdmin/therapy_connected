@@ -29,3 +29,22 @@ class BlogPost(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class BlogMedia(models.Model):
+    TYPE_CHOICES = [
+        ('image', 'Image'),
+        ('video', 'Video'),
+    ]
+    post = models.ForeignKey(BlogPost, on_delete=models.CASCADE, related_name='media')
+    file = models.FileField(upload_to='blog_media/%Y/%m/')
+    type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    meta = models.JSONField(blank=True, null=True, default=dict)
+    position = models.PositiveIntegerField(default=0, help_text='Ordering of media within the post')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['position', 'id']
+
+    def __str__(self):
+        return f"BlogMedia {self.type} for post {self.post_id}"

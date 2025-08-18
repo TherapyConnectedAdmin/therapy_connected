@@ -41,7 +41,7 @@
           </div>
           {% endwith %}
         </header>
-        {% if post.image %}
+  {% if post.image %}
           {% image_srcset post 'webp' as post_ss_webp %}
           {% image_srcset post 'jpg' as post_ss_jpg %}
           <figure class="mb-8">
@@ -55,8 +55,36 @@
             {% endif %}
           </figure>
         {% endif %}
-        <!-- Content -->
-        <div id="article-body" class="prose prose-lg max-w-none mb-10" style="color:#555B6E;">{{ post.content|safe }}</div>
+        {% if post.media.all %}
+          {% with media_list=post.media.all %}
+            {% if media_list %}
+            <div class="mb-8">
+              {% if media_list|length == 1 %}
+                {% for m in media_list %}
+                  {% if m.type == 'image' %}
+                    <img src="{{ m.file.url }}" alt="" class="w-full max-h-[640px] object-cover rounded-xl shadow" />
+                  {% else %}
+                    <video class="w-full rounded-xl shadow" controls src="{{ m.file.url }}"></video>
+                  {% endif %}
+                {% endfor %}
+              {% else %}
+                <div class="grid grid-cols-2 gap-2">
+                  {% for m in media_list %}
+                    {% if m.type == 'image' %}
+                      <img src="{{ m.file.url }}" alt="" class="w-full h-60 object-cover rounded" />
+                    {% else %}
+                      <video class="w-full" controls src="{{ m.file.url }}"></video>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+            {% endif %}
+          {% endwith %}
+        {% endif %}
+  <!-- Content -->
+  {% load blog_extras %}
+  <div id="article-body" class="prose prose-lg max-w-none mb-10" style="color:#555B6E;">{% render_blog_content post %}</div>
         <!-- Tags -->
         <div class="flex flex-wrap gap-2 mb-10">
           {% for tag in post.tags.all %}

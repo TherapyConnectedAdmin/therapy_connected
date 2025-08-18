@@ -11,6 +11,13 @@
       {{ form.title.errors }}
     </div>
     <div>
+      <label class="block text-sm font-medium text-[#555B6E] mb-1">Attach Media (up to 8)</label>
+      {{ form.media }}
+      <input type="hidden" name="media_meta" id="blog-form-media-meta" value="{}" />
+      <div id="blog-form-media-preview" class="mt-2 grid grid-cols-3 gap-2"></div>
+      <p class="text-xs text-[#555B6E]/70 mt-1">Tip: to place media inline in your article, insert tokens like <code class="px-1 rounded bg-[#F6FFF8] border border-[#BEE3DB]">[[media:1]]</code> where you want the first attached item to appear, <code class="px-1 rounded bg-[#F6FFF8] border border-[#BEE3DB]">[[media:2]]</code> for the second, etc.</p>
+    </div>
+    <div>
       <label class="block text-sm font-medium text-[#555B6E] mb-1">Content</label>
       {{ form.content }}
       {{ form.content.errors }}
@@ -38,4 +45,12 @@
     <button type="submit" class="px-6 py-2 rounded font-semibold text-sm bg-[#89B0AE] text-white hover:bg-[#555B6E]">Save Post</button>
   </form>
 </div>
+<script>
+(function(){
+  const input = document.querySelector('input[name="media"][multiple]');
+  const preview = document.getElementById('blog-form-media-preview');
+  function render(){ if (!input || !preview) return; const files = input.files ? Array.from(input.files) : []; preview.innerHTML=''; files.slice(0,8).forEach(f=>{ const url = URL.createObjectURL(f); const wrap = document.createElement('div'); wrap.className='relative border border-[#E6F2F0] rounded overflow-hidden'; wrap.style.height='90px'; if ((f.type||'').startsWith('video/')) wrap.innerHTML = `<video src="${url}" class="w-full h-full object-cover" muted></video>`; else wrap.innerHTML = `<img src="${url}" class="w-full h-full object-cover" alt=""/>`; preview.appendChild(wrap); }); }
+  input && input.addEventListener('change', render);
+})();
+</script>
 {% endblock %}

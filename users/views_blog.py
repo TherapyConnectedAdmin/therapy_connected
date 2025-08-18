@@ -1,7 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from .models_blog import BlogPost, BlogTag
+from .models_blog import BlogPost, BlogTag, BlogMedia
 from django.db.models import Q
+from django.db import models as dj_models
 from django.core.paginator import Paginator
 from .forms_blog import BlogPostForm
 from django.utils.text import slugify
@@ -23,6 +24,33 @@ def user_blog_edit(request, pk):
                 post.slug = slug
             post.save()
             form.save_m2m()
+            # Handle multiple media (cap 8)
+            files = request.FILES.getlist('media') or []
+            # Parse optional media_meta JSON mapping
+            import json as _json
+            try:
+                media_meta_map = _json.loads(request.POST.get('media_meta') or '{}')
+            except Exception:
+                media_meta_map = {}
+            max_items = 8
+            pos = post.media.aggregate(dj_models.Max('position')).get('position__max') or 0
+            for idx, f in enumerate(files[:max_items]):
+                ctype = (getattr(f, 'content_type', '') or '').lower()
+                name = getattr(f, 'name', '') or ''
+                ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+                def guess_type():
+                    if ctype.startswith('image/') or ext in {'jpg','jpeg','png','gif','webp','bmp'}:
+                        return 'image'
+                    if ctype.startswith('video/') or ext in {'mp4','mov','m4v','webm','avi','mkv'}:
+                        return 'video'
+                    return ''
+                mtype = guess_type()
+                if not mtype:
+                    continue
+                meta = None
+                if isinstance(media_meta_map, dict):
+                    meta = media_meta_map.get(getattr(f, 'name', ''), None)
+                BlogMedia.objects.create(post=post, file=f, type=mtype, meta=(meta or {}), position=pos+idx+1)
             return redirect('members_blog')
     else:
         form = BlogPostForm(instance=post)
@@ -120,6 +148,30 @@ def user_blog_create(request):
                 post.slug = slug
             post.save()
             form.save_m2m()
+            # Handle multiple media (cap 8)
+            files = request.FILES.getlist('media') or []
+            import json as _json
+            try:
+                media_meta_map = _json.loads(request.POST.get('media_meta') or '{}')
+            except Exception:
+                media_meta_map = {}
+            for idx, f in enumerate(files[:8]):
+                ctype = (getattr(f, 'content_type', '') or '').lower()
+                name = getattr(f, 'name', '') or ''
+                ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+                def guess_type():
+                    if ctype.startswith('image/') or ext in {'jpg','jpeg','png','gif','webp','bmp'}:
+                        return 'image'
+                    if ctype.startswith('video/') or ext in {'mp4','mov','m4v','webm','avi','mkv'}:
+                        return 'video'
+                    return ''
+                mtype = guess_type()
+                if not mtype:
+                    continue
+                meta = None
+                if isinstance(media_meta_map, dict):
+                    meta = media_meta_map.get(getattr(f, 'name', ''), None)
+                BlogMedia.objects.create(post=post, file=f, type=mtype, meta=(meta or {}), position=idx+1)
             return redirect('members_blog')
     else:
         form = BlogPostForm()
