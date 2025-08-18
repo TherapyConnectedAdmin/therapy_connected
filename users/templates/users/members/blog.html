@@ -86,9 +86,9 @@
                     <input type="hidden" name="sort" value="{{ current_sort }}"/>
                     <input type="hidden" name="page" value="{{ page_obj.number }}"/>
                     <select name="visibility" class="border border-[#BEE3DB] rounded px-2 py-1 text-sm bg-white text-[#555B6E]">
-                      <option value="members" {% if post.visibility=='members' %}selected{% endif %}>Members</option>
-                      <option value="public" {% if post.visibility=='public' %}selected{% endif %}>Public</option>
-                      <option value="both" {% if post.visibility=='both' %}selected{% endif %}>Everywhere</option>
+                      <option value="members" {% if post.visibility == 'members' %}selected{% endif %}>Members</option>
+                      <option value="public" {% if post.visibility == 'public' %}selected{% endif %}>Public</option>
+                      <option value="both" {% if post.visibility == 'both' %}selected{% endif %}>Everywhere</option>
                     </select>
                     <label class="inline-flex items-center gap-1 text-sm text-[#555B6E]"><input type="checkbox" name="published" {% if post.published %}checked{% endif %}/> Published</label>
                     <button class="px-3 py-1.5 rounded bg-[#89B0AE] text-white text-sm">Update</button>
