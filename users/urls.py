@@ -49,6 +49,7 @@ urlpatterns = [
     path('members/connections/invitations/', views.members_invitations, name='members_invitations'),
     path('members/connections/my/', views.members_my_connections, name='members_my_connections'),
     path('members/blog/', views.members_blog, name='members_blog'),
+    path('members/blog/<slug:slug>/', views.members_blog_detail, name='members_blog_detail'),
     path('members/stats/', views.members_stats, name='members_stats'),
     # Feed APIs
     path('api/feed/<int:post_id>/react/', views.api_feed_react, name='api_feed_react'),

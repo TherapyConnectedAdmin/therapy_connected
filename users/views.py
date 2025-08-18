@@ -3080,6 +3080,28 @@ def members_blog(request):
         'tags_rest': tags_rest,
     })
 
+@login_required
+def members_blog_detail(request, slug):
+    """Members-only detail view that mirrors public blog detail but stays in members area.
+    Shows posts with visibility public, members, or both.
+    """
+    from users.models_blog import BlogPost, BlogTag
+    from django.shortcuts import get_object_or_404
+    post = get_object_or_404(BlogPost, slug=slug, published=True, visibility__in=['public','members','both'])
+    # Sidebar data similar to public
+    tags = BlogTag.objects.all().order_by('name')[:20]
+    recent_posts = BlogPost.objects.filter(published=True, visibility__in=['public','members','both']).exclude(id=post.id).order_by('-created_at')[:6]
+    related_posts = BlogPost.objects.filter(published=True, visibility__in=['public','members','both'], tags__in=post.tags.all()).exclude(id=post.id).distinct().order_by('-created_at')[:6]
+    popular_tags = BlogTag.objects.all().order_by('name')[:10]
+    return render(request, 'blog/detail.html', {
+        'post': post,
+        'tags': tags,
+        'recent_posts': recent_posts,
+        'related_posts': related_posts,
+        'popular_tags': popular_tags,
+        'in_members': True,
+    })
+
 
 @login_required
 def members_stats(request):

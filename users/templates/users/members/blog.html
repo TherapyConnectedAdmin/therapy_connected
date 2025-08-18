@@ -57,7 +57,7 @@
           <div class="space-y-3">
             {% for post in page_obj %}
               <article class="artdeco-card p-4">
-                <a href="{% if post.slug and post.visibility != 'members' %}{% url 'blog_detail' slug=post.slug %}{% else %}#{% endif %}" class="block">
+                <a href="{% url 'members_blog_detail' slug=post.slug %}" class="block">
                   {% with first_media=post.media.all|first %}
                     {% if first_media %}
                       {% if first_media.type == 'image' %}

@@ -3,7 +3,7 @@
 <section class="py-10 w-full" style="background-color:#FFF6ED;">
   <div class="max-w-7xl mx-auto px-4 lg:px-8">
     <div class="mb-6 flex items-center justify-between gap-4">
-      <a href="{% url 'blog_index' %}" class="text-sm font-semibold px-4 py-2 rounded-full bg-white border border-[#BEE3DB] text-[#116466] hover:bg-[#FAF9F9] transition" style="box-shadow:0 2px 4px rgba(0,0,0,0.04);">&larr; Back to Blog</a>
+  <a href="{% if in_members %}{% url 'members_blog' %}{% else %}{% url 'blog_index' %}{% endif %}" class="text-sm font-semibold px-4 py-2 rounded-full bg-white border border-[#BEE3DB] text-[#116466] hover:bg-[#FAF9F9] transition" style="box-shadow:0 2px 4px rgba(0,0,0,0.04);">&larr; Back to Blog</a>
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
       <!-- Main Content -->
@@ -88,7 +88,11 @@
         <!-- Tags -->
         <div class="flex flex-wrap gap-2 mb-10">
           {% for tag in post.tags.all %}
-            <a href="{% url 'blog_index' %}?tag={{ tag.id }}" class="bg-[#BEE3DB] text-[#555B6E] px-3 py-1 rounded-full text-xs font-semibold hover:bg-[#A5D6CE] transition">{{ tag.name }}</a>
+            {% if in_members %}
+              <a href="{% url 'members_blog' %}?q={{ tag.name|urlencode }}" class="bg-[#BEE3DB] text-[#555B6E] px-3 py-1 rounded-full text-xs font-semibold hover:bg-[#A5D6CE] transition">{{ tag.name }}</a>
+            {% else %}
+              <a href="{% url 'blog_index' %}?tag={{ tag.id }}" class="bg-[#BEE3DB] text-[#555B6E] px-3 py-1 rounded-full text-xs font-semibold hover:bg-[#A5D6CE] transition">{{ tag.name }}</a>
+            {% endif %}
           {% empty %}
             <span class="text-xs text-[#555B6E]/60">No tags</span>
           {% endfor %}
@@ -104,7 +108,11 @@
           <div class="flex-1">
             <div class="font-semibold text-lg mb-1" style="color:#555B6E;">About {{ profile.first_name }}</div>
             <p class="text-sm leading-relaxed mb-2 text-[#555B6E]">{{ profile.credentials_note|default:'This therapist has not added a bio yet.'|truncatechars:280 }}</p>
-            <a href="{% url 'blog_index' %}?author={{ profile.user.id }}" class="text-sm font-semibold text-[#116466] hover:text-[#0d4c4d] underline-offset-2 hover:underline">More posts by {{ profile.first_name }}</a>
+            {% if in_members %}
+              <a href="{% url 'members_blog' %}?q={{ profile.first_name|urlencode }}+{{ profile.last_name|urlencode }}" class="text-sm font-semibold text-[#116466] hover:text-[#0d4c4d] underline-offset-2 hover:underline">More posts by {{ profile.first_name }}</a>
+            {% else %}
+              <a href="{% url 'blog_index' %}?author={{ profile.user.id }}" class="text-sm font-semibold text-[#116466] hover:text-[#0d4c4d] underline-offset-2 hover:underline">More posts by {{ profile.first_name }}</a>
+            {% endif %}
           </div>
         </div>
         {% endwith %}
@@ -138,7 +146,7 @@
             <ul class="divide-y divide-[#E5F4F2]">
               {% for p in recent_posts %}
               <li class="py-2 first:pt-0 last:pb-0">
-                <a href="{% url 'blog_detail' slug=p.slug %}" class="text-sm text-[#116466] hover:text-[#0d4c4d] font-medium line-clamp-2">{{ p.title }}</a>
+                <a href="{% if in_members %}{% url 'members_blog_detail' slug=p.slug %}{% else %}{% url 'blog_detail' slug=p.slug %}{% endif %}" class="text-sm text-[#116466] hover:text-[#0d4c4d] font-medium line-clamp-2">{{ p.title }}</a>
                 <div class="text-[10px] text-[#555B6E]/60 mt-0.5">{{ p.created_at|date:"M d, Y" }}</div>
               </li>
               {% empty %}
@@ -153,7 +161,7 @@
             <ul class="space-y-3">
               {% for p in related_posts %}
               <li>
-                <a href="{% url 'blog_detail' slug=p.slug %}" class="block text-sm text-[#116466] hover:text-[#0d4c4d] font-medium">{{ p.title|truncatechars:72 }}</a>
+                <a href="{% if in_members %}{% url 'members_blog_detail' slug=p.slug %}{% else %}{% url 'blog_detail' slug=p.slug %}{% endif %}" class="block text-sm text-[#116466] hover:text-[#0d4c4d] font-medium">{{ p.title|truncatechars:72 }}</a>
               </li>
               {% endfor %}
             </ul>
@@ -164,7 +172,11 @@
             <h3 class="text-sm font-bold mb-3 tracking-wide text-[#555B6E] uppercase">Tags</h3>
             <div class="flex flex-wrap gap-2">
               {% for t in popular_tags %}
-                <a href="{% url 'blog_index' %}?tag={{ t.id }}" class="px-3 py-1 rounded-full bg-[#BEE3DB] text-[#555B6E] text-[11px] font-semibold hover:bg-[#A5D6CE] transition">{{ t.name }}</a>
+                {% if in_members %}
+                  <a href="{% url 'members_blog' %}?q={{ t.name|urlencode }}" class="px-3 py-1 rounded-full bg-[#BEE3DB] text-[#555B6E] text-[11px] font-semibold hover:bg-[#A5D6CE] transition">{{ t.name }}</a>
+                {% else %}
+                  <a href="{% url 'blog_index' %}?tag={{ t.id }}" class="px-3 py-1 rounded-full bg-[#BEE3DB] text-[#555B6E] text-[11px] font-semibold hover:bg-[#A5D6CE] transition">{{ t.name }}</a>
+                {% endif %}
               {% empty %}
                 <span class="text-xs text-[#555B6E]/60">No tags yet.</span>
               {% endfor %}
