@@ -316,7 +316,8 @@ def public_therapist_profile(request, slug):
             'accepted_payment_methods__payment_method', 'types_of_therapy__therapy_type',
             'specialties__specialty', 'race_ethnicities__race_ethnicity', 'faiths__faith',
             'lgbtqia_identities__lgbtqia', 'other_identities__other_identity',
-            'additional_credentials', 'educations'
+            'additional_credentials', 'educations',
+            'testing_types__testing_type'
         ), slug=slug)
     # Compute approximate distance (miles) from visitor session zip (if set) mirroring search view logic
     profile.distance = None  # default so template condition exists
@@ -465,6 +466,8 @@ def public_therapist_profile(request, slug):
         'types_of_therapy': [sel.therapy_type.name for sel in profile.types_of_therapy.all()],
         'therapy_types': [sel.therapy_type.name for sel in profile.types_of_therapy.all()],  # alias for modal
         'other_therapy_types': [ot.therapy_type for ot in profile.other_therapy_types.all()],
+    'offers_testing': getattr(profile, 'offers_testing', False),
+    'testing_types': [sel.testing_type.name for sel in profile.testing_types.all() if getattr(sel, 'testing_type', None)],
         'specialties': [
             {
                 'name': sp.specialty.name if sp.specialty else '',
@@ -651,6 +654,7 @@ def _profile_json(profile):
     ]
     top_specialties = [s['name'] for s in specialties if s['name'] and s['is_top']]
     therapy_types = [sel.therapy_type.name for sel in getattr(profile, 'types_of_therapy', []).all() if getattr(sel, 'therapy_type', None)]
+    testing_types = [sel.testing_type.name for sel in getattr(profile, 'testing_types', []).all() if getattr(sel, 'testing_type', None)]
     other_therapy_types = [o.therapy_type for o in getattr(profile, 'other_therapy_types', []).all()]
     race_ethnicities = [r.race_ethnicity.name for r in getattr(profile, 'race_ethnicities', []).all() if getattr(r, 'race_ethnicity', None)]
     faiths = [f.faith.name for f in getattr(profile, 'faiths', []).all() if getattr(f, 'faith', None)]
@@ -807,6 +811,8 @@ def _profile_json(profile):
     'top_specialties': top_specialties,
     'specialties': specialties,
     'therapy_types': therapy_types,
+    'offers_testing': getattr(profile, 'offers_testing', False),
+    'testing_types': testing_types,
     'other_therapy_types': other_therapy_types,
     'race_ethnicities': race_ethnicities,
     'faiths': faiths,
@@ -902,6 +908,7 @@ def api_profile_update(request):
         gender_new = None
         insurance_details_new = None  # capture full replacement list
         therapy_types_new = None  # list of therapy type names (full replacement)
+        testing_types_new = None  # list of testing type names (full replacement)
         specialties_new = None  # list of specialty names (full replacement)
         top_specialties_new = None  # list of top specialty names (subset of specialties)
         participant_types_new = None  # list of participant type names (full replacement)
@@ -942,6 +949,13 @@ def api_profile_update(request):
                 continue
             if canonical == 'therapy_types':
                 if isinstance(value, list): therapy_types_new = value
+                continue
+            if canonical == 'offers_testing':
+                profile.offers_testing = bool(value)
+                updated = True
+                continue
+            if canonical == 'testing_types':
+                if isinstance(value, list): testing_types_new = value
                 continue
             if canonical == 'specialties':
                 if isinstance(value, list): specialties_new = value
@@ -1095,7 +1109,7 @@ def api_profile_update(request):
                     else: profile.gender=g; updated=True
             except Exception:
                 errors['gender']='Failed to update gender'
-    # Insurance details full replace (list of {provider, out_of_network})
+        # Insurance details full replace (list of {provider, out_of_network})
         if insurance_details_new is not None and 'insurance_details' not in errors:
             try:
                 from users.models_profile import InsuranceProvider, InsuranceDetail
@@ -1171,6 +1185,39 @@ def api_profile_update(request):
                     updated = True
             except Exception:
                 errors['therapy_types'] = 'Failed to update therapy types'
+        # Testing Types full replacement (only if offers_testing true; otherwise clear)
+        if testing_types_new is not None and 'testing_types' not in errors:
+            try:
+                from users.models_profile import TestingType, TestingTypeSelection
+                cleaned=[]; seen=set()
+                for name in (testing_types_new if getattr(profile, 'offers_testing', False) else []):
+                    if not isinstance(name, str): continue
+                    nm=name.strip()
+                    if not nm: continue
+                    key=nm.lower()
+                    if key in seen: continue
+                    seen.add(key)
+                    if len(nm)>64: nm=nm[:64]
+                    cleaned.append(nm)
+                if len(cleaned) > 60:
+                    errors['testing_types'] = 'Too many testing types (max 60).'
+                if 'testing_types' not in errors:
+                    existing = {t.name.lower(): t for t in TestingType.objects.all()}
+                    objs=[]
+                    for nm in cleaned:
+                        obj = existing.get(nm.lower())
+                        if not obj:
+                            obj = TestingType.objects.create(name=nm)
+                            existing[obj.name.lower()] = obj
+                        objs.append(obj)
+                    from django.db import transaction as _tx
+                    with _tx.atomic():
+                        profile.testing_types.all().delete()
+                        for obj in objs:
+                            TestingTypeSelection.objects.create(therapist=profile, testing_type=obj)
+                    updated = True
+            except Exception:
+                errors['testing_types'] = 'Failed to update testing types'
         # Specialties full replacement (with top specialties subset)
         if (specialties_new is not None or top_specialties_new is not None) and 'specialties' not in errors and 'top_specialties' not in errors:
             try:
@@ -1378,6 +1425,18 @@ def api_therapy_types(request):
     from users.models_profile import TherapyType
     q = (request.GET.get('q') or '').strip()
     qs = TherapyType.objects.all().order_by('sort_order','name')
+    if q:
+        qs = qs.filter(name__icontains=q)
+    data = [{'id': t.id, 'name': t.name} for t in qs[:20]]
+    return JsonResponse({'results': data})
+
+@login_required
+@require_http_methods(["GET"])
+def api_testing_types(request):
+    """Lookup testing types (?q=) limit 20."""
+    from users.models_profile import TestingType
+    q = (request.GET.get('q') or '').strip()
+    qs = TestingType.objects.all().order_by('sort_order','name')
     if q:
         qs = qs.filter(name__icontains=q)
     data = [{'id': t.id, 'name': t.name} for t in qs[:20]]
@@ -1856,7 +1915,7 @@ def api_full_profile(request, user_id):
     from django.utils import timezone
     profile = get_object_or_404(
         TherapistProfile.objects.select_related('license_type', 'gender', 'title', 'user')
-        .prefetch_related('locations__office_hours'),
+        .prefetch_related('locations__office_hours', 'testing_types__testing_type'),
         user__id=user_id
     )
     # Compute approximate distance (miles) from session user_zip if present
@@ -2024,6 +2083,8 @@ def api_full_profile(request, user_id):
         ],
         'top_specialties': [s.specialty.name for s in profile.specialties.select_related('specialty').filter(is_top_specialty=True) if s.specialty],
         'therapy_types': [sel.therapy_type.name for sel in profile.types_of_therapy.select_related('therapy_type').all()],
+    'offers_testing': getattr(profile, 'offers_testing', False),
+    'testing_types': [sel.testing_type.name for sel in profile.testing_types.all() if getattr(sel, 'testing_type', None)],
         'other_therapy_types': [o.therapy_type for o in profile.other_therapy_types.all()],
         'areas_of_expertise': [a.expertise for a in profile.areas_of_expertise.all()],
         'accepted_payment_methods': [sel.payment_method.name for sel in profile.accepted_payment_methods.select_related('payment_method').all()],
@@ -2387,8 +2448,6 @@ def members_account_email(request):
     update_session_auth_hash(request, u)
     messages.success(request, 'Email updated.')
     return redirect('members_account')
-
-
 @login_required
 @require_http_methods(["POST"]) 
 def members_account_password(request):

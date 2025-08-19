@@ -31,6 +31,17 @@
         <!-- Content Column -->
         <div class="flex-1 flex flex-col gap-4">
           <div>
+            <!-- Status badges moved above name -->
+            <div class="flex flex-wrap gap-2 mb-2 text-[10px] font-semibold tracking-wide">
+              {% if top_therapist.accepting_new_clients and top_therapist.accepting_new_clients|lower != 'no' %}
+                <span class="px-2 py-1 rounded-full bg-[#F5E2D6] text-[#555B6E] shadow-sm border border-[#FF9950]/30">Accepting New Clients</span>
+              {% else %}
+                <span class="px-2 py-1 rounded-full bg-[#ECECEC] text-[#666] shadow-sm">Waitlist</span>
+              {% endif %}
+              {% if top_therapist.therapy_delivery_method %}
+                <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#444] shadow-sm">{{ top_therapist.therapy_delivery_method }}</span>
+              {% endif %}
+            </div>
             <h4 class="text-2xl font-extrabold flex flex-wrap items-baseline gap-x-2 leading-snug text-[#555B6E]">
               <span>{{ top_therapist.first_name }} {{ top_therapist.last_name }}</span>
               {% if top_therapist.license_type %}<span class="text-base font-semibold text-[#116466]">{{ top_therapist.license_type.name }}</span>{% endif %}
@@ -47,49 +58,77 @@
                 {% endif %}
               </div>
             {% endwith %}
-            {% if top_therapist.credentials_note %}
-              <div class="mt-2 text-sm font-medium text-[#89B0AE]">{{ top_therapist.credentials_note }}</div>
+            {# Intro note under city/state #}
+            {% if top_therapist.intro_statement %}
+              <div class="mt-2 text-sm font-medium text-[#89B0AE]">{{ top_therapist.intro_statement|slice:":200" }}</div>
+            {% elif top_therapist.personal_statement_q1 %}
+              <div class="mt-2 text-sm font-medium text-[#89B0AE]">{{ top_therapist.personal_statement_q1|slice:":200" }}</div>
             {% endif %}
           </div>
-          <!-- Chips -->
+          <!-- Chips split into separate lines -->
+          {% with pts=top_therapist.participant_types.all %}
+          {% if pts %}
           <div class="flex flex-wrap gap-2 text-[11px] leading-tight">
-            {% for pt in top_therapist.participant_types.all %}
+            <span class="px-1.5 py-0.5 rounded border border-[#BEE3DB] bg-[#F8FBFA] text-[#587a79] font-semibold uppercase tracking-wide text-[10px]">Clients</span>
+            {% for pt in pts %}
               <span class="px-2 py-1 rounded-full bg-[#BEE3DB] text-[#444] font-semibold shadow-sm">{{ pt.name }}</span>
             {% endfor %}
-            {% for ag in top_therapist.age_groups.all %}
-              <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#444] font-medium shadow-sm">{{ ag.name }}</span>
-            {% endfor %}
-            {% for s in top_therapist.specialties.all %}{% if s.is_top_specialty and s.specialty %}
-              <span class="px-2 py-1 rounded-full bg-[#FFDDD0] text-[#444] font-medium shadow-sm">{{ s.specialty.name }}</span>
-            {% endif %}{% endfor %}
-          </div>
-          <!-- Status / Meta Badges -->
-          <div class="flex flex-wrap gap-2 mt-1 text-[10px] font-semibold tracking-wide">
-            {% if top_therapist.accepting_new_clients and top_therapist.accepting_new_clients|lower != 'no' %}
-              <span class="px-2 py-1 rounded-full bg-[#F5E2D6] text-[#555B6E] shadow-sm border border-[#FF9950]/30">Accepting New Clients</span>
-            {% else %}
-              <span class="px-2 py-1 rounded-full bg-[#ECECEC] text-[#666] shadow-sm">Waitlist</span>
-            {% endif %}
-            {% if top_therapist.offers_intro_call %}
-              <span class="px-2 py-1 rounded-full bg-[#DDF4EC] text-[#116466] shadow-sm">Intro Call</span>
-            {% endif %}
-            {% if top_therapist.therapy_delivery_method %}
-              <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#444] shadow-sm">{{ top_therapist.therapy_delivery_method }}</span>
-            {% endif %}
-          </div>
-          <!-- Cost & Finance -->
-          {% if top_therapist.individual_session_cost or top_therapist.couples_session_cost or top_therapist.sliding_scale_pricing_available %}
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs mt-2 text-[#555B6E]">
-            {% if top_therapist.individual_session_cost %}<div><span class="font-semibold">Individual:</span> {{ top_therapist.individual_session_cost }}</div>{% endif %}
-            {% if top_therapist.couples_session_cost %}<div><span class="font-semibold">Couples:</span> {{ top_therapist.couples_session_cost }}</div>{% endif %}
-            {% if top_therapist.sliding_scale_pricing_available %}<div class="px-2 py-0.5 rounded-full bg-[#BEE3DB] text-[10px] font-semibold">Sliding Scale</div>{% endif %}
-            {% if top_therapist.finance_note %}<div class="italic opacity-80">{{ top_therapist.finance_note|truncatechars:60 }}</div>{% endif %}
           </div>
           {% endif %}
+          {% endwith %}
+
+          {% with ags=top_therapist.age_groups.all %}
+          {% if ags %}
+          <div class="flex flex-wrap gap-2 text-[11px] leading-tight mt-1">
+            <span class="px-1.5 py-0.5 rounded border border-[#BEE3DB] bg-[#F8FBFA] text-[#587a79] font-semibold uppercase tracking-wide text-[10px]">Ages</span>
+            {% for ag in ags %}
+              <span class="px-2 py-1 rounded-full bg-[#E5F4F2] text-[#444] font-medium shadow-sm">{{ ag.name }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% endwith %}
+
+          {% with specs=top_therapist.specialties.all %}
+          {% if specs %}
+          <div class="flex flex-wrap gap-2 text-[11px] leading-tight mt-1">
+            {% with rendered=0 %}{% endwith %}
+            {% for s in specs %}
+              {% if s.is_top_specialty and s.specialty %}
+                {% if forloop.first %}
+                  <span class="px-1.5 py-0.5 rounded border border-[#BEE3DB] bg-[#F8FBFA] text-[#587a79] font-semibold uppercase tracking-wide text-[10px]">Top Specialties</span>
+                {% endif %}
+                <span class="px-2 py-1 rounded-full bg-[#FFDDD0] text-[#444] font-medium shadow-sm">{{ s.specialty.name }}</span>
+              {% endif %}
+            {% endfor %}
+          </div>
+          {# Other (non-top) Specialties row #}
+          {% regroup specs by is_top_specialty as grouped_specs %}
+          {% for group in grouped_specs %}
+            {% if not group.grouper %}
+            <div class="flex flex-wrap gap-2 text-[11px] leading-tight mt-1">
+              <span class="px-1.5 py-0.5 rounded border border-[#BEE3DB] bg-[#F8FBFA] text-[#587a79] font-semibold uppercase tracking-wide text-[10px]">Other Specialties</span>
+              {% for s in group.list %}
+                {% if s.specialty %}
+                  <span class="px-2 py-1 rounded-full bg-[#FFE7DE] text-[#444] font-medium shadow-sm">{{ s.specialty.name }}</span>
+                {% endif %}
+              {% endfor %}
+            </div>
+            {% endif %}
+          {% endfor %}
+          {% endif %}
+          {% endwith %}
+          <!-- Status / Meta Badges (Intro Call only here) -->
+          {% if top_therapist.offers_intro_call %}
+          <div class="flex flex-wrap gap-2 mt-1 text-[10px] font-semibold tracking-wide">
+            <span class="px-2 py-1 rounded-full bg-[#DDF4EC] text-[#116466] shadow-sm">Intro Call</span>
+          </div>
+          {% endif %}
+          
           <!-- Types of Therapy -->
           {% with therapy_types=top_therapist.types_of_therapy.all %}
             {% if therapy_types %}
-              <div class="flex flex-wrap gap-2 mt-2 text-[11px]">
+              <div class="flex flex-wrap gap-2 mt-2 text-[11px] leading-tight">
+                <span class="px-1.5 py-0.5 rounded border border-[#BEE3DB] bg-[#F8FBFA] text-[#587a79] font-semibold uppercase tracking-wide text-[10px]">Therapy Types</span>
                 {% for sel in therapy_types|slice:':4' %}
                   <span class="px-2 py-1 rounded-full bg-[#DDECF9] text-[#32506b] font-medium shadow-sm">{{ sel.therapy_type.name }}</span>
                 {% endfor %}
@@ -99,41 +138,11 @@
               </div>
             {% endif %}
           {% endwith %}
-          <!-- Payment Methods -->
-          {% with pay=top_therapist.accepted_payment_methods.all %}
-            {% if pay %}
-              <div class="flex flex-wrap gap-2 mt-2 text-[10px]">
-                {% for p in pay|slice:':3' %}
-                  <span class="px-2 py-1 rounded-full bg-[#EFEFFD] text-[#444] font-medium shadow-sm">{{ p.payment_method.name }}</span>
-                {% endfor %}
-                {% if pay|length > 3 %}
-                  <span class="px-2 py-1 rounded-full bg-[#EFEFFD] text-[#444] font-semibold shadow-sm">+{{ pay|length|add:'-3' }}</span>
-                {% endif %}
-              </div>
-            {% endif %}
-          {% endwith %}
-          <!-- Insurance Providers -->
-          {% with ins=top_therapist.insurance_details.all %}
-            {% if ins %}
-              <div class="flex flex-wrap gap-2 mt-2 text-[10px]">
-                {% for det in ins|slice:':3' %}
-                  <span class="px-2 py-1 rounded-full bg-[#FFF4D6] text-[#664d16] font-medium shadow-sm">{{ det.provider.name }}</span>
-                {% endfor %}
-                {% if ins|length > 3 %}
-                  <span class="px-2 py-1 rounded-full bg-[#FFF4D6] text-[#664d16] font-semibold shadow-sm">+{{ ins|length|add:'-3' }}</span>
-                {% endif %}
-              </div>
-            {% endif %}
-          {% endwith %}
-          <!-- Intro Statement Snippet -->
-          {% if top_therapist.intro_statement %}
-            <div class="text-sm leading-relaxed max-h-24 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
-              {{ top_therapist.intro_statement|truncatechars:260 }}
-            </div>
-          {% elif top_therapist.personal_statement_q1 %}
-            <div class="text-sm leading-relaxed max-h-24 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
-              {{ top_therapist.personal_statement_q1|truncatechars:260 }}
-            </div>
+          {# Payment Methods and Insurance Providers removed for carousel #}
+          
+          {# Intro snippet removed; shown higher under city/state #}
+          {% if top_therapist.personal_statement_q1 %}
+          <div class="mt-3 text-sm leading-relaxed text-[#555B6E]">{{ top_therapist.personal_statement_q1|slice:":200" }}</div>
           {% endif %}
           <div class="mt-auto flex flex-wrap items-center gap-4 pt-2">
             <button

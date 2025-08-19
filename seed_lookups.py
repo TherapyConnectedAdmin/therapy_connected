@@ -4,7 +4,7 @@ Run with: python manage.py shell < seed_lookups.py
 Works locally and on Heroku (as long as Django is set up and models are migrated).
 Add more lookup values as needed in the appropriate sections.
 """
-from users.models_profile import Faith, Gender, InsuranceProvider, LGBTQIA, LicenseType, PaymentMethod, RaceEthnicity, TherapyType, Title, AgeGroup, ParticipantType
+from users.models_profile import Faith, Gender, InsuranceProvider, LGBTQIA, LicenseType, PaymentMethod, RaceEthnicity, TherapyType, Title, AgeGroup, ParticipantType, TestingType
 # --- Participant Types (core set, singular forms) ---
 PARTICIPANT_TYPE_VALUES = [
     "Individual",
@@ -604,6 +604,57 @@ for idx, name in enumerate(THERAPY_TYPE_VALUES, start=1):
     if changed:
         t.save()
 print(f"Seeded {len(THERAPY_TYPE_VALUES)} therapy type values (canonical list).")
+
+
+# --- Testing & Evaluation Types ---
+# Canonical testing/assessment services a clinician might offer. Used only if offers_testing=True.
+TESTING_TYPE_VALUES = [
+    # Psychoeducational / Cognitive
+    "Psychoeducational Assessment",
+    "Cognitive / IQ Testing",
+    "Learning Disability Evaluation",
+    # Neuropsychological / Developmental
+    "Neuropsychological Evaluation",
+    "Autism (ASD) Evaluation",
+    "ADHD Evaluation",
+    # Personality / Clinical
+    "Personality Assessment",
+    "Diagnostic Clarification",
+    # Forensic / Occupational
+    "Forensic / Court-Ordered Evaluation",
+    "Fitness for Duty / Occupational",
+    # Other
+    "Behavioral / Functional Assessment",
+]
+
+for idx, name in enumerate(TESTING_TYPE_VALUES, start=1):
+    tt, _ = TestingType.objects.get_or_create(name=name)
+    # Basic grouping for future UI chips
+    cat = "Other"
+    low = name.lower()
+    if any(k in low for k in ["psychoeducational", "learning", "cognitive", "iq"]):
+        cat = "Psychoeducational"
+    elif any(k in low for k in ["neuropsych"]):
+        cat = "Neuropsychological"
+    elif any(k in low for k in ["autism", "adhd"]):
+        cat = "Neurodevelopmental"
+    elif any(k in low for k in ["personality", "diagnostic"]):
+        cat = "Clinical"
+    elif any(k in low for k in ["forensic", "court", "duty", "occupational"]):
+        cat = "Forensic / Occupational"
+    changed = False
+    if getattr(tt, 'category', '') != cat:
+        try:
+            tt.category = cat
+            changed = True
+        except Exception:
+            pass
+    if hasattr(tt, 'sort_order') and tt.sort_order != idx:
+        tt.sort_order = idx
+        changed = True
+    if changed:
+        tt.save()
+print(f"Seeded {len(TESTING_TYPE_VALUES)} testing type values.")
 
 
 # --- Titles ---

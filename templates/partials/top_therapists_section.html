@@ -46,8 +46,9 @@
                 {% endif %}
               </div>
             {% endwith %}
-            {% if therapist.credentials_note %}
-              <div class="mt-1 text-xs font-medium text-[#89B0AE]">{{ therapist.credentials_note|truncatechars:120 }}</div>
+            {# First text field: Intro note #}
+            {% if therapist.intro_statement %}
+              <div class="mt-2 text-xs font-medium text-[#89B0AE]">{{ therapist.intro_statement|slice:":200" }}</div>
             {% endif %}
           </div>
           <!-- Chips -->
@@ -62,16 +63,11 @@
               <span class="px-2 py-1 rounded-full bg-[#FFDDD0] text-[#444] font-medium shadow-sm">{{ s.specialty.name }}</span>
             {% endif %}{% endfor %}
           </div>
-          <!-- Intro snippet -->
-          {% if therapist.intro_statement %}
-            <div class="text-xs leading-relaxed max-h-16 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
-              {{ therapist.intro_statement|truncatechars:160 }}
-            </div>
-          {% elif therapist.personal_statement_q1 %}
-            <div class="text-xs leading-relaxed max-h-16 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
-              {{ therapist.personal_statement_q1|truncatechars:160 }}
-            </div>
+          {# Personal Statement 1 moved below chips #}
+          {% if therapist.personal_statement_q1 %}
+            <div class="mt-2 text-xs leading-relaxed text-[#555B6E]">{{ therapist.personal_statement_q1|slice:":200" }}</div>
           {% endif %}
+          
           <div class="mt-auto pt-1">
             <button
               type="button"

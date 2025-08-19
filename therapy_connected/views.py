@@ -404,7 +404,18 @@ def home(request):
             top_therapist.distance = compute_min_distance_and_attach(top_therapist)
         except Exception:
             top_therapist.distance = None
-    top_blog_post = featured_blog_entry.blog_post if featured_blog_entry else BlogPost.objects.filter(published=True).order_by('-created_at').first()
+    # Do not show members-only posts on the public homepage carousel
+    top_blog_post = None
+    if featured_blog_entry and getattr(featured_blog_entry, 'blog_post', None):
+        bp = featured_blog_entry.blog_post
+        vis = getattr(bp, 'visibility', 'public')
+        if getattr(bp, 'published', False) and vis in ('public', 'both'):
+            top_blog_post = bp
+    if top_blog_post is None:
+        top_blog_post = (BlogPost.objects
+                         .filter(published=True, visibility__in=['public', 'both'])
+                         .order_by('-created_at')
+                         .first())
     # Add city/state meta for current zip
     user_zip_city = None
     user_zip_state = None

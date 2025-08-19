@@ -205,22 +205,44 @@ if(typeof therapySpecialtiesManager === 'undefined'){
       saving:false, error:'',
       caseEq(a,b){ return (a||'').toLowerCase() === (b||'').toLowerCase(); },
       init(){},
-      fetchOptions(kind, query){ if(!query || query.length < 2){ if(kind==='therapy'){ this.therapyResults=[]; this.therapyOpen=false; } else { this.specialtyResults=[]; this.specialtyOpen=false; } return; } const stateMap={therapy:['therapyResults','therapyOpen','therapyLoading'], specialty:['specialtyResults','specialtyOpen','specialtyLoading']}; const [resKey,openKey,loadKey]=stateMap[kind]; this[loadKey]=true; fetch(`/users/api/profile/search/${kind}/?q=`+encodeURIComponent(query))
-          .then(r=>r.ok?r.json():Promise.reject()).then(d=>{ this[resKey]=Array.isArray(d)?d:(d.results||[]); this[openKey]=true; }).catch(()=>{}).finally(()=> this[loadKey]=false); },
-      onTherapyInput(){ this.therapySelectedIndex=-1; this.fetchOptions('therapy', this.therapyQuery); },
-      onTherapyFocus(){ this.onTherapyInput(); },
+      fetchOptions(kind, query, force=false){
+        const q = (query||'');
+        const stateMap={therapy:['therapyResults','therapyOpen','therapyLoading'], specialty:['specialtyResults','specialtyOpen','specialtyLoading']};
+        const [resKey,openKey,loadKey]=stateMap[kind];
+        if(!force && q.length < 2){ this[resKey]=[]; this[openKey]=false; return; }
+        this[loadKey]=true;
+        fetch(`/users/api/profile/search/${kind}/?q=`+encodeURIComponent(q))
+          .then(r=>r.ok?r.json():Promise.reject())
+          .then(d=>{
+            const raw = Array.isArray(d) ? d : (d.results||[]);
+            const s = Alpine.store('profileModal');
+            if(kind==='therapy'){
+              const chosen = new Set(((s && s.therapist && s.therapist.therapy_types) || []).map(v=>String(v).toLowerCase()));
+              this[resKey] = raw.filter(it => !chosen.has(String(it.name||'').toLowerCase()));
+            } else {
+              const chosen = new Set(((s && s.therapist && s.therapist.specialties) || []).map(v=>String(v.name||v).toLowerCase()));
+              this[resKey] = raw.filter(it => !chosen.has(String(it.name||'').toLowerCase()));
+            }
+            this[openKey] = this[resKey].length > 0; 
+            if(kind==='therapy') this.therapySelectedIndex = this[resKey].length ? 0 : -1; else this.specialtySelectedIndex = this[resKey].length ? 0 : -1;
+          })
+          .catch(()=>{})
+          .finally(()=> this[loadKey]=false);
+      },
+      onTherapyInput(){ this.therapySelectedIndex=-1; this.fetchOptions('therapy', this.therapyQuery, this.therapyQuery.trim().length===0); },
+      onTherapyFocus(){ this.therapySelectedIndex=-1; this.fetchOptions('therapy', '', true); },
       therapyKeydown(e){ if(!this.therapyOpen) return; if(['ArrowDown','ArrowUp','Enter'].includes(e.key)){ e.preventDefault(); } if(e.key==='ArrowDown'){ this.therapySelectedIndex=Math.min(this.therapySelectedIndex+1,this.therapyResults.length-1);} else if(e.key==='ArrowUp'){ this.therapySelectedIndex=Math.max(this.therapySelectedIndex-1,0);} else if(e.key==='Enter' && this.therapySelectedIndex>-1){ this.selectTherapy(this.therapySelectedIndex);} },
-      clickAwayTherapy(){ this.therapyOpen=false; },
-      selectTherapy(i){ const item=this.therapyResults[i]; if(!item) return; this.therapyQuery=item.name; this.addTherapyType(); },
-      addTherapyType(){ if(!this.editable) return; const v=this.therapyQuery.trim(); if(!v) return; const s=Alpine.store('profileModal'); const list=[...(s.therapist.therapy_types||[])]; if(list.includes(v)){ this.therapyQuery=''; return; } list.push(v); this.saveAll({ therapy_types:list }); this.therapyQuery=''; },
-      removeTherapyType(v){ if(!this.editable) return; const s=Alpine.store('profileModal'); const list=(s.therapist.therapy_types||[]).filter(x=>x!==v); this.saveAll({ therapy_types:list }); },
-      onSpecialtyInput(){ this.specialtySelectedIndex=-1; this.fetchOptions('specialty', this.specialtyQuery); },
-      onSpecialtyFocus(){ this.onSpecialtyInput(); },
+  clickAwayTherapy(){ this.therapyOpen=false; },
+  selectTherapy(i){ const item=this.therapyResults[i]; if(!item) return; this.therapyQuery=item.name; this.addTherapyType(); this.therapyOpen=false; this.therapyResults=[]; this.therapySelectedIndex=-1; },
+  addTherapyType(){ if(!this.editable) return; const v=this.therapyQuery.trim(); if(!v) return; const s=Alpine.store('profileModal'); const list=[...(s.therapist.therapy_types||[])]; if(list.map(x=>x.toLowerCase()).includes(v.toLowerCase())){ this.therapyQuery=''; return; } list.push(v); this.saveAll({ therapy_types:list }); this.therapyQuery=''; this.therapyOpen=false; this.therapyResults=[]; this.therapySelectedIndex=-1; },
+  removeTherapyType(v){ if(!this.editable) return; const s=Alpine.store('profileModal'); const list=(s.therapist.therapy_types||[]).filter(x=>x!==v); this.saveAll({ therapy_types:list }); if(this.therapyOpen){ this.fetchOptions('therapy', this.therapyQuery, this.therapyQuery.trim().length===0); } },
+  onSpecialtyInput(){ this.specialtySelectedIndex=-1; this.fetchOptions('specialty', this.specialtyQuery, this.specialtyQuery.trim().length===0); },
+  onSpecialtyFocus(){ this.specialtySelectedIndex=-1; this.fetchOptions('specialty', '', true); },
       specialtyKeydown(e){ if(!this.specialtyOpen) return; if(['ArrowDown','ArrowUp','Enter'].includes(e.key)){ e.preventDefault(); } if(e.key==='ArrowDown'){ this.specialtySelectedIndex=Math.min(this.specialtySelectedIndex+1,this.specialtyResults.length-1);} else if(e.key==='ArrowUp'){ this.specialtySelectedIndex=Math.max(this.specialtySelectedIndex-1,0);} else if(e.key==='Enter' && this.specialtySelectedIndex>-1){ this.selectSpecialty(this.specialtySelectedIndex);} },
-      clickAwaySpecialty(){ this.specialtyOpen=false; },
-      selectSpecialty(i){ const item=this.specialtyResults[i]; if(!item) return; this.specialtyQuery=item.name; this.addSpecialty(); },
-      addSpecialty(){ if(!this.editable) return; const v=this.specialtyQuery.trim(); if(!v) return; const s=Alpine.store('profileModal'); const list=[...(s.therapist.specialties||[])]; if(list.some(sp=> (sp.name||sp)===v)){ this.specialtyQuery=''; return; } list.push({name:v,is_top:false}); this.saveAll({ specialties:list.map(x=> x.name||x), top_specialties:list.filter(x=>x.is_top).map(x=>x.name).slice(0,5) }); this.specialtyQuery=''; },
-      removeSpecialty(name){ if(!this.editable) return; const s=Alpine.store('profileModal'); const list=(s.therapist.specialties||[]).filter(sp=> (sp.name||sp)!==name); const tops=list.filter(sp=> sp.is_top).map(sp=> sp.name).slice(0,5); this.saveAll({ specialties:list.map(x=> x.name||x), top_specialties:tops }); },
+  clickAwaySpecialty(){ this.specialtyOpen=false; },
+  selectSpecialty(i){ const item=this.specialtyResults[i]; if(!item) return; this.specialtyQuery=item.name; this.addSpecialty(); this.specialtyOpen=false; this.specialtyResults=[]; this.specialtySelectedIndex=-1; },
+  addSpecialty(){ if(!this.editable) return; const v=this.specialtyQuery.trim(); if(!v) return; const s=Alpine.store('profileModal'); const list=[...(s.therapist.specialties||[])]; if(list.some(sp=> (sp.name||sp).toLowerCase()===v.toLowerCase())){ this.specialtyQuery=''; return; } list.push({name:v,is_top:false}); this.saveAll({ specialties:list.map(x=> x.name||x), top_specialties:list.filter(x=>x.is_top).map(x=>x.name).slice(0,5) }); this.specialtyQuery=''; this.specialtyOpen=false; this.specialtyResults=[]; this.specialtySelectedIndex=-1; },
+  removeSpecialty(name){ if(!this.editable) return; const s=Alpine.store('profileModal'); const list=(s.therapist.specialties||[]).filter(sp=> (sp.name||sp)!==name); const tops=list.filter(sp=> sp.is_top).map(sp=> sp.name).slice(0,5); this.saveAll({ specialties:list.map(x=> x.name||x), top_specialties:tops }); if(this.specialtyOpen){ this.fetchOptions('specialty', this.specialtyQuery, this.specialtyQuery.trim().length===0); } },
       toggleTop(name){ if(!this.editable) return; const s=Alpine.store('profileModal'); const list=(s.therapist.specialties||[]).map(sp=> ({...sp})); const idx=list.findIndex(sp=> (sp.name||sp)===name); if(idx===-1) return; const topCount=list.filter(sp=> sp.is_top).length; if(list[idx].is_top){ list[idx].is_top=false; } else if(topCount<5){ list[idx].is_top=true; } const tops=list.filter(sp=> sp.is_top).map(sp=> sp.name).slice(0,5); this.saveAll({ specialties:list.map(x=> x.name||x), top_specialties:tops }); },
       saveAll(payload){ this.saving=true; this.error=''; fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload) })
         .then(r=>r.json().then(d=>[r,d])).then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && Object.values(d.errors)[0]) || d.error || 'Save failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ if(d.therapy_types) s.therapist.therapy_types=d.therapy_types; if(d.specialties){ s.therapist.specialties=(d.specialties||[]).map(x=> typeof x==='string'? {name:x,is_top:(d.top_specialties||[]).includes(x)} : x); } if(d.top_specialties) s.therapist.top_specialties=d.top_specialties; } if(window.__profileEdit && window.__profileEdit.applyData){ window.__profileEdit.applyData(d); window.__profileEdit.notify && window.__profileEdit.notify('Saved'); } })

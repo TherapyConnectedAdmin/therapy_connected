@@ -1,0 +1,132 @@
+{# Testing & Evaluation Section - shown when editable or offers_testing true #}
+<div class="mx-auto w-full max-w-[1200px] px-4 md:px-6">
+  <section id="section-testing" class="tc-section relative p-5 md:p-7 mt-4 md:mt-6 mb-6 md:mb-10 rounded-2xl bg-gradient-to-b from-white/90 to-[#F2FAF9]/90 ring-1 ring-[#BEE3DB] shadow-lg"
+           x-data="testingEvalManager({ editable: {{ editable|default:0|yesno:'true,false' }} })" x-init="init()"
+           x-show="editable || $store.profileModal.therapist.offers_testing || ($store.profileModal.therapist.testing_types && $store.profileModal.therapist.testing_types.length)"
+           x-cloak>
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h2 class="text-[22px] md:text-[24px] font-extrabold tracking-tight text-[#2e4a49] flex items-center gap-2">
+          <svg class="w-6 h-6 text-[#116466]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6M9 16h6"/><path d="M16 2H8a2 2 0 0 0-2 2v16l6-3 6 3V4a2 2 0 0 0-2-2Z"/></svg>
+          Testing &amp; Evaluation
+        </h2>
+        <p class="text-[11px] font-medium tracking-wide text-[#587a79] uppercase">Assessment services</p>
+      </div>
+      <template x-if="editable">
+        <div class="flex items-center gap-3">
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" class="accent-[#116466]" :checked="$store.profileModal.therapist.offers_testing" @change="toggleOffers($event.target.checked)" />
+            <span class="text-[#116466] font-semibold">Offer Testing?</span>
+          </label>
+        </div>
+      </template>
+    </div>
+    <template x-if="!editable && !$store.profileModal.therapist.offers_testing">
+      <p class="text-xs italic text-[#89B0AE]">This therapist does not offer testing and evaluation services.</p>
+    </template>
+  <div class="rounded-2xl border border-[#BEE3DB] bg-[#F8FBFA] p-4 md:p-5 mt-2" x-show="editable || $store.profileModal.therapist.offers_testing">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-xs md:text-sm font-semibold uppercase tracking-wide text-[#555B6E] flex items-center gap-1">
+          <svg class="w-4 h-4 text-[#116466]" viewBox="0 0 24 24" fill="currentColor"><path d="M3 4a1 1 0 0 1 1-1h4l2 2h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4Z"/></svg>
+          Testing Types Offered
+        </h4>
+        <p class="text-[10px] text-[#89B0AE]" x-show="editable">Add each once (e.g., ADHD Evaluation, Psychoeducational)</p>
+      </div>
+      <template x-if="$store.profileModal.therapist.testing_types && $store.profileModal.therapist.testing_types.length">
+        <div class="flex flex-wrap gap-2 mb-4">
+          <template x-for="t in $store.profileModal.therapist.testing_types" :key="'ttest-chip-'+t">
+            <span x-show="!editable" class="px-2.5 py-1 rounded-full bg-white text-[#116466] text-[11px] font-medium shadow-sm ring-1 ring-[#BEE3DB]" x-text="t"></span>
+          </template>
+          <template x-for="t in $store.profileModal.therapist.testing_types" :key="'ttest-chip-edit-'+t">
+            <span x-show="editable" class="group flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-[#116466] text-[11px] font-medium shadow-sm ring-1 ring-[#BEE3DB] pr-2">
+              <span x-text="t"></span>
+              <button type="button" @click.stop="removeType(t)" class="opacity-60 group-hover:opacity-100 text-[#116466] hover:text-[#9b4d49]" aria-label="Remove">✕</button>
+            </span>
+          </template>
+        </div>
+      </template>
+      <template x-if="!($store.profileModal.therapist.testing_types && $store.profileModal.therapist.testing_types.length)">
+        <p class="italic text-[12px] text-[#89B0AE] mb-4">No testing types added yet.</p>
+      </template>
+      <div x-show="editable" class="relative" @keydown="keyHandler($event)" @click.outside="close()" x-cloak>
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <input type="text" x-model="query" @input="onInput()" placeholder="Search or add a testing type" class="w-full tc-input px-3 py-2 text-sm border border-[#BEE3DB] rounded-md focus:border-[#116466] focus:ring-1 focus:ring-[#116466] bg-white" aria-label="Testing Type" @focus="onFocus()" />
+            <div x-show="loading" class="absolute top-1/2 -translate-y-1/2 right-2 animate-spin rounded-full h-4 w-4 border-[2px] border-[#89B0AE] border-t-transparent"></div>
+            <template x-if="open && results.length">
+              <ul class="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-md border border-[#BEE3DB] bg-white shadow-lg text-sm" role="listbox">
+                <template x-for="(p,i) in results" :key="p.id">
+                  <li :id="'te-opt-'+i" @mousedown.prevent="select(i)" :class="i===sel ? 'bg-[#E5F4F2] text-[#116466]' : 'hover:bg-[#F1F8F7]'" class="px-3 py-1.5 cursor-pointer flex items-center justify-between">
+                    <span x-text="p.name"></span>
+                  </li>
+                </template>
+              </ul>
+            </template>
+          </div>
+          <button type="button" @click="add()" :disabled="!query.trim()" class="px-3 py-2 rounded-full text-[11px] font-semibold disabled:opacity-30 disabled:cursor-not-allowed bg-[#116466] text-white hover:bg-[#0d4c4d]">Add</button>
+        </div>
+        <p class="text-[10px] text-[#555B6E] leading-snug mt-2">Press Enter or click Add. Auto-saves shortly after changes.</p>
+        <p class="text-[10px] text-[#89B0AE] mt-1" x-show="!$store.profileModal.therapist.offers_testing">Note: Adding a testing type will enable “Offer Testing?”.</p>
+      </div>
+      <p class="text-[10px] text-[#9b4d49] mt-2" x-show="error" x-text="error"></p>
+      <p class="text-[10px] text-[#89B0AE] mt-1" x-show="saving">Saving…</p>
+    </div>
+  </section>
+</div>
+
+<script>
+if(typeof testingEvalManager === 'undefined'){
+  function testingEvalManager(opts){
+    const csrf = typeof TC_CSRF !== 'undefined' ? TC_CSRF : '';
+    return {
+      editable: opts && opts.editable === true,
+      query:'', results:[], open:false, loading:false, sel:-1,
+      saving:false, error:'',
+      init(){},
+      fetchOptions(q, force=false){
+        const query = (q||'');
+        if(!force && query.length < 2){ this.results=[]; this.open=false; return; }
+        this.loading=true;
+        fetch('/users/api/lookups/testing_types/?q='+encodeURIComponent(query))
+          .then(r=>r.ok?r.json():Promise.reject())
+          .then(d=>{
+            const raw = (Array.isArray(d)?d:(d.results||[]));
+            const s = Alpine.store('profileModal');
+            const chosen = new Set(((s && s.therapist && s.therapist.testing_types) || []).map(v=>String(v).toLowerCase()));
+            this.results = raw.filter(it => !chosen.has(String(it.name||'').toLowerCase()));
+            this.open = this.results.length>0; this.sel = this.results.length ? 0 : -1;
+          })
+          .catch(()=>{})
+          .finally(()=> this.loading=false);
+      },
+      onInput(){ this.sel=-1; this.fetchOptions(this.query, this.query.trim().length===0); },
+      onFocus(){ this.sel=-1; this.fetchOptions('', true); },
+  keyHandler(e){ if(!this.open) return; if(['ArrowDown','ArrowUp','Enter'].includes(e.key)){ e.preventDefault(); } if(e.key==='ArrowDown'){ this.sel=Math.min(this.sel+1,this.results.length-1);} else if(e.key==='ArrowUp'){ this.sel=Math.max(this.sel-1,0);} else if(e.key==='Enter' && this.sel>-1){ this.select(this.sel);} },
+      close(){ this.open=false; },
+  select(i){ const item=this.results[i]; if(!item) return; this.query=item.name; this.add(true); this.close(); },
+      add(){
+    if(!this.editable) return;
+    const v=this.query.trim(); if(!v) return;
+    const s=Alpine.store('profileModal');
+    const list=[...(s.therapist.testing_types||[])];
+    if(list.includes(v)){ this.query=''; return; }
+    // Optimistic update for instant feedback
+    list.push(v);
+    if(s && s.therapist){ s.therapist.testing_types = list; if(!s.therapist.offers_testing){ s.therapist.offers_testing = true; } }
+    const payload = { testing_types: list, offers_testing: true };
+    this.open = false; this.results = []; this.sel = -1;
+    this.query='';
+    this.saveAll(payload);
+      },
+  removeType(v){ if(!this.editable) return; const s=Alpine.store('profileModal'); const list=(s.therapist.testing_types||[]).filter(x=>x!==v); if(s&&s.therapist){ s.therapist.testing_types=list; } this.saveAll({ testing_types:list }); if(this.open){ this.fetchOptions(this.query, this.query.trim().length===0); } },
+      toggleOffers(val){ this.saveAll({ offers_testing: !!val, testing_types: val ? ($store.profileModal.therapist.testing_types||[]) : [] }); },
+      saveAll(payload){ this.saving=true; this.error=''; fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)})
+        .then(r=>r.json().then(d=>[r,d]))
+        .then(([r,d])=>{ if(!r.ok){ this.error=(d.errors && Object.values(d.errors)[0]) || d.error || 'Save failed'; return; } const s=Alpine.store('profileModal'); if(s&&s.therapist){ if(d.hasOwnProperty('offers_testing')) s.therapist.offers_testing = d.offers_testing; if(d.testing_types) s.therapist.testing_types = d.testing_types; } if(window.__profileEdit && window.__profileEdit.applyData){ window.__profileEdit.applyData(d); window.__profileEdit.notify && window.__profileEdit.notify('Saved'); } })
+        .catch(()=> this.error='Network error')
+        .finally(()=> this.saving=false);
+      }
+    }
+  }
+}
+</script>

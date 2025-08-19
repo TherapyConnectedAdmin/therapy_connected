@@ -4,23 +4,43 @@
 {% block meta %}
 <meta name="description" content="Therapist profile for {{ profile_obj.first_name }} {{ profile_obj.last_name }} offering {{ profile_obj.therapy_delivery_method|default:'therapy services' }} in {% with loc=profile_obj.locations.first %}{% if loc %}{{ loc.city }}, {{ loc.state }}{% endif %}{% endwith %}.">
 <link rel="canonical" href="{{ request.build_absolute_uri }}" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "{{ profile_obj.first_name }} {{ profile_obj.last_name }}",
+  "jobTitle": "{% if profile_obj.license_type %}{{ profile_obj.license_type.name }}{% endif %}",
+  "image": "{% if profile_obj.profile_photo %}{{ profile_obj.profile_photo.url }}{% endif %}",
+  "url": "{{ request.build_absolute_uri }}",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "{% with loc=profile_obj.locations.first %}{% if loc %}{{ loc.city }}{% endif %}{% endwith %}",
+    "addressRegion": "{% with loc=profile_obj.locations.first %}{% if loc %}{{ loc.state }}{% endif %}{% endwith %}"
+  }
+}
+</script>
 {% endblock %}
 {% block content %}
-<div class="relative py-6 bg-[#ECEBE8]">
+<div class="relative py-6 bg-[#ECEBE8]" data-profile-view="standalone-public-v20250819">
   <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#E3E2DF] via-[#F5F4F3] to-[#E0DFDC]"></div>
   <div class="relative">
   <div class="max-w-7xl mx-auto px-4">
     <script>
       window.addEventListener('alpine:init', () => {
-        if(!window.Alpine.store('profileModal')) {
+    if(!window.Alpine.store('profileModal')) {
           Alpine.store('profileModal', {
-            show:true, contentVisible:true, loading:false, therapist:{}, ids:[], currentIndex:0, next(){}, prev(){}, close(){}
+      show:false, contentVisible:true, loading:false, therapist:{}, ids:[], currentIndex:0, next(){}, prev(){}, close(){}
           });
         }
         const data = {{ serialized|safe }};
         const store = Alpine.store('profileModal');
   store.therapist = data;
   store.lightboxImage = null;
+  // Ensure visible even if base.js initialized store with show:false
+  store.loading = false;
+  store.contentVisible = true;
+  store.error = null;
+  store.show = false;
       });
     </script>
     <!-- Fallback static badges if JS disabled -->
@@ -29,7 +49,7 @@
         JavaScript is disabled; interactive sections (gallery lightbox, dynamic tabs) are not available.
       </div>
     </noscript>
-  {% include 'partials/profile/profile_display.html' %}
+  {% include 'partials/profile_modal.html' with standalone=True editable=False two_column_layout=False show_identity=False show_identity_summary=False show_qualifications=False %}
   </div>
   </div>
 </div>

@@ -170,11 +170,16 @@
       normalizeName(v){ return (v||'').trim(); },
       caseEq(a,b){ return (a||'').toLowerCase() === (b||'').toLowerCase(); },
       inList(list, name){ return list.some(x => this.caseEq((x.name||x), name)); },
+      // Filtering helpers to remove already-selected from suggestions
+      chosenTherapySet(){ const s=Alpine.store('profileModal'); const list=(s?.therapist?.therapy_types)||[]; return new Set(list.map(x=> String(x).toLowerCase())); },
+      filterTherapy(list){ const chosen=this.chosenTherapySet(); return (list||[]).filter(it=> !chosen.has(String(it.name||'').toLowerCase())); },
+      chosenSpecialtySet(){ const s=Alpine.store('profileModal'); const list=(s?.therapist?.specialties)||[]; return new Set(list.map(x=> String(x.name||x).toLowerCase())); },
+      filterSpecialty(list){ const chosen=this.chosenSpecialtySet(); return (list||[]).filter(it=> !chosen.has(String(it.name||'').toLowerCase())); },
       // Therapy Types logic
       onTherapyInput(){ if(this.therapyDebounce) clearTimeout(this.therapyDebounce); this.therapySelectedIndex=-1; if(!this.therapyQuery){ if(!this.therapyOpen || !this.therapyResults.length){ this.fetchTherapyTypes(true); } return; } this.therapyDebounce=setTimeout(()=> this.fetchTherapyTypes(), 220); },
-      onTherapyFocus(){ if(this.therapyQuery) { this.onTherapyInput(); return; } if(!this.therapyResults.length){ this.fetchTherapyTypes(true); } else { this.therapyOpen=true; } },
+      onTherapyFocus(){ if(this.therapyQuery) { this.onTherapyInput(); return; } if(!this.therapyResults.length){ this.fetchTherapyTypes(true); } else { this.therapyOpen=true; this.therapySelectedIndex = this.therapyResults.length ? 0 : -1; } },
       fetchTherapyTypes(){ this.therapyLoading=true; fetch('/users/api/lookups/therapy_types/?q='+encodeURIComponent(this.therapyQuery))
-        .then(r=>r.json()).then(d=>{ this.therapyResults=d.results||[]; this.therapyOpen=true; })
+        .then(r=>r.json()).then(d=>{ this.therapyResults=this.filterTherapy(d.results||[]); this.therapyOpen=true; this.therapySelectedIndex = this.therapyResults.length ? 0 : -1; })
         .catch(()=>{ this.therapyResults=[]; this.therapyOpen=false; })
         .finally(()=> this.therapyLoading=false); },
       selectTherapy(idx){ const item=this.therapyResults[idx]; if(!item) return; this.therapyQuery=item.name; this.therapyOpen=false; this.therapyResults=[]; this.addTherapyType(); },
@@ -185,12 +190,12 @@
         else if(e.key==='Escape'){ this.therapyOpen=false; }
       },
       addTherapyType(){ const name=this.normalizeName(this.therapyQuery); if(!name){ return; } const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const list = (s.therapist.therapy_types||[]).slice(); if(this.inList(list, name)){ this.therapyQuery=''; this.therapyOpen=false; this.therapyResults=[]; return; } list.push(name); list.sort((a,b)=> a.localeCompare(b)); s.therapist.therapy_types=list; this.therapyQuery=''; this.therapyOpen=false; this.therapyResults=[]; this.scheduleSave(); },
-      removeTherapyType(name){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; s.therapist.therapy_types=(s.therapist.therapy_types||[]).filter(t=> !this.caseEq(t,name)); this.scheduleSave(); },
+      removeTherapyType(name){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; s.therapist.therapy_types=(s.therapist.therapy_types||[]).filter(t=> !this.caseEq(t,name)); this.scheduleSave(); if(this.therapyOpen){ this.fetchTherapyTypes(); } },
       // Specialties logic
       onSpecialtyInput(){ if(this.specialtyDebounce) clearTimeout(this.specialtyDebounce); this.specialtySelectedIndex=-1; if(!this.specialtyQuery){ if(!this.specialtyOpen || !this.specialtyResults.length){ this.fetchSpecialties(true); } return; } this.specialtyDebounce=setTimeout(()=> this.fetchSpecialties(), 220); },
-      onSpecialtyFocus(){ if(this.specialtyQuery){ this.onSpecialtyInput(); return; } if(!this.specialtyResults.length){ this.fetchSpecialties(true); } else { this.specialtyOpen=true; } },
+      onSpecialtyFocus(){ if(this.specialtyQuery){ this.onSpecialtyInput(); return; } if(!this.specialtyResults.length){ this.fetchSpecialties(true); } else { this.specialtyOpen=true; this.specialtySelectedIndex = this.specialtyResults.length ? 0 : -1; } },
       fetchSpecialties(){ this.specialtyLoading=true; fetch('/users/api/lookups/specialties/?q='+encodeURIComponent(this.specialtyQuery))
-        .then(r=>r.json()).then(d=>{ this.specialtyResults=d.results||[]; this.specialtyOpen=true; })
+        .then(r=>r.json()).then(d=>{ this.specialtyResults=this.filterSpecialty(d.results||[]); this.specialtyOpen=true; this.specialtySelectedIndex = this.specialtyResults.length ? 0 : -1; })
         .catch(()=>{ this.specialtyResults=[]; this.specialtyOpen=false; })
         .finally(()=> this.specialtyLoading=false); },
       selectSpecialty(idx){ const item=this.specialtyResults[idx]; if(!item) return; this.specialtyQuery=item.name; this.specialtyOpen=false; this.specialtyResults=[]; this.addSpecialty(); },
@@ -201,7 +206,7 @@
         else if(e.key==='Escape'){ this.specialtyOpen=false; }
       },
       addSpecialty(){ const name=this.normalizeName(this.specialtyQuery); if(!name) return; const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const list=(s.therapist.specialties||[]).slice(); if(this.inList(list, name)){ this.specialtyQuery=''; this.specialtyOpen=false; this.specialtyResults=[]; return; } list.push({name:name, is_top:false}); list.sort((a,b)=> (a.name||'').localeCompare(b.name||'')); s.therapist.specialties=list; this.specialtyQuery=''; this.specialtyOpen=false; this.specialtyResults=[]; this.syncTopList(); this.scheduleSave(); },
-      removeSpecialty(name){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; s.therapist.specialties=(s.therapist.specialties||[]).filter(sp=> !this.caseEq(sp.name||sp,name)); s.therapist.top_specialties = (s.therapist.top_specialties||[]).filter(t=> !this.caseEq(t,name)); this.scheduleSave(); },
+  removeSpecialty(name){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; s.therapist.specialties=(s.therapist.specialties||[]).filter(sp=> !this.caseEq(sp.name||sp,name)); s.therapist.top_specialties = (s.therapist.top_specialties||[]).filter(t=> !this.caseEq(t,name)); this.scheduleSave(); if(this.specialtyOpen){ this.fetchSpecialties(); } },
       toggleTop(name){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const specs=(s.therapist.specialties||[]).slice(); const idx=specs.findIndex(sp=> this.caseEq(sp.name||sp,name)); if(idx===-1) return; const sp=specs[idx]; const currentlyTop=!!sp.is_top; if(!currentlyTop){ const topCount=specs.filter(x=> x.is_top).length; if(topCount>=5){ if(window.__profileEdit){ window.__profileEdit.notify('Max 5 top specialties', true); } return; } }
         sp.is_top = !currentlyTop; specs[idx]=sp; s.therapist.specialties=specs; this.syncTopList(); this.scheduleSave(); },
       syncTopList(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const tops=(s.therapist.specialties||[]).filter(sp=> sp.is_top).map(sp=> sp.name).slice(0,5); s.therapist.top_specialties=tops; },
@@ -235,13 +240,23 @@
       toggleSliding(){ const s=Alpine.store('profileModal'); const next = !s.therapist.sliding_scale_pricing_available; window.__tcSaveProfileField('sliding_scale_pricing_available', next); if(s&&s.therapist) s.therapist.sliding_scale_pricing_available=next; },
       setSliding(val){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; if(s.therapist.sliding_scale_pricing_available===val) return; window.__tcSaveProfileField('sliding_scale_pricing_available', val); s.therapist.sliding_scale_pricing_available=val; },
       addInsurance(){ const raw=(this.insuranceForm.provider||'').trim(); if(!raw){ this.insError='Provider required'; return; } this.insError=''; const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); if(list.some(i=> (i.provider||'').toLowerCase()===raw.toLowerCase())){ this.insuranceForm.provider=''; this.providerResults=[]; this.providerOpen=false; return; } list.push({ provider: raw, out_of_network:false }); s.therapist.insurance_details=list; this.insuranceForm.provider=''; this.providerResults=[]; this.providerOpen=false; this.providerSelectedIndex=-1; this.scheduleInsuranceSave(); },
-      removeInsurance(idx){ const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); list.splice(idx,1); s.therapist.insurance_details=list; this.scheduleInsuranceSave(); },
+    removeInsurance(idx){ const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); list.splice(idx,1); s.therapist.insurance_details=list; this.scheduleInsuranceSave(); if(this.providerOpen){ this.fetchProviders(); } },
       toggleOON(idx){ const s=Alpine.store('profileModal'); const list=(s.therapist.insurance_details||[]).slice(); if(list[idx]){ list[idx].out_of_network=!list[idx].out_of_network; } s.therapist.insurance_details=list; this.scheduleInsuranceSave(); },
       saveInsurance(){ const s=Alpine.store('profileModal'); const payload=(s.therapist.insurance_details||[]).map(i=>({provider:i.provider, out_of_network:!!i.out_of_network})); window.__tcSaveProfileField('insurance_details', payload); },
       scheduleInsuranceSave(){ if(this.insuranceSaveTimer) clearTimeout(this.insuranceSaveTimer); this.insuranceSaveTimer=setTimeout(()=> this.saveInsurance(), 600); },
+    // Provider search helpers
+    filterOutChosen(list){ const s=Alpine.store('profileModal'); const chosen=new Set(((s && s.therapist && s.therapist.insurance_details)||[]).map(i=> String(i.provider||'').toLowerCase())); return (list||[]).filter(it=> !chosen.has(String(it.name||'').toLowerCase())); },
       onProviderInput(){ this.providerQuery = this.insuranceForm.provider; this.providerSelectedIndex=-1; if(this.providerDebounce) clearTimeout(this.providerDebounce); if(!this.providerQuery){ this.providerResults=[]; this.providerOpen=false; return; } this.providerDebounce=setTimeout(()=> this.fetchProviders(), 220); },
-      onProviderFocus(){ if(this.insuranceForm.provider && this.insuranceForm.provider.trim()){ this.onProviderInput(); return; } if(this.providerResults.length){ this.providerOpen=true; return; } this.providerLoading=true; fetch('/users/api/lookups/insurance_providers/?q=').then(r=>r.json()).then(d=>{ this.providerResults=(d.results||[]); this.providerOpen=true; }).catch(()=>{ this.providerResults=[]; this.providerOpen=false; }).finally(()=> this.providerLoading=false); },
-      fetchProviders(){ this.providerLoading=true; fetch('/users/api/lookups/insurance_providers/?q='+encodeURIComponent(this.providerQuery)).then(r=>r.json()).then(d=>{ this.providerResults=(d.results||[]); this.providerOpen=true; }).catch(()=>{ this.providerResults=[]; this.providerOpen=false; }).finally(()=> this.providerLoading=false); },
+    onProviderFocus(){ if(this.insuranceForm.provider && this.insuranceForm.provider.trim()){ this.onProviderInput(); return; } if(this.providerResults.length){ this.providerOpen=true; return; } this.providerLoading=true; fetch('/users/api/lookups/insurance_providers/?q=')
+      .then(r=>r.json())
+      .then(d=>{ this.providerResults=this.filterOutChosen(d.results||[]); this.providerOpen=true; this.providerSelectedIndex = this.providerResults.length ? 0 : -1; })
+      .catch(()=>{ this.providerResults=[]; this.providerOpen=false; })
+      .finally(()=> this.providerLoading=false); },
+    fetchProviders(){ this.providerLoading=true; fetch('/users/api/lookups/insurance_providers/?q='+encodeURIComponent(this.providerQuery))
+      .then(r=>r.json())
+      .then(d=>{ this.providerResults=this.filterOutChosen(d.results||[]); this.providerOpen=true; this.providerSelectedIndex = this.providerResults.length ? 0 : -1; })
+      .catch(()=>{ this.providerResults=[]; this.providerOpen=false; })
+      .finally(()=> this.providerLoading=false); },
       selectProvider(idx){ const item=this.providerResults[idx]; if(!item) return; this.insuranceForm.provider=item.name; this.providerOpen=false; this.providerResults=[]; this.addInsurance(); },
       providerKeydown(e){ if(!this.providerOpen){ if(e.key==='ArrowDown' && this.providerResults.length){ this.providerOpen=true; e.preventDefault(); } else if(e.key==='Enter'){ if(this.insuranceForm.provider.trim()){ e.preventDefault(); this.addInsurance(); } } return; } if(e.key==='ArrowDown'){ e.preventDefault(); this.providerSelectedIndex=(this.providerSelectedIndex+1)%this.providerResults.length; } else if(e.key==='ArrowUp'){ e.preventDefault(); this.providerSelectedIndex=(this.providerSelectedIndex-1+this.providerResults.length)%this.providerResults.length; } else if(e.key==='Enter'){ e.preventDefault(); if(this.providerSelectedIndex>-1){ this.selectProvider(this.providerSelectedIndex); } if(this.insuranceForm.provider.trim()){ this.addInsurance(); } } else if(e.key==='Escape'){ this.providerOpen=false; } },
       clickAway(){ this.providerOpen=false; }

@@ -31,6 +31,19 @@ class TherapyTypeSelection(models.Model):
     therapy_type = models.ForeignKey('TherapyType', on_delete=models.CASCADE)
     def __str__(self): return self.therapy_type.name
 
+# Testing & Evaluation lookup model
+class TestingType(models.Model):
+    name = models.CharField(max_length=64, unique=True)
+    category = models.CharField(max_length=48, blank=True, db_index=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    def __str__(self): return self.name
+
+# Selection model for therapist testing types
+class TestingTypeSelection(models.Model):
+    therapist = models.ForeignKey('TherapistProfile', on_delete=models.CASCADE, related_name='testing_types')
+    testing_type = models.ForeignKey('TestingType', on_delete=models.CASCADE)
+    def __str__(self): return self.testing_type.name
+
 # Areas of Expertise (custom multi-value)
 class AreasOfExpertise(models.Model):
     therapist = models.ForeignKey('TherapistProfile', on_delete=models.CASCADE, related_name='areas_of_expertise')
@@ -176,6 +189,8 @@ class TherapistProfile(models.Model):
     youtube_url = models.CharField(max_length=256, blank=True)
     therapy_types_note = models.TextField(max_length=500, blank=True)
     specialties_note = models.TextField(max_length=500, blank=True)
+    # Testing & Evaluation
+    offers_testing = models.BooleanField(default=False)
     mental_health_role = models.CharField(max_length=16, blank=True)
     license_type = models.ForeignKey('LicenseType', on_delete=models.SET_NULL, blank=True, null=True, related_name='therapists')
     # Relaxed: license numbers can repeat across states; enforce (state, number) uniqueness at application level

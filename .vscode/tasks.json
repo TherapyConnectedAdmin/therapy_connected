@@ -33,6 +33,16 @@
 				"makemigrations",
 				"users"
 			]
+		},
+		{
+			"label": "tc-makemigrations",
+			"type": "shell",
+			"command": "/Users/wescollins/Documents/Therapy-Connected/.venv/bin/python",
+			"args": [
+				"manage.py",
+				"makemigrations",
+				"users"
+			]
 		}
 	]
 }

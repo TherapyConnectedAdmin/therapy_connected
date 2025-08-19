@@ -6,6 +6,52 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <script>
+            // Polyfills for ChildNode/Element methods used by Alpine in older Safari
+            (function(){
+                var p = Element.prototype;
+                if(!p.after){
+                    p.after = function(){
+                        var argArr = Array.prototype.slice.call(arguments);
+                        var docFrag = document.createDocumentFragment();
+                        argArr.forEach(function(argItem){
+                            docFrag.appendChild(argItem instanceof Node ? argItem : document.createTextNode(String(argItem)));
+                        });
+                        if(this.parentNode){ this.parentNode.insertBefore(docFrag, this.nextSibling); }
+                    };
+                }
+                if(!p.before){
+                    p.before = function(){
+                        var argArr = Array.prototype.slice.call(arguments);
+                        var docFrag = document.createDocumentFragment();
+                        argArr.forEach(function(argItem){
+                            docFrag.appendChild(argItem instanceof Node ? argItem : document.createTextNode(String(argItem)));
+                        });
+                        if(this.parentNode){ this.parentNode.insertBefore(docFrag, this); }
+                    };
+                }
+                if(!p.append){
+                    p.append = function(){
+                        var argArr = Array.prototype.slice.call(arguments);
+                        var docFrag = document.createDocumentFragment();
+                        argArr.forEach(function(argItem){
+                            docFrag.appendChild(argItem instanceof Node ? argItem : document.createTextNode(String(argItem)));
+                        });
+                        this.appendChild(docFrag);
+                    };
+                }
+                if(!p.prepend){
+                    p.prepend = function(){
+                        var argArr = Array.prototype.slice.call(arguments);
+                        var docFrag = document.createDocumentFragment();
+                        argArr.forEach(function(argItem){
+                            docFrag.appendChild(argItem instanceof Node ? argItem : document.createTextNode(String(argItem)));
+                        });
+                        this.insertBefore(docFrag, this.firstChild);
+                    };
+                }
+            })();
+        </script>
         {% tailwind_css %}
         <link href="{% static 'css/dist/styles.css' %}" rel="stylesheet">
         <!-- Alpine.js (pinned version with fallback) -->

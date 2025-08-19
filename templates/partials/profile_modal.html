@@ -45,22 +45,25 @@
   </div>
 {% endif %}
 {% include 'partials/profile/sections/_general.html' %}
-{% if standalone %}
+{% if standalone and show_identity|default_if_none:True %}
   {% include 'partials/profile/sections/_identity.html' %}
 {% endif %}
 {% include 'partials/profile/sections/_about.html' %}
 {% include 'partials/profile/sections/_locations.html' %}
-{% include 'partials/profile/sections/_identity_summary.html' %}
+{% if show_identity_summary|default_if_none:True %}
+  {% include 'partials/profile/sections/_identity_summary.html' %}
+{% endif %}
 {% include 'partials/profile/sections/_therapy_specialties.html' %}
+{% include 'partials/profile/sections/_testing_evaluation.html' %}
     <!-- Details Grid: single column in modal, two columns on standalone edit -->
-  <section class="{% if standalone %}grid grid-cols-1 md:grid-cols-2{% else %}grid grid-cols-1{% endif %} gap-5 mt-2">
+  <section class="{% if two_column_layout|default_if_none:standalone %}grid grid-cols-1 md:grid-cols-2{% else %}grid grid-cols-1{% endif %} gap-5 mt-2">
           {% include 'partials/profile/sections/_fees_insurance.html' %}
           <!-- Qualifications (owner only) -->
           {% include 'partials/profile/sections/_client_focus.html' %}
           {% if standalone and editable %}
           {% include 'partials/profile/sections/_contact_web.html' %}
           {% endif %}
-          {% if standalone %}
+          {% if standalone and show_qualifications|default_if_none:True %}
           <!-- Qualifications & Education (final section - edit page only) -->
           <div id="section-qualifications" class="tc-section p-4 md:p-5 md:col-span-2 mb-6 md:mb-8" x-data="qualificationsManager()" x-init="init()" x-cloak>
             <div class="flex items-start justify-between mb-4">
@@ -306,8 +309,10 @@
         {% endif %}
   </div><!-- end lower sections group -->
   </div><!-- Unified Sections Wrapper END -->
-  <!-- Error State -->
-        <div x-show="$store.profileModal.error" class="bg-red-100 text-red-700 text-xs rounded-md px-3 py-2">Failed to load profile: <span x-text="$store.profileModal.error"></span></div>
+  {% if not standalone %}
+  <!-- Error State (modal only) -->
+    <div x-show="$store.profileModal.error" class="bg-red-100 text-red-700 text-xs rounded-md px-3 py-2">Failed to load profile: <span x-text="$store.profileModal.error"></span></div>
+  {% endif %}
         <!-- Debug: All Fields Raw Listing -->
   <section x-data="{ 
       showAllFields:false,

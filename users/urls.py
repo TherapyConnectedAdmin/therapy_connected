@@ -37,6 +37,7 @@ urlpatterns = [
     # Lookup endpoints
     path('api/lookups/insurance_providers/', views.api_insurance_providers, name='api_insurance_providers'),
     path('api/lookups/therapy_types/', views.api_therapy_types, name='api_therapy_types'),
+    path('api/lookups/testing_types/', views.api_testing_types, name='api_testing_types'),
     path('api/lookups/specialties/', views.api_specialties_lookup, name='api_specialties_lookup'),
     path('api/lookups/participant_types/', views.api_participant_types, name='api_participant_types'),
     path('api/lookups/age_groups/', views.api_age_groups, name='api_age_groups'),
