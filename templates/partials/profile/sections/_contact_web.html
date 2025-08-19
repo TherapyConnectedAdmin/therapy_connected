@@ -23,6 +23,9 @@
         <div x-show="$store.profileModal.therapist.practice_email">Practice Email: <span class="font-semibold" x-text="$store.profileModal.therapist.practice_email"></span></div>
         <div x-show="$store.profileModal.therapist.office_email">Office Email: <span class="font-semibold" x-text="$store.profileModal.therapist.office_email"></span></div>
         <div x-show="$store.profileModal.therapist.practice_website_url">Website: <a :href="$store.profileModal.therapist.practice_website_url" class="text-[#116466] underline font-semibold" target="_blank" rel="noopener">Visit Site</a></div>
+        <template x-if="$store.profileModal.therapist.online_scheduling_url && $store.profileModal.therapist.show_online_scheduling">
+          <div>Online Scheduling: <a :href="$store.profileModal.therapist.online_scheduling_url" class="text-[#116466] underline font-semibold" target="_blank" rel="noopener">Book Online</a></div>
+        </template>
       </div>
       <div class="flex flex-wrap gap-2 pt-2" x-show="socialList().length">
         <template x-for="soc in socialList()" :key="soc.key">
@@ -59,6 +62,13 @@
           <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Website URL</label>
           <input type="url" x-model="form.practice_website_url" maxlength="256" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="https://" />
         </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Online Scheduling URL</label>
+          <input type="url" x-model="form.online_scheduling_url" maxlength="256" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="https://calendly.com/your-link or EHR scheduling link" />
+        </div>
+        <div class="flex items-center gap-2 pt-6">
+          <label class="inline-flex items-center gap-1 text-[11px] font-medium text-[#555B6E]"><input type="checkbox" x-model="form.show_online_scheduling" class="accent-[#116466]" /> Show “Book Online” on my public profile</label>
+        </div>
   <!-- Removed legacy checkboxes: Accept Calls, Accept Client Emails, Email When Client Calls -->
       </div>
       <div class="border-t border-[#BEE3DB] pt-4 grid md:grid-cols-3 gap-4">
@@ -94,14 +104,14 @@ if(typeof contactWebManager === 'undefined'){
         {key:'tiktok_url', label:'TikTok URL', placeholder:'https://tiktok.com/@...', type:'url'},
         {key:'youtube_url', label:'YouTube URL', placeholder:'https://youtube.com/@...', type:'url'}
       ],
-  form:{ phone_number:'', phone_extension:'', mobile_number:'', practice_email:'', office_email:'', practice_website_url:'',
+  form:{ phone_number:'', phone_extension:'', mobile_number:'', practice_email:'', office_email:'', practice_website_url:'', online_scheduling_url:'', show_online_scheduling:false,
      facebook_url:'', instagram_url:'', linkedin_url:'', twitter_url:'', tiktok_url:'', youtube_url:'' },
       init(){ this.load(); },
       load(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const t=s.therapist; for(const k in this.form){ this.form[k] = (t[k]!==undefined && t[k]!==null) ? t[k] : (typeof this.form[k]==='boolean'? false : ''); } },
       startEdit(){ this.load(); this.editing=true; this.success=false; this.error=''; },
       cancel(){ if(this.saving) return; this.editing=false; this.error=''; },
       socialList(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return []; const map=[['facebook_url','Facebook'],['instagram_url','Instagram'],['linkedin_url','LinkedIn'],['twitter_url','Twitter'],['tiktok_url','TikTok'],['youtube_url','YouTube']]; return map.filter(([k])=> s.therapist[k]).map(([k,l])=> ({key:k,label:l,url:s.therapist[k]})); },
-      validate(){ const urlFields=['practice_website_url','facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url']; const urlRe=/^https?:\/\//i; for(const f of urlFields){ const v=this.form[f]; if(v && !urlRe.test(v)){ this.error=f.replace(/_/g,' ')+' must start with http'; return false; } } return true; },
+  validate(){ const urlFields=['practice_website_url','online_scheduling_url','facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url']; const urlRe=/^https?:\/\//i; for(const f of urlFields){ const v=this.form[f]; if(v && !urlRe.test(v)){ this.error=f.replace(/_/g,' ')+' must start with http'; return false; } } return true; },
       buildPayload(){ const p={}; for(const k in this.form){ p[k]=this.form[k]; } return p; },
       save(){ if(this.saving) return; this.error=''; if(!this.validate()) return; this.saving=true; const payload=this.buildPayload(); const s=Alpine.store('profileModal'); const prev={}; if(s&&s.therapist){ for(const k in payload){ prev[k]=s.therapist[k]; s.therapist[k]=payload[k]; } }
         fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload)})

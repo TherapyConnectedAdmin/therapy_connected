@@ -187,6 +187,9 @@ class TherapistProfile(models.Model):
     twitter_url = models.CharField(max_length=256, blank=True)
     tiktok_url = models.CharField(max_length=256, blank=True)
     youtube_url = models.CharField(max_length=256, blank=True)
+    # Online Scheduling
+    online_scheduling_url = models.CharField(max_length=256, blank=True)
+    show_online_scheduling = models.BooleanField(default=False)
     therapy_types_note = models.TextField(max_length=500, blank=True)
     specialties_note = models.TextField(max_length=500, blank=True)
     # Testing & Evaluation
