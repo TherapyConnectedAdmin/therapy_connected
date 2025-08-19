@@ -2142,9 +2142,445 @@ def members_profile(request):
 def members_account(request):
     from .models import Subscription
     sub = Subscription.objects.filter(user=request.user).order_by('-created_at').first()
+    # Compute next payment (amount + date) via Stripe, best-effort
+    next_amount_display = None
+    next_date = None
+    payment_method_display = None
+    try:
+        if sub and sub.stripe_customer_id and sub.stripe_subscription_id:
+            from django.conf import settings as _settings
+            if _settings.STRIPE_SECRET_KEY:
+                import stripe as _stripe
+                from datetime import datetime, timezone as _tz
+                _stripe.api_key = _settings.STRIPE_SECRET_KEY
+                inv = None
+                try:
+                    inv = _stripe.Invoice.upcoming(
+                        customer=sub.stripe_customer_id,
+                        subscription=sub.stripe_subscription_id,
+                    )
+                except Exception:
+                    inv = None
+                if inv:
+                    amount = getattr(inv, 'amount_due', None)
+                    currency = getattr(inv, 'currency', 'usd') or 'usd'
+                    ts = getattr(inv, 'next_payment_attempt', None) or getattr(inv, 'due_date', None)
+                    if ts:
+                        try:
+                            next_date = datetime.fromtimestamp(int(ts), tz=_tz.utc)
+                        except Exception:
+                            next_date = None
+                    if isinstance(amount, int):
+                        if (currency or '').lower() == 'usd':
+                            next_amount_display = f"${amount/100:.2f}"
+                        else:
+                            next_amount_display = f"{(currency or '').upper()} {amount/100:.2f}"
+                # Fallback: derive from subscription period end if no upcoming invoice
+                if not next_date:
+                    try:
+                        sub_obj = _stripe.Subscription.retrieve(sub.stripe_subscription_id)
+                        ts2 = getattr(sub_obj, 'current_period_end', None)
+                        if ts2:
+                            next_date = datetime.fromtimestamp(int(ts2), tz=_tz.utc)
+                        # Derive amount from price if not set
+                        if not next_amount_display:
+                            item = (getattr(sub_obj, 'items', {}) or {}).get('data', [])
+                            price = (item[0]['price'] if item else None) or None
+                            unit = (price and price.get('unit_amount')) or None
+                            currency = (price and price.get('currency')) or 'usd'
+                            if isinstance(unit, int):
+                                if (currency or '').lower() == 'usd':
+                                    next_amount_display = f"${unit/100:.2f}"
+                                else:
+                                    next_amount_display = f"{(currency or '').upper()} {unit/100:.2f}"
+                    except Exception:
+                        pass
+                # Payment method display (brand •••• last4, exp MM/YY)
+                try:
+                    pm_obj = None
+                    if sub.stripe_payment_method_id:
+                        try:
+                            pm_obj = _stripe.PaymentMethod.retrieve(sub.stripe_payment_method_id)
+                        except Exception:
+                            pm_obj = None
+                    if not pm_obj:
+                        try:
+                            cust = _stripe.Customer.retrieve(
+                                sub.stripe_customer_id,
+                                expand=["invoice_settings.default_payment_method"],
+                            )
+                            pm_obj = (cust.get('invoice_settings', {}) or {}).get('default_payment_method')
+                        except Exception:
+                            pm_obj = None
+                    if not pm_obj:
+                        try:
+                            lst = _stripe.PaymentMethod.list(customer=sub.stripe_customer_id, type='card', limit=1)
+                            data = (lst.get('data') or []) if isinstance(lst, dict) else getattr(lst, 'data', [])
+                            pm_obj = (data or [None])[0]
+                        except Exception:
+                            pm_obj = None
+                    if pm_obj:
+                        # Normalize dict-like access
+                        card = pm_obj.get('card') if isinstance(pm_obj, dict) else getattr(pm_obj, 'card', None)
+                        if card:
+                            brand = (card.get('brand') if isinstance(card, dict) else getattr(card, 'brand', '')) or ''
+                            last4 = (card.get('last4') if isinstance(card, dict) else getattr(card, 'last4', '')) or ''
+                            exp_month = (card.get('exp_month') if isinstance(card, dict) else getattr(card, 'exp_month', None))
+                            exp_year = (card.get('exp_year') if isinstance(card, dict) else getattr(card, 'exp_year', None))
+                            try:
+                                mm = f"{int(exp_month):02d}" if exp_month is not None else ''
+                            except Exception:
+                                mm = ''
+                            try:
+                                yy = str(int(exp_year))[-2:] if exp_year is not None else ''
+                            except Exception:
+                                yy = ''
+                            brand_disp = (brand or '').title()
+                            tail = (last4 or '').strip()
+                            if tail:
+                                payment_method_display = f"{brand_disp} •••• {tail}" + (f" (exp {mm}/{yy})" if mm and yy else '')
+                except Exception:
+                    pass
+    except Exception:
+        # Leave next payment values empty on any error
+        pass
+    # Local fallback amount from plan pricing if Stripe unavailable
+    try:
+        if not next_amount_display and sub and getattr(sub, 'subscription_type', None):
+            plan = sub.subscription_type
+            price = None
+            if sub.interval == 'monthly':
+                price = getattr(plan, 'price_monthly', None)
+            else:
+                price = getattr(plan, 'price_annual', None)
+            if price is not None:
+                try:
+                    next_amount_display = f"${float(price):.2f}"
+                except Exception:
+                    next_amount_display = f"${price}"
+    except Exception:
+        pass
+    # Plans list for change-plan UI
+    from .models import SubscriptionType as _SubType
+    plans = list(_SubType.objects.filter(active=True).order_by('price_monthly'))
+    # Prepare SetupIntent for updating payment method (if Stripe customer exists)
+    publishable_key = None
+    setup_client_secret = None
+    try:
+        from django.conf import settings as _settings
+        if sub and sub.stripe_customer_id and getattr(_settings, 'STRIPE_SECRET_KEY', None) and getattr(_settings, 'STRIPE_PUBLISHABLE_KEY', None):
+            import stripe as _stripe
+            _stripe.api_key = _settings.STRIPE_SECRET_KEY
+            si = _stripe.SetupIntent.create(customer=sub.stripe_customer_id, usage='off_session', payment_method_types=['card'])
+            setup_client_secret = si.client_secret
+            publishable_key = _settings.STRIPE_PUBLISHABLE_KEY
+    except Exception:
+        publishable_key = None
+        setup_client_secret = None
     return render(request, 'users/members/account.html', {
         'subscription': sub,
+        'next_payment_amount_display': next_amount_display,
+        'next_payment_date': next_date,
+        'payment_method_display': payment_method_display,
+        'plans': plans,
+        'STRIPE_PUBLISHABLE_KEY': publishable_key,
+        'payment_setup_client_secret': setup_client_secret,
     })
+
+
+@login_required
+@require_http_methods(["POST"]) 
+def members_account_change_plan(request):
+    """Change the user's subscription plan and/or interval.
+    If an active Stripe subscription exists, update it in Stripe (prorated by default).
+    Otherwise, update the local Subscription row so it takes effect on activation.
+    """
+    from .models import Subscription, SubscriptionType
+    plan_id = (request.POST.get('plan_id') or '').strip()
+    interval = (request.POST.get('interval') or 'monthly').strip().lower()
+    if interval not in ('monthly', 'annual'):
+        interval = 'monthly'
+    # Validate plan
+    try:
+        new_plan = SubscriptionType.objects.get(pk=plan_id, active=True)
+    except SubscriptionType.DoesNotExist:
+        messages.error(request, 'Selected plan is not available.')
+        return redirect('members_account')
+    sub = Subscription.objects.filter(user=request.user).order_by('-created_at').first()
+    if not sub:
+        # Create a basic subscription row if missing
+        sub = Subscription.objects.create(user=request.user, subscription_type=new_plan, interval=interval, active=True)
+        messages.success(request, 'Plan updated.')
+        return redirect('members_account')
+    # Update local fields now
+    sub.subscription_type = new_plan
+    sub.interval = interval
+    # If already active on Stripe, try to update the price there
+    if sub.stripe_subscription_id:
+        price_id = new_plan.stripe_plan_id_monthly if interval == 'monthly' else new_plan.stripe_plan_id_annual
+        if not price_id:
+            messages.error(request, 'Plan is not configured for Stripe billing. Please contact support.')
+            return redirect('members_account')
+        try:
+            from django.conf import settings as _settings
+            import stripe as _stripe
+            if not _settings.STRIPE_SECRET_KEY:
+                raise RuntimeError('Stripe not configured')
+            _stripe.api_key = _settings.STRIPE_SECRET_KEY
+            # Retrieve subscription to get item id
+            s = _stripe.Subscription.retrieve(sub.stripe_subscription_id, expand=["items.data.price"])
+            item = (s.get('items', {}).get('data') or [None])[0]
+            item_id = item and item.get('id')
+            if not item_id:
+                raise RuntimeError('No subscription item found')
+            _stripe.Subscription.modify(
+                sub.stripe_subscription_id,
+                cancel_at_period_end=False,
+                proration_behavior='create_prorations',
+                items=[{
+                    'id': item_id,
+                    'price': price_id,
+                }]
+            )
+            sub.save(update_fields=['subscription_type', 'interval'])
+            messages.success(request, 'Subscription updated. Changes will be prorated by Stripe.')
+            return redirect('members_account')
+        except Exception:
+            messages.error(request, 'Could not update your subscription in Stripe. Please use the billing portal or try again later.')
+            return redirect('members_account')
+    else:
+        # Not active on Stripe yet; just update local record
+        sub.save(update_fields=['subscription_type', 'interval'])
+        messages.success(request, 'Plan updated. It will apply when your subscription is activated.')
+        return redirect('members_account')
+
+
+@login_required
+@require_http_methods(["POST"]) 
+def members_account_email(request):
+    """Update the user's email (and username) after verifying the password.
+    Keeps the user logged in and shows a flash message.
+    """
+    from django.contrib.auth import update_session_auth_hash
+    email = (request.POST.get('email') or '').strip()
+    password = request.POST.get('password') or ''
+    if not email or not password:
+        messages.error(request, 'Email and current password are required.')
+        return redirect('members_account')
+    # Verify current password
+    if not request.user.check_password(password):
+        messages.error(request, 'Current password is incorrect.')
+        return redirect('members_account')
+    # Ensure unique email
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    exists = User.objects.filter(email__iexact=email).exclude(pk=request.user.pk).exists()
+    if exists:
+        messages.error(request, 'That email is already in use.')
+        return redirect('members_account')
+    # Apply change
+    u = request.user
+    u.email = email
+    u.username = email  # project uses email as username
+    u.save(update_fields=['email', 'username'])
+    # Keep session valid
+    update_session_auth_hash(request, u)
+    messages.success(request, 'Email updated.')
+    return redirect('members_account')
+
+
+@login_required
+@require_http_methods(["POST"]) 
+def members_account_password(request):
+    """Change password after verifying current password and basic rules."""
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError
+    from django.contrib.auth import update_session_auth_hash
+    current = request.POST.get('current_password') or ''
+    new1 = request.POST.get('new_password1') or ''
+    new2 = request.POST.get('new_password2') or ''
+    if not current or not new1 or not new2:
+        messages.error(request, 'All password fields are required.')
+        return redirect('members_account')
+    if not request.user.check_password(current):
+        messages.error(request, 'Current password is incorrect.')
+        return redirect('members_account')
+    if new1 != new2:
+        messages.error(request, 'New passwords do not match.')
+        return redirect('members_account')
+    try:
+        validate_password(new1, user=request.user)
+    except ValidationError as e:
+        messages.error(request, '; '.join(e.messages))
+        return redirect('members_account')
+    request.user.set_password(new1)
+    request.user.save(update_fields=['password'])
+    update_session_auth_hash(request, request.user)
+    messages.success(request, 'Password updated.')
+    return redirect('members_account')
+
+
+@login_required
+@require_http_methods(["POST"]) 
+def members_account_billing(request):
+    """Create a Stripe Billing Portal session and redirect user there.
+    Requires an existing stripe_customer_id on the latest Subscription.
+    """
+    from django.conf import settings as _settings
+    import stripe as _stripe
+    from .models import Subscription
+    sub = Subscription.objects.filter(user=request.user).order_by('-created_at').first()
+    if not sub or not sub.stripe_customer_id:
+        messages.error(request, 'No Stripe customer found for your account.')
+        return redirect('members_account')
+    if not _settings.STRIPE_SECRET_KEY:
+        messages.error(request, 'Billing is not configured.')
+        return redirect('members_account')
+    _stripe.api_key = _settings.STRIPE_SECRET_KEY
+    try:
+        # Configure return URL to the account page
+        return_url = request.build_absolute_uri('/users/members/account/')
+        session = _stripe.billing_portal.Session.create(
+            customer=sub.stripe_customer_id,
+            return_url=return_url,
+        )
+        return redirect(session.url)
+    except Exception:
+        messages.error(request, 'Unable to open billing portal. Please try again later.')
+        return redirect('members_account')
+
+
+@login_required
+@require_http_methods(["POST"]) 
+def members_account_update_payment_method(request):
+    """Set the default payment method for the user in Stripe using a payment_method_id from Stripe Elements.
+    Expects form POST with payment_method_id.
+    """
+    from django.conf import settings as _settings
+    import stripe as _stripe
+    from .models import Subscription
+    pm_id = (request.POST.get('payment_method_id') or '').strip()
+    if not pm_id:
+        messages.error(request, 'No payment method provided.')
+        return redirect('members_account')
+    sub = Subscription.objects.filter(user=request.user).order_by('-created_at').first()
+    if not sub or not sub.stripe_customer_id:
+        messages.error(request, 'No Stripe customer found for your account.')
+        return redirect('members_account')
+    if not _settings.STRIPE_SECRET_KEY:
+        messages.error(request, 'Billing is not configured.')
+        return redirect('members_account')
+    _stripe.api_key = _settings.STRIPE_SECRET_KEY
+    try:
+        # Ensure PM is attached to customer
+        try:
+            _stripe.PaymentMethod.attach(pm_id, customer=sub.stripe_customer_id)
+        except Exception:
+            # Might already be attached; ignore
+            pass
+        # Set as default for invoices
+        _stripe.Customer.modify(
+            sub.stripe_customer_id,
+            invoice_settings={'default_payment_method': pm_id}
+        )
+        # Optionally update subscription default payment method if subscription exists
+        if sub.stripe_subscription_id:
+            try:
+                _stripe.Subscription.modify(sub.stripe_subscription_id, default_payment_method=pm_id)
+            except Exception:
+                pass
+        # Save on our side for quick reference
+        sub.stripe_payment_method_id = pm_id
+        sub.save(update_fields=['stripe_payment_method_id'])
+        messages.success(request, 'Payment method updated.')
+    except Exception:
+        messages.error(request, 'Unable to update payment method. Please try again later.')
+    return redirect('members_account')
+
+
+@login_required
+@require_http_methods(["POST"]) 
+def members_account_delete(request):
+    """Delete the user's account after confirming their email and password.
+    This performs a hard delete of the user and cascades related objects.
+    """
+    email_confirm = (request.POST.get('confirm_email') or '').strip().lower()
+    password = request.POST.get('password') or ''
+    if email_confirm != (request.user.email or '').lower():
+        messages.error(request, 'Email confirmation does not match your current email.')
+        return redirect('members_account')
+    if not request.user.check_password(password):
+        messages.error(request, 'Password is incorrect.')
+        return redirect('members_account')
+    # Optionally, cancel Stripe subscription if present (best-effort)
+    try:
+        from django.conf import settings as _settings
+        import stripe as _stripe
+        from .models import Subscription
+        sub = Subscription.objects.filter(user=request.user).order_by('-created_at').first()
+        if sub and sub.stripe_subscription_id and _settings.STRIPE_SECRET_KEY:
+            _stripe.api_key = _settings.STRIPE_SECRET_KEY
+            try:
+                _stripe.Subscription.delete(sub.stripe_subscription_id)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    # Log out and delete user
+    from django.contrib.auth import logout as _logout
+    user = request.user
+    _logout(request)
+    try:
+        user.delete()
+    except Exception:
+        # If delete fails, restore session and show error
+        messages.error(request, 'Unable to delete account. Please contact support.')
+        return redirect('members_account')
+    return redirect('home')
+
+
+@login_required
+@require_http_methods(["POST"]) 
+def members_account_cancel_subscription(request):
+    """Cancel the user's active subscription in Stripe and mark local account as inactive.
+    Immediate cancellation (no proration handling here). Sets onboarding_status to 'pending_payment'.
+    """
+    from .models import Subscription
+    sub = Subscription.objects.filter(user=request.user).order_by('-created_at').first()
+    if not sub:
+        messages.error(request, 'No subscription found to cancel.')
+        return redirect('members_account')
+    # Attempt to cancel in Stripe if present
+    try:
+        from django.conf import settings as _settings
+        import stripe as _stripe
+        if sub.stripe_subscription_id and getattr(_settings, 'STRIPE_SECRET_KEY', None):
+            _stripe.api_key = _settings.STRIPE_SECRET_KEY
+            try:
+                _stripe.Subscription.delete(sub.stripe_subscription_id)
+            except Exception:
+                # If deletion fails, try setting cancel_at_period_end as fallback
+                try:
+                    _stripe.Subscription.modify(sub.stripe_subscription_id, cancel_at_period_end=True)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    # Mark local subscription inactive
+    try:
+        sub.active = False
+        sub.save(update_fields=['active'])
+    except Exception:
+        pass
+    # Update user onboarding status to reflect inactive state (reuse 'pending_payment')
+    try:
+        if getattr(request.user, 'onboarding_status', '') != 'pending_payment':
+            request.user.onboarding_status = 'pending_payment'
+            request.user.save(update_fields=['onboarding_status'])
+    except Exception:
+        pass
+    messages.success(request, 'Subscription canceled. You will no longer be billed.')
+    return redirect('members_account')
 
 
 @login_required

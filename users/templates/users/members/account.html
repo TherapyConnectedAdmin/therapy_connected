@@ -1,15 +1,284 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="max-w-3xl mx-auto py-8 px-4">
-  <h1 class="text-2xl font-bold text-[#555B6E] mb-4">Account & Membership</h1>
-  {% if subscription %}
-    <div class="rounded border border-[#BEE3DB] bg-white p-4">
-      <div class="text-[#555B6E]">Plan: <strong>{{ subscription.subscription_type.name }}</strong> ({{ subscription.interval }})</div>
-      <div class="text-[#555B6E]">Status: <strong>{% if user.onboarding_status == 'active' %}Active{% else %}{{ user.onboarding_status }}{% endif %}</strong></div>
-      <div class="text-sm text-[#555B6E]/80">Stripe Customer: {{ subscription.stripe_customer_id|default:'—' }}</div>
+<div class="w-full max-w-6xl mx-auto py-8 px-4" style="background:#F6FBFA">
+  <h1 class="text-2xl font-bold text-[#555B6E] mb-6">Account & Membership</h1>
+
+  {% if messages %}
+    <div class="mb-4 space-y-2">
+      {% for message in messages %}
+        <div class="px-4 py-2 rounded border {% if message.tags == 'error' %}border-red-300 text-red-700 bg-red-50{% else %}border-[#BEE3DB] text-[#555B6E] bg-white{% endif %}">{{ message }}</div>
+      {% endfor %}
     </div>
-  {% else %}
-    <div class="text-[#555B6E]">No active subscription found. <a class="text-[#89B0AE] underline" href="{% url 'payment' %}">Complete payment</a>.</div>
   {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <!-- Email -->
+    <section class="lg:col-span-2 rounded border border-[#BEE3DB] bg-white">
+      <div class="px-4 py-3 border-b border-[#BEE3DB]"><h2 class="font-semibold text-[#555B6E]">Change email</h2></div>
+      <form method="post" action="{% url 'members_account_email' %}" class="p-4 space-y-3">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm text-[#555B6E]/80 mb-1">New email</label>
+          <input type="email" name="email" value="{{ request.user.email }}" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" required />
+        </div>
+        <div>
+          <label class="block text-sm text-[#555B6E]/80 mb-1">Current password</label>
+          <input type="password" name="password" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" required />
+        </div>
+        <div class="pt-2">
+          <button class="px-4 py-2 rounded bg-[#89B0AE] text-white font-semibold">Update email</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Password -->
+    <section class="rounded border border-[#BEE3DB] bg-white">
+      <div class="px-4 py-3 border-b border-[#BEE3DB]"><h2 class="font-semibold text-[#555B6E]">Update password</h2></div>
+      <form method="post" action="{% url 'members_account_password' %}" class="p-4 space-y-3">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm text-[#555B6E]/80 mb-1">Current password</label>
+          <input type="password" name="current_password" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" required />
+        </div>
+        <div>
+          <label class="block text-sm text-[#555B6E]/80 mb-1">New password</label>
+          <input type="password" name="new_password1" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" required />
+        </div>
+        <div>
+          <label class="block text-sm text-[#555B6E]/80 mb-1">Confirm new password</label>
+          <input type="password" name="new_password2" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]" required />
+        </div>
+        <div class="pt-2">
+          <button class="px-4 py-2 rounded bg-[#89B0AE] text-white font-semibold">Update password</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Subscription -->
+    <section class="rounded border border-[#BEE3DB] bg-white lg:col-span-2">
+      <div class="px-4 py-3 border-b border-[#BEE3DB]"><h2 class="font-semibold text-[#555B6E]">Membership</h2></div>
+      <div class="p-4 space-y-3">
+        {% if subscription %}
+          <div class="flex flex-wrap items-center gap-2 text-[#555B6E]">
+            <span>Plan: <strong>{{ subscription.subscription_type.name }}</strong> ({{ subscription.interval }})</span>
+            {% if plans %}
+              <button type="button" id="open-change-plan" class="px-3 py-1 rounded bg-[#89B0AE] text-white font-semibold text-sm">Change</button>
+            {% endif %}
+            <button type="button" id="open-cancel-sub" class="px-3 py-1 rounded border border-red-300 text-red-700 font-semibold text-sm">Cancel</button>
+          </div>
+          <div class="text-[#555B6E]">
+            Next payment:
+            <strong>
+              {% if next_payment_amount_display %}
+                {{ next_payment_amount_display }}
+              {% else %}
+                —
+              {% endif %}
+            </strong>
+            {% if next_payment_date %}
+              on <strong>{{ next_payment_date|date:'M j, Y' }}</strong>
+            {% else %}
+              <span class="text-[#555B6E]/70">(date pending)</span>
+            {% endif %}
+          </div>
+          {% if payment_method_display %}
+          <div class="flex flex-wrap items-center gap-2 text-[#555B6E]">
+            <span>Payment method: <strong>{{ payment_method_display }}</strong></span>
+            {% if STRIPE_PUBLISHABLE_KEY and payment_setup_client_secret %}
+              <button type="button" id="open-update-pm" class="px-3 py-1 rounded bg-[#BEE3DB] text-[#555B6E] font-semibold text-sm">Update</button>
+            {% endif %}
+          </div>
+          {% endif %}
+          
+          {% if plans %}
+          {% endif %}
+        {% else %}
+          <div class="text-[#555B6E]">No active subscription found.</div>
+          <a class="inline-block px-4 py-2 rounded bg-[#89B0AE] text-white font-semibold" href="{% url 'payment' %}">Complete payment</a>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- Danger zone (collapsible) -->
+    <section x-data="{ open: false }" class="rounded border border-red-300 bg-white">
+      <button type="button" @click="open = !open" :aria-expanded="open ? 'true' : 'false'" class="w-full text-left px-4 py-3 border-b border-red-300 flex items-center justify-between">
+        <h2 class="font-semibold text-red-700">Danger zone</h2>
+        <span class="text-sm text-red-600" x-text="open ? 'Hide' : 'Show'"></span>
+      </button>
+      <div x-cloak x-show="open" class="p-4">
+        <form method="post" action="{% url 'members_account_delete' %}" class="space-y-3" onsubmit="return confirm('This will permanently delete your account. Continue?')">
+          {% csrf_token %}
+          <p class="text-sm text-[#555B6E]/80">This action cannot be undone. Type your email to confirm.</p>
+          <div>
+            <label class="block text-sm text-[#555B6E]/80 mb-1">Confirm email</label>
+            <input type="email" name="confirm_email" placeholder="{{ request.user.email }}" class="w-full border border-red-300 rounded px-3 py-2 bg-red-50 text-[#555B6E]" required />
+          </div>
+          <div>
+            <label class="block text-sm text-[#555B6E]/80 mb-1">Password</label>
+            <input type="password" name="password" class="w-full border border-red-300 rounded px-3 py-2 bg-red-50 text-[#555B6E]" required />
+          </div>
+          <div class="pt-2">
+            <button class="px-4 py-2 rounded font-semibold text-white" style="background:#FF4D4F">Delete account</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
 </div>
+  {% if plans and subscription %}
+  <!-- Change Plan Modal -->
+  <div x-data="{ open:false, interval:'{{ subscription.interval }}', selected:'{{ subscription.subscription_type.id }}' }" x-init="(() => { const btn = document.getElementById('open-change-plan'); if(btn){ btn.addEventListener('click', ()=>{ open=true; document.documentElement.classList.add('overflow-hidden'); document.body.classList.add('overflow-hidden'); }); } })()" x-cloak x-show="open" class="fixed inset-0 z-[600]">
+    <div class="absolute inset-0 bg-black/40" @click="open=false; document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden');"></div>
+    <div class="relative max-w-4xl mx-auto mt-16 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
+      <div class="px-4 py-3 border-b border-[#BEE3DB] flex items-center justify-between">
+        <div class="font-semibold text-[#555B6E]">Change your plan</div>
+        <button type="button" @click="open=false; document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden');" class="text-[#555B6E]">✕</button>
+      </div>
+      <div class="p-4">
+        <!-- Interval toggle -->
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-sm text-[#555B6E]/80">Billing interval:</span>
+          <div class="inline-flex rounded-full border border-[#BEE3DB] overflow-hidden">
+            <button type="button" @click="interval='monthly'" :class="interval==='monthly' ? 'bg-[#89B0AE] text-white' : 'bg-white text-[#555B6E]'" class="px-3 py-1 text-sm">Monthly</button>
+            <button type="button" @click="interval='annual'" :class="interval==='annual' ? 'bg-[#89B0AE] text-white' : 'bg-white text-[#555B6E]'" class="px-3 py-1 text-sm">Annual</button>
+          </div>
+        </div>
+        <!-- Plans grid (pricing-style) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {% for p in plans %}
+          <button
+            type="button"
+            @click="selected='{{ p.id }}'"
+            :class="[
+              selected==='{{ p.id }}' ? 'border-[#89B0AE] ring-2 ring-[#89B0AE]' : 'border-[#BEE3DB]',
+              '{{ p.id }}' === '{{ subscription.subscription_type.id }}' ? 'opacity-60' : ''
+            ]"
+            class="text-left rounded-xl border bg-[#FAF9F9] p-4 flex flex-col shadow focus:outline-none"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="text-xl font-bold text-[#555B6E]">{{ p.name }}</h3>
+              {% if p.id == subscription.subscription_type.id %}
+                <span class="text-xs px-2 py-0.5 rounded-full" style="background:#E5E7EB; color:#555B6E;">Current</span>
+              {% else %}
+                <span x-show="selected==='{{ p.id }}'" class="text-xs px-2 py-0.5 rounded-full" style="background:#BEE3DB; color:#555B6E;">Selected</span>
+              {% endif %}
+            </div>
+            <div class="text-[#555B6E] mt-1">{{ p.description|safe }}</div>
+            <div class="flex flex-col gap-1 mt-3">
+              <div class="text-sm text-[#555B6E]">Monthly: <span class="font-semibold text-[#33343A]">${{ p.price_monthly }}</span></div>
+              <div class="text-sm text-[#555B6E]">Annual: <span class="font-semibold text-[#33343A]">${{ p.price_annual }}</span></div>
+            </div>
+            <div class="mt-3 text-sm text-[#555B6E]/70">You’ll switch to the <span class="font-semibold" x-text="interval==='monthly' ? 'monthly' : 'annual'"></span> price.</div>
+          </button>
+          {% endfor %}
+        </div>
+  <div class="text-xs text-[#555B6E]/70 mt-2">Active subscriptions will be updated in Stripe (prorated).</div>
+        <form method="post" action="{% url 'members_account_change_plan' %}" class="mt-4 flex items-center justify-end gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="plan_id" :value="selected" />
+          <input type="hidden" name="interval" :value="interval" />
+          <button type="button" @click="open=false; document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden');" class="px-4 py-2 rounded border border-[#BEE3DB] text-[#555B6E]">Cancel</button>
+          <button
+            class="px-4 py-2 rounded bg-[#89B0AE] text-white font-semibold"
+            :class="(!selected || (selected === '{{ subscription.subscription_type.id }}' && interval === '{{ subscription.interval }}')) ? 'opacity-50 cursor-not-allowed' : ''"
+            :disabled="!selected || (selected === '{{ subscription.subscription_type.id }}' && interval === '{{ subscription.interval }}')"
+            title=""
+          >
+            Update plan
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% if subscription %}
+  <!-- Cancel Subscription Modal -->
+  <div x-data="{ open:false }" x-init="(() => { const btn = document.getElementById('open-cancel-sub'); if(btn){ btn.addEventListener('click', ()=>{ open=true; document.documentElement.classList.add('overflow-hidden'); document.body.classList.add('overflow-hidden'); }); } })()" x-cloak x-show="open" class="fixed inset-0 z-[610]">
+    <div class="absolute inset-0 bg-black/40" @click="open=false; document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden');"></div>
+    <div class="relative max-w-lg mx-auto mt-24 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
+      <div class="px-4 py-3 border-b border-[#BEE3DB] flex items-center justify-between">
+        <div class="font-semibold text-[#555B6E]">Cancel subscription</div>
+        <button type="button" @click="open=false; document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden');" class="text-[#555B6E]">✕</button>
+      </div>
+      <div class="p-4 space-y-3">
+  <p class="text-[#555B6E]">Are you sure you want to cancel your subscription? You will immediately lose access and your account will be set to inactive.</p>
+        <form method="post" action="{% url 'members_account_cancel_subscription' %}" class="flex items-center justify-end gap-2">
+          {% csrf_token %}
+          <button type="button" @click="open=false; document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden');" class="px-4 py-2 rounded border border-[#BEE3DB] text-[#555B6E]">Keep subscription</button>
+          <button class="px-4 py-2 rounded font-semibold text-white" style="background:#FF4D4F">Cancel subscription</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% if STRIPE_PUBLISHABLE_KEY and payment_setup_client_secret and subscription %}
+  <script src="https://js.stripe.com/v3/"></script>
+  <!-- Update Payment Method Modal -->
+  <div x-data="{ open:false }" x-init="(() => { const btn = document.getElementById('open-update-pm'); if(btn){ btn.addEventListener('click', ()=>{ open=true; document.documentElement.classList.add('overflow-hidden'); document.body.classList.add('overflow-hidden'); }); } })()" x-cloak x-show="open" class="fixed inset-0 z-[605]">
+    <div class="absolute inset-0 bg-black/40" @click="open=false; document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden');"></div>
+    <div class="relative max-w-xl mx-auto mt-20 bg-white rounded-xl shadow border border-[#BEE3DB] overflow-hidden">
+      <div class="px-4 py-3 border-b border-[#BEE3DB] flex items-center justify-between">
+        <div class="font-semibold text-[#555B6E]">Update payment method</div>
+        <button type="button" @click="open=false; document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden');" class="text-[#555B6E]">✕</button>
+      </div>
+      <div class="p-4">
+        <form id="pm-form" method="post" action="{% url 'members_account_update_payment_method' %}" class="space-y-3">
+          {% csrf_token %}
+          <div>
+            <label class="block text-sm text-[#555B6E]/80 mb-1">Card details</label>
+            <div id="card-element" class="w-full border border-[#BEE3DB] rounded px-3 py-2 bg-[#FAF9F9] text-[#555B6E]"></div>
+            <div id="card-errors" class="text-sm text-red-600 mt-1"></div>
+          </div>
+          <input type="hidden" name="payment_method_id" id="payment_method_id" />
+          <div class="pt-2 flex items-center justify-end gap-2">
+            <button type="button" @click="open=false; document.documentElement.classList.remove('overflow-hidden'); document.body.classList.remove('overflow-hidden');" class="px-4 py-2 rounded border border-[#BEE3DB] text-[#555B6E]">Cancel</button>
+            <button id="pm-submit" class="px-4 py-2 rounded bg-[#89B0AE] text-white font-semibold">Save</button>
+          </div>
+        </form>
+        <script>
+          window.addEventListener('DOMContentLoaded', function(){
+            if (!window.Stripe) return;
+            try {
+              const stripe = Stripe("{{ STRIPE_PUBLISHABLE_KEY|escapejs }}");
+              const elements = stripe.elements();
+              const card = elements.create('card', {hidePostalCode: true});
+              card.mount('#card-element');
+              const form = document.getElementById('pm-form');
+              const submit = document.getElementById('pm-submit');
+              const errEl = document.getElementById('card-errors');
+              form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                submit.disabled = true; submit.classList.add('opacity-50','cursor-not-allowed'); errEl.textContent = '';
+                try {
+                  const result = await stripe.confirmCardSetup("{{ payment_setup_client_secret|escapejs }}", {
+                    payment_method: {
+                      card: card,
+                      billing_details: { email: "{{ request.user.email|escapejs }}" }
+                    }
+                  });
+                  if (result.error) {
+                    errEl.textContent = result.error.message || 'Unable to update payment method.';
+                    submit.disabled = false; submit.classList.remove('opacity-50','cursor-not-allowed');
+                    return;
+                  }
+                  const pmId = result.setupIntent && result.setupIntent.payment_method;
+                  if (!pmId) {
+                    errEl.textContent = 'No payment method returned.';
+                    submit.disabled = false; submit.classList.remove('opacity-50','cursor-not-allowed');
+                    return;
+                  }
+                  document.getElementById('payment_method_id').value = pmId;
+                  form.submit();
+                } catch (err) {
+                  errEl.textContent = 'Unexpected error. Please try again.';
+                  submit.disabled = false; submit.classList.remove('opacity-50','cursor-not-allowed');
+                }
+              });
+            } catch (e) {}
+          });
+        </script>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 {% endblock %}
