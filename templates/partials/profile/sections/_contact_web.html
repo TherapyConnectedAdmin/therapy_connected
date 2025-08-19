@@ -24,7 +24,7 @@
         <div x-show="$store.profileModal.therapist.office_email">Office Email: <span class="font-semibold" x-text="$store.profileModal.therapist.office_email"></span></div>
         <div x-show="$store.profileModal.therapist.practice_website_url">Website: <a :href="$store.profileModal.therapist.practice_website_url" class="text-[#116466] underline font-semibold" target="_blank" rel="noopener">Visit Site</a></div>
         <template x-if="$store.profileModal.therapist.online_scheduling_url && $store.profileModal.therapist.show_online_scheduling">
-          <div>Online Scheduling: <a :href="$store.profileModal.therapist.online_scheduling_url" class="text-[#116466] underline font-semibold" target="_blank" rel="noopener">Book Online</a></div>
+          <div>Online Scheduling: <a :href="$store.profileModal.therapist.online_scheduling_url" class="text-[#116466] underline font-semibold" target="_blank" rel="noopener">Schedule Online</a></div>
         </template>
       </div>
       <div class="flex flex-wrap gap-2 pt-2" x-show="socialList().length">
@@ -67,7 +67,7 @@
           <input type="url" x-model="form.online_scheduling_url" maxlength="256" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="https://calendly.com/your-link or EHR scheduling link" />
         </div>
         <div class="flex items-center gap-2 pt-6">
-          <label class="inline-flex items-center gap-1 text-[11px] font-medium text-[#555B6E]"><input type="checkbox" x-model="form.show_online_scheduling" class="accent-[#116466]" /> Show “Book Online” on my public profile</label>
+          <label class="inline-flex items-center gap-1 text-[11px] font-medium text-[#555B6E]"><input type="checkbox" x-model="form.show_online_scheduling" class="accent-[#116466]" /> Show “Schedule Online” on my public profile</label>
         </div>
   <!-- Removed legacy checkboxes: Accept Calls, Accept Client Emails, Email When Client Calls -->
       </div>
