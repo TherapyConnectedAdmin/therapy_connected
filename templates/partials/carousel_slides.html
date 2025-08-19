@@ -59,10 +59,12 @@
               </div>
             {% endwith %}
             {# Intro note under city/state #}
-            {% if top_therapist.intro_statement %}
-              <div class="mt-2 text-sm font-medium text-[#89B0AE]">{{ top_therapist.intro_statement|slice:":200" }}</div>
+            {% if top_therapist.intro_note %}
+              <div class="mt-2 text-sm font-medium text-[#89B0AE]">{{ top_therapist.intro_note|striptags|truncatechars:200 }}</div>
+            {% elif top_therapist.intro_statement %}
+              <div class="mt-2 text-sm font-medium text-[#89B0AE]">{{ top_therapist.intro_statement|striptags|truncatechars:200 }}</div>
             {% elif top_therapist.personal_statement_q1 %}
-              <div class="mt-2 text-sm font-medium text-[#89B0AE]">{{ top_therapist.personal_statement_q1|slice:":200" }}</div>
+              <div class="mt-2 text-sm font-medium text-[#89B0AE]">{{ top_therapist.personal_statement_q1|striptags|truncatechars:200 }}</div>
             {% endif %}
           </div>
           <!-- Chips split into separate lines -->
@@ -142,7 +144,7 @@
           
           {# Intro snippet removed; shown higher under city/state #}
           {% if top_therapist.personal_statement_q1 %}
-          <div class="mt-3 text-sm leading-relaxed text-[#555B6E]">{{ top_therapist.personal_statement_q1|slice:":200" }}</div>
+          <div class="mt-3 text-sm leading-relaxed text-[#555B6E]">{{ top_therapist.personal_statement_q1|striptags|truncatechars:200 }}</div>
           {% endif %}
           <div class="mt-auto flex flex-wrap items-center gap-4 pt-2">
             <button

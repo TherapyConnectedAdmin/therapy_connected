@@ -140,6 +140,19 @@
         </script>
     <style>[x-cloak]{display:none !important;}</style>
         <script>
+            // CSRF helper: expose a consistent global for fetch() headers
+            (function(){
+                function getCookie(name){
+                    const v = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith(name+'='));
+                    return v ? decodeURIComponent(v.split('=')[1]) : null;
+                }
+                // Prefer cookie; fallback to server-rendered token if available in templates
+                const rendered = (function(){ try { return '{{ csrf_token }}'; } catch(_) { return ''; } })();
+                const fromCookie = getCookie('csrftoken');
+                window.TC_CSRF = fromCookie || (rendered && rendered !== 'NOTPROVIDED' ? rendered : '');
+            })();
+        </script>
+        <script>
             // Ensure mediaLightbox store exists as early as possible after Alpine loads
             document.addEventListener('alpine:init', () => {
                 if(!Alpine.store('mediaLightbox')){

@@ -276,15 +276,40 @@
         {key:'tiktok_url', label:'TikTok URL', placeholder:'https://tiktok.com/@...', type:'url'},
         {key:'youtube_url', label:'YouTube URL', placeholder:'https://youtube.com/@...', type:'url'}
       ],
-      form:{ phone_number:'', phone_extension:'', mobile_number:'', practice_email:'', office_email:'', practice_website_url:'',
-             receive_calls_from_client:false, receive_texts_from_clients:false, receive_emails_from_clients:false, receive_emails_when_client_calls:false,
-             facebook_url:'', instagram_url:'', linkedin_url:'', twitter_url:'', tiktok_url:'', youtube_url:'' },
+      form:{
+        phone_number:'',
+        phone_extension:'',
+        mobile_number:'',
+        practice_email:'',
+        office_email:'',
+        practice_website_url:'',
+        show_website_on_public:true,
+        online_scheduling_url:'',
+        show_online_scheduling:false,
+        receive_calls_from_client:false,
+        receive_texts_from_clients:false,
+        receive_emails_from_clients:false,
+        receive_emails_when_client_calls:false,
+        email_contact_destination:'therapist',
+        facebook_url:'',
+        instagram_url:'',
+        linkedin_url:'',
+        twitter_url:'',
+        tiktok_url:'',
+        youtube_url:''
+      },
       init(){ this.load(); },
       load(){ const s=window.Alpine && Alpine.store('profileModal'); if(!s||!s.therapist) return; const t=s.therapist; for(const k in this.form){ this.form[k] = (t[k]!==undefined && t[k]!==null) ? t[k] : (typeof this.form[k]==='boolean'? false : ''); } },
       startEdit(){ this.load(); this.editing=true; this.success=false; this.error=''; },
       cancel(){ if(this.saving) return; this.editing=false; this.error=''; },
       socialList(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return []; const map=[['facebook_url','Facebook'],['instagram_url','Instagram'],['linkedin_url','LinkedIn'],['twitter_url','Twitter'],['tiktok_url','TikTok'],['youtube_url','YouTube']]; return map.filter(([k])=> s.therapist[k]).map(([k,l])=> ({key:k,label:l,url:s.therapist[k]})); },
       validate(){ const urlFields=['practice_website_url','facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url']; const urlRe=/^https?:\/\//i; for(const f of urlFields){ const v=this.form[f]; if(v && !urlRe.test(v)){ this.error=f.replace(/_/g,' ')+' must start with http'; return false; } } return true; },
+      validate(){
+        const urlFields=['practice_website_url','online_scheduling_url','facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url'];
+        const urlRe=/^https?:\/\//i;
+        for(const f of urlFields){ const v=this.form[f]; if(v && !urlRe.test(v)){ this.error=f.replace(/_/g,' ')+' must start with http'; return false; } }
+        return true;
+      },
       buildPayload(){ const p={}; for(const k in this.form){ p[k]=this.form[k]; } return p; },
       save(){ if(this.saving) return; this.error=''; if(!this.validate()) return; this.saving=true; const payload=this.buildPayload(); const s=Alpine.store('profileModal'); const prev={}; if(s&&s.therapist){ for(const k in payload){ prev[k]=s.therapist[k]; s.therapist[k]=payload[k]; } }
         fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload)})

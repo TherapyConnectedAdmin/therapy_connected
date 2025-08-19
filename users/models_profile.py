@@ -165,6 +165,19 @@ class TherapistProfile(models.Model):
     office_email = models.EmailField(max_length=128, blank=True)
     receive_emails_from_clients = models.BooleanField(default=True)
     receive_emails_when_client_calls = models.BooleanField(default=True)
+    # Preferred contact method for sticky header CTA (email or phone)
+    PREFERRED_CONTACT_CHOICES = [
+        ("email", "Email"),
+        ("phone", "Phone"),
+    ]
+    preferred_contact_method = models.CharField(max_length=16, choices=PREFERRED_CONTACT_CHOICES, blank=True, default="")
+    # Where to route client-initiated emails shown on public profile
+    EMAIL_DEST_CHOICES = [
+        ("therapist", "Therapist"),
+        ("office", "Office"),
+        ("both", "Both"),
+    ]
+    email_contact_destination = models.CharField(max_length=16, choices=EMAIL_DEST_CHOICES, default="therapist")
     intro_statement = models.TextField(max_length=500, blank=True)
     therapy_delivery_method = models.CharField(max_length=32, blank=True)
     # Expanded to allow descriptive tri-state strings ("Accepting New Clients", "Not Accepting New Clients", "I Have a Waitlist")
@@ -181,6 +194,8 @@ class TherapistProfile(models.Model):
     # Stores generated variant metadata for profile_photo (paths, flags, dimensions, quality metrics)
     profile_photo_meta = models.JSONField(blank=True, null=True, default=dict)
     practice_website_url = models.CharField(max_length=256, blank=True)
+    # Controls whether the practice website is shown on the public profile
+    show_website_on_public = models.BooleanField(default=True)
     facebook_url = models.CharField(max_length=256, blank=True)
     instagram_url = models.CharField(max_length=256, blank=True)
     linkedin_url = models.CharField(max_length=256, blank=True)

@@ -18,14 +18,18 @@
     <!-- Read View -->
     <div x-show="!editing" class="text-xs text-[#555B6E] space-y-2">
       <div class="grid sm:grid-cols-2 gap-x-6 gap-y-2">
-        <div x-show="$store.profileModal.therapist.phone_number">Phone: <span class="font-semibold" x-text="$store.profileModal.therapist.phone_number"></span><span x-show="$store.profileModal.therapist.phone_extension"> x<span x-text="$store.profileModal.therapist.phone_extension"></span></span></div>
+        <div x-show="$store.profileModal.therapist.phone_number">Office Number: <span class="font-semibold" x-text="$store.profileModal.therapist.phone_number"></span></div>
         <div x-show="$store.profileModal.therapist.mobile_number">Mobile: <span class="font-semibold" x-text="$store.profileModal.therapist.mobile_number"></span></div>
         <div x-show="$store.profileModal.therapist.practice_email">Practice Email: <span class="font-semibold" x-text="$store.profileModal.therapist.practice_email"></span></div>
         <div x-show="$store.profileModal.therapist.office_email">Office Email: <span class="font-semibold" x-text="$store.profileModal.therapist.office_email"></span></div>
-        <div x-show="$store.profileModal.therapist.practice_website_url">Website: <a :href="$store.profileModal.therapist.practice_website_url" class="text-[#116466] underline font-semibold" target="_blank" rel="noopener">Visit Site</a></div>
+  <div x-show="$store.profileModal.therapist.practice_website_url && ($store.profileModal.therapist.show_website_on_public ?? true)">Website: <a :href="$store.profileModal.therapist.practice_website_url" class="text-[#116466] underline font-semibold" target="_blank" rel="noopener">Visit Site</a></div>
         <template x-if="$store.profileModal.therapist.online_scheduling_url && $store.profileModal.therapist.show_online_scheduling">
           <div>Online Scheduling: <a :href="$store.profileModal.therapist.online_scheduling_url" class="text-[#116466] underline font-semibold" target="_blank" rel="noopener">Schedule Online</a></div>
         </template>
+        <div>
+          Calls from potential clients:
+          <span class="font-semibold" x-text="(($store.profileModal.therapist.receive_calls_from_client && ($store.profileModal.therapist.phone_number||'').replace(/\D/g,'').length>=10) ? 'Allowed' : 'Not allowed')"></span>
+        </div>
       </div>
       <div class="flex flex-wrap gap-2 pt-2" x-show="socialList().length">
         <template x-for="soc in socialList()" :key="soc.key">
@@ -35,32 +39,81 @@
   <!-- Removed legacy contact preference badges (Accept Calls/Texts/Emails) -->
     </div>
     <!-- Edit Form -->
-    <form x-show="editing" @submit.prevent="save()" class="space-y-5" x-transition>
+  <form x-show="editing" @submit.prevent="save()" class="space-y-5" x-transition>
       <div class="grid md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Phone Number</label>
+          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Office Number</label>
           <input type="text" x-model="form.phone_number" maxlength="32" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="(###) ###-####" />
         </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Phone Extension</label>
-          <input type="text" x-model="form.phone_extension" maxlength="8" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="Ext" />
+        <div class="flex items-start gap-2 pt-6">
+          <label class="inline-flex items-start gap-2 text-[11px] font-medium text-[#555B6E]">
+            <input type="checkbox" x-model="form.receive_calls_from_client" class="mt-0.5 accent-[#116466]" />
+            <span>
+              Allow calls from potential clients
+              <span class="block text-[10px] text-[#89B0AE] font-normal">Show "Call" button on Public Profile</span>
+            </span>
+          </label>
         </div>
         <div>
           <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Mobile Number</label>
           <input type="text" x-model="form.mobile_number" maxlength="32" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="(###) ###-####" />
         </div>
   <!-- Removed legacy checkbox: Allow Texts -->
-        <div>
-          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Practice Email</label>
-          <input type="email" x-model="form.practice_email" maxlength="128" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="you@practice.com" />
+        <div class="md:col-span-2">
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Practice Email</label>
+              <input type="email" x-model="form.practice_email" maxlength="128" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="you@practice.com" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Office Email</label>
+              <input type="email" x-model="form.office_email" maxlength="128" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="office@practice.com" />
+            </div>
+          </div>
         </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Office Email</label>
-          <input type="email" x-model="form.office_email" maxlength="128" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="office@practice.com" />
+        <div class="md:col-span-2 grid md:grid-cols-2 gap-3 items-start">
+          <label class="inline-flex items-start gap-2 text-[11px] font-medium text-[#555B6E]">
+            <input type="checkbox" x-model="form.receive_emails_from_clients" class="mt-0.5 accent-[#116466]" />
+            <span>
+              Receive emails from potential clients
+              <span class="block text-[10px] text-[#89B0AE] font-normal">Show "Email" button on Public Profile</span>
+            </span>
+          </label>
+          <div class="flex items-center gap-2" x-show="form.receive_emails_from_clients">
+            <label class="text-[11px] font-semibold text-[#555B6E]">Send to:</label>
+            <select x-model="form.email_contact_destination" class="border border-[#BEE3DB] rounded-md px-2 py-1.5 text-xs bg-white focus:border-[#116466] focus:ring-[#116466]">
+              <option value="therapist">Therapist</option>
+              <option value="office">Office</option>
+              <option value="both">Both</option>
+            </select>
+            <p class="text-[10px] text-[#89B0AE]">Requires a valid email at the selected destination.</p>
+          </div>
         </div>
-        <div>
+        <!-- Preferred Contact Method (drives sticky header primary CTA) -->
+        <div class="md:col-span-2">
+          <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Preferred Contact Method</label>
+          <div class="flex items-center gap-4 text-[12px]">
+            <label class="inline-flex items-center gap-1">
+              <input type="radio" name="preferred_contact_method" value="email" x-model="form.preferred_contact_method" class="accent-[#116466]" />
+              <span>Email</span>
+            </label>
+            <label class="inline-flex items-center gap-1">
+              <input type="radio" name="preferred_contact_method" value="phone" x-model="form.preferred_contact_method" class="accent-[#116466]" />
+              <span>Phone</span>
+            </label>
+            <label class="inline-flex items-center gap-1">
+              <input type="radio" name="preferred_contact_method" value="" x-model="form.preferred_contact_method" class="accent-[#116466]" />
+              <span>No preference</span>
+            </label>
+          </div>
+          <p class="text-[10px] text-[#89B0AE] mt-1">If your preferred method isn’t available (e.g., missing email or phone), we’ll fall back to the other.</p>
+        </div>
+  <div class="md:col-span-2">
           <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Website URL</label>
-          <input type="url" x-model="form.practice_website_url" maxlength="256" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="https://" />
+          <div class="flex items-center gap-3">
+            <input type="url" x-model="form.practice_website_url" maxlength="256" class="w-full border border-[#BEE3DB] rounded-md px-3 py-2 text-sm bg-white focus:border-[#116466] focus:ring-[#116466]" placeholder="https://" />
+            <label class="inline-flex items-center gap-1 text-[11px] font-medium text-[#555B6E] whitespace-nowrap"><input type="checkbox" x-model="form.show_website_on_public" class="accent-[#116466]" /> Show on Public Profile</label>
+          </div>
         </div>
         <div>
           <label class="block text-[11px] font-semibold text-[#555B6E] mb-1">Online Scheduling URL</label>
@@ -69,6 +122,7 @@
         <div class="flex items-center gap-2 pt-6">
           <label class="inline-flex items-center gap-1 text-[11px] font-medium text-[#555B6E]"><input type="checkbox" x-model="form.show_online_scheduling" class="accent-[#116466]" /> Show “Schedule Online” on my public profile</label>
         </div>
+        
   <!-- Removed legacy checkboxes: Accept Calls, Accept Client Emails, Email When Client Calls -->
       </div>
       <div class="border-t border-[#BEE3DB] pt-4 grid md:grid-cols-3 gap-4">
@@ -104,15 +158,17 @@ if(typeof contactWebManager === 'undefined'){
         {key:'tiktok_url', label:'TikTok URL', placeholder:'https://tiktok.com/@...', type:'url'},
         {key:'youtube_url', label:'YouTube URL', placeholder:'https://youtube.com/@...', type:'url'}
       ],
-  form:{ phone_number:'', phone_extension:'', mobile_number:'', practice_email:'', office_email:'', practice_website_url:'', online_scheduling_url:'', show_online_scheduling:false,
+  form:{ phone_number:'', mobile_number:'', practice_email:'', office_email:'',
+     receive_emails_from_clients:false, email_contact_destination:'therapist', preferred_contact_method:'',
+     practice_website_url:'', show_website_on_public:true, online_scheduling_url:'', show_online_scheduling:false, receive_calls_from_client:false,
      facebook_url:'', instagram_url:'', linkedin_url:'', twitter_url:'', tiktok_url:'', youtube_url:'' },
       init(){ this.load(); },
-      load(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const t=s.therapist; for(const k in this.form){ this.form[k] = (t[k]!==undefined && t[k]!==null) ? t[k] : (typeof this.form[k]==='boolean'? false : ''); } },
+  load(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return; const t=s.therapist; for(const k in this.form){ this.form[k] = (t[k]!==undefined && t[k]!==null) ? t[k] : (typeof this.form[k]==='boolean'? false : ''); } },
       startEdit(){ this.load(); this.editing=true; this.success=false; this.error=''; },
       cancel(){ if(this.saving) return; this.editing=false; this.error=''; },
       socialList(){ const s=Alpine.store('profileModal'); if(!s||!s.therapist) return []; const map=[['facebook_url','Facebook'],['instagram_url','Instagram'],['linkedin_url','LinkedIn'],['twitter_url','Twitter'],['tiktok_url','TikTok'],['youtube_url','YouTube']]; return map.filter(([k])=> s.therapist[k]).map(([k,l])=> ({key:k,label:l,url:s.therapist[k]})); },
-  validate(){ const urlFields=['practice_website_url','online_scheduling_url','facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url']; const urlRe=/^https?:\/\//i; for(const f of urlFields){ const v=this.form[f]; if(v && !urlRe.test(v)){ this.error=f.replace(/_/g,' ')+' must start with http'; return false; } } return true; },
-      buildPayload(){ const p={}; for(const k in this.form){ p[k]=this.form[k]; } return p; },
+  validate(){ const urlFields=['practice_website_url','online_scheduling_url','facebook_url','instagram_url','linkedin_url','twitter_url','tiktok_url','youtube_url']; const urlRe=/^https?:\/\//i; for(const f of urlFields){ const v=this.form[f]; if(v && !urlRe.test(v)){ this.error=f.replace(/_/g,' ')+' must start with http'; return false; } } if(this.form.receive_calls_from_client){ const digits=(this.form.phone_number||'').replace(/\D/g,''); if(digits.length < 10){ this.error='A valid office number (10+ digits) is required to allow calls.'; return false; } } if(this.form.receive_emails_from_clients){ const dest=(this.form.email_contact_destination||'therapist'); const needTher=dest==='therapist'||dest==='both'; const needOffice=dest==='office'||dest==='both'; const emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/; const therOk = !needTher || emailRe.test(this.form.practice_email||''); const offOk = !needOffice || emailRe.test(this.form.office_email||''); if(!therOk || !offOk){ this.error = dest==='both' ? 'Add valid therapist and office emails to receive client emails.' : (needTher ? 'Add a valid therapist email to receive client emails.' : 'Add a valid office email to receive client emails.'); return false; } } return true; },
+  buildPayload(){ const p={}; for(const k in this.form){ p[k]=this.form[k]; } return p; },
       save(){ if(this.saving) return; this.error=''; if(!this.validate()) return; this.saving=true; const payload=this.buildPayload(); const s=Alpine.store('profileModal'); const prev={}; if(s&&s.therapist){ for(const k in payload){ prev[k]=s.therapist[k]; s.therapist[k]=payload[k]; } }
         fetch('/users/api/profile/update/', {method:'PATCH', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload)})
           .then(r=>r.json().then(d=>[r,d]))

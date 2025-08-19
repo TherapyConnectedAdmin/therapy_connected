@@ -37,6 +37,15 @@ ALLOWED_HOSTS = [
     '127.0.0.1'
 ]
 
+# Explicitly trust these origins for CSRF Referer validation (Django 4+ requires scheme)
+CSRF_TRUSTED_ORIGINS = [
+    'https://dev.therapy-connected.com',
+    'https://therapy-connected-app-7081572ea900.herokuapp.com',
+    'https://*.herokuapp.com',
+    'http://localhost',
+    'http://127.0.0.1',
+]
+
 # Application definition
 
 INSTALLED_APPS = [

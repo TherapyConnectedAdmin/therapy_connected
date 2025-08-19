@@ -46,9 +46,11 @@
                 {% endif %}
               </div>
             {% endwith %}
-            {# First text field: Intro note #}
-            {% if therapist.intro_statement %}
-              <div class="mt-2 text-xs font-medium text-[#89B0AE]">{{ therapist.intro_statement|slice:":200" }}</div>
+            {# First text field: Intro note preferred, fallback to intro_statement #}
+            {% if therapist.intro_note %}
+              <div class="mt-2 text-xs font-medium text-[#89B0AE]">{{ therapist.intro_note|striptags|truncatechars:200 }}</div>
+            {% elif therapist.intro_statement %}
+              <div class="mt-2 text-xs font-medium text-[#89B0AE]">{{ therapist.intro_statement|striptags|truncatechars:200 }}</div>
             {% endif %}
           </div>
           <!-- Chips -->
@@ -65,7 +67,7 @@
           </div>
           {# Personal Statement 1 moved below chips #}
           {% if therapist.personal_statement_q1 %}
-            <div class="mt-2 text-xs leading-relaxed text-[#555B6E]">{{ therapist.personal_statement_q1|slice:":200" }}</div>
+            <div class="mt-2 text-xs leading-relaxed text-[#555B6E]">{{ therapist.personal_statement_q1|striptags|truncatechars:200 }}</div>
           {% endif %}
           
           <div class="mt-auto pt-1">

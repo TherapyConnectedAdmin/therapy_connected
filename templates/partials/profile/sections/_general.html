@@ -281,14 +281,60 @@
       </template>
       <!-- Online Scheduling CTA (public view) -->
       {% if not editable %}
-      <template x-if="$store.profileModal.therapist.online_scheduling_url && $store.profileModal.therapist.show_online_scheduling">
-        <div>
+      <!-- Website + next CTA (Email or Call). In modal: if Email is in the header, show Call here; otherwise show Email. -->
+      <div class="flex flex-wrap items-center gap-2">
+        <template x-if="$store.profileModal.therapist.practice_website_url && ($store.profileModal.therapist.show_website_on_public ?? true)">
+          <a :href="$store.profileModal.therapist.practice_website_url" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#116466] text-white text-sm font-semibold shadow hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE]">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M12 3a9 9 0 1 0 9 9 9.01 9.01 0 0 0-9-9Zm0 0a14.5 14.5 0 0 0 0 18M12 3a14.5 14.5 0 0 1 0 18M3 12h18"/></svg>
+            <span>Visit Website</span>
+          </a>
+        </template>
+        {% if standalone %}
+        <!-- Standalone: always show Email when valid (unchanged) -->
+        <template x-if="($store.profileModal.therapist.receive_emails_from_clients) && (function(){ const d=($store.profileModal.therapist.email_contact_destination||'therapist'); const emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/; const therOk = (d==='therapist'||d==='both') ? emailRe.test($store.profileModal.therapist.practice_email||'') : true; const offOk = (d==='office'||d==='both') ? emailRe.test($store.profileModal.therapist.office_email||'') : true; return therOk && offOk; })()">
+          <a :href="(function(){ const d=($store.profileModal.therapist.email_contact_destination||'therapist'); const emails=[]; const add=(e)=>{ if(e && e.includes('@')) emails.push(e); }; if(d==='therapist'||d==='both'){ add($store.profileModal.therapist.practice_email); } if(d==='office'||d==='both'){ add($store.profileModal.therapist.office_email); } return 'mailto:' + emails.join(','); })()"
+             class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0D9488] text-white text-sm font-semibold shadow hover:bg-[#0b7c72] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE]">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
+            <span>Email</span>
+          </a>
+        </template>
+        {% else %}
+        <!-- Modal: if Email is in header, replace with Call here; otherwise show Email here. -->
+        <template x-if="(() => { const t=$store.profileModal.therapist||{}; const pref=(t.preferred_contact_method||'').toLowerCase(); const phoneOk=!!(t.receive_calls_from_client && (t.phone_number||'').replace(/\D/g,'').length>=10); const d=(t.email_contact_destination||'therapist'); const emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/; const therOk=(d==='therapist'||d==='both')?emailRe.test(t.practice_email||''):true; const offOk=(d==='office'||d==='both')?emailRe.test(t.office_email||''):true; const emailOk=!!(t.receive_emails_from_clients && therOk && offOk); const wantEmailHeader = pref==='email' ? emailOk : (pref==='phone' ? false : (emailOk && !phoneOk)); return !wantEmailHeader && emailOk; })()">
+          <a :href="(function(){ const d=($store.profileModal.therapist.email_contact_destination||'therapist'); const emails=[]; const add=(e)=>{ if(e && e.includes('@')) emails.push(e); }; if(d==='therapist'||d==='both'){ add($store.profileModal.therapist.practice_email); } if(d==='office'||d==='both'){ add($store.profileModal.therapist.office_email); } return 'mailto:' + emails.join(','); })()"
+             class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0D9488] text-white text-sm font-semibold shadow hover:bg-[#0b7c72] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE]">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
+            <span>Email</span>
+          </a>
+        </template>
+        <template x-if="(() => { const t=$store.profileModal.therapist||{}; const pref=(t.preferred_contact_method||'').toLowerCase(); const phoneOk=!!(t.receive_calls_from_client && (t.phone_number||'').replace(/\D/g,'').length>=10); const d=(t.email_contact_destination||'therapist'); const emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/; const therOk=(d==='therapist'||d==='both')?emailRe.test(t.practice_email||''):true; const offOk=(d==='office'||d==='both')?emailRe.test(t.office_email||''):true; const emailOk=!!(t.receive_emails_from_clients && therOk && offOk); const wantEmailHeader = pref==='email' ? emailOk : (pref==='phone' ? false : (emailOk && !phoneOk)); return wantEmailHeader && phoneOk; })()">
+          <a :href="'tel:' + ($store.profileModal.therapist.phone_number||'').replace(/[^\d+]/g,'')"
+             class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0D9488] text-white text-sm font-semibold shadow hover:bg-[#0b7c72] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE]">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M22 16.92v.08A5 5 0 0 1 17 22h-1a4 4 0 0 0-4-4h0a4 4 0 0 0-4 4H7a5 5 0 0 1-5-5v-.08A5 5 0 0 1 6.08 12h11.84A5 5 0 0 1 22 16.92Z"/><path d="M16 3.13a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/></svg>
+            <span>Call</span>
+          </a>
+        </template>
+        {% endif %}
+      </div>
+      {% if standalone %}
+      <!-- Standalone: Put Schedule Online and Call on the same row -->
+      <div class="flex flex-wrap items-center gap-2">
+        <template x-if="$store.profileModal.therapist.online_scheduling_url && $store.profileModal.therapist.show_online_scheduling">
           <a :href="$store.profileModal.therapist.online_scheduling_url" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#116466] text-white text-sm font-semibold shadow hover:bg-[#0d4c4d] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE]">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M8 7V3m8 4V3M3 11h18M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2Z"/></svg>
             <span>Schedule Online</span>
           </a>
-        </div>
-      </template>
+        </template>
+        <template x-if="($store.profileModal.therapist.receive_calls_from_client && ($store.profileModal.therapist.phone_number||'').replace(/\D/g,'').length>=10)">
+          <a :href="'tel:' + ($store.profileModal.therapist.phone_number||'').replace(/[^\d+]/g,'')"
+             class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0D9488] text-white text-sm font-semibold shadow hover:bg-[#0b7c72] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#89B0AE]">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M22 16.92v.08A5 5 0 0 1 17 22h-1a4 4 0 0 0-4-4h0a4 4 0 0 0-4 4H7a5 5 0 0 1-5-5v-.08A5 5 0 0 1 6.08 12h11.84A5 5 0 0 1 22 16.92Z"/><path d="M16 3.13a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/></svg>
+            <span>Call</span>
+          </a>
+        </template>
+      </div>
+      {% endif %}
+  <!-- Email CTA moved into row above -->
       {% endif %}
       <!-- Top Specialties -->
       <template x-if="!$store.profileModal.loading && $store.profileModal.therapist.top_specialties && $store.profileModal.therapist.top_specialties.length">

@@ -26,45 +26,8 @@
       <template x-if="video.caption"><p class="text-[11px] text-[#555B6E]" x-text="video.caption"></p></template>
     </div>
   </div>
-    <!-- Personal Statement 2 (restored) -->
-    <div x-show="editable || $store.profileModal.therapist.personal_statement_q2" x-cloak>
-      <div class="mb-8 rounded-xl p-5 md:p-6 bg-white/85 backdrop-blur-sm ring-2 ring-[#BEE3DB] shadow-lg relative overflow-hidden group" style="box-shadow:0 6px 24px -8px #555B6E33;">
-        <div class="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_18%_18%,#E5F4F2,transparent_60%),radial-gradient(circle_at_78%_82%,#FFDDD0,transparent_65%)]"></div>
-        <div class="group relative cursor-pointer" data-edit-wrapper data-field="personal_statement_q2" x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }" role="button" tabindex="0" @click.stop="can_edit && $dispatch('edit-rich-text',{field:'personal_statement_q2',current:$store.profileModal.therapist.personal_statement_q2||'', el: $el})">
-          <template x-if="$store.profileModal.therapist.personal_statement_q2">
-            <div class="text-[15px] md:text-[16px] leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q2"></div>
-          </template>
-          <template x-if="!$store.profileModal.therapist.personal_statement_q2">
-            <div class="flex flex-col gap-1" :class="can_edit ? 'animate-pulse' : ''">
-              <p class="text-[#116466] font-semibold text-sm tracking-wide">Personal Statement 2</p>
-              <p class="italic text-[#89B0AE] text-[12px] leading-snug">Who you help & common concerns / populations. (120–400 chars)</p>
-              <p class="italic text-[#89B0AE] text-[11px]">Click to start…</p>
-            </div>
-          </template>
-          {% if editable %}<button type="button" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-1 rounded bg-[#116466] text-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q2',current:$store.profileModal.therapist.personal_statement_q2||'', el: $el})">Edit</button>{% endif %}
-        </div>
-      </div>
-    </div>
-    <!-- Personal Statement 3 (restored) -->
-    <div x-show="editable || $store.profileModal.therapist.personal_statement_q3" x-cloak>
-      <div class="mb-4 rounded-xl p-5 md:p-6 bg-white/85 backdrop-blur-sm ring-2 ring-[#BEE3DB] shadow-lg relative overflow-hidden group" style="box-shadow:0 6px 24px -8px #555B6E33;">
-        <div class="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_24%_24%,#E5F4F2,transparent_60%),radial-gradient(circle_at_78%_78%,#FFDDD0,transparent_65%)]"></div>
-        <div class="group relative cursor-pointer" data-edit-wrapper data-field="personal_statement_q3" x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }" role="button" tabindex="0" @click.stop="can_edit && $dispatch('edit-rich-text',{field:'personal_statement_q3',current:$store.profileModal.therapist.personal_statement_q3||'', el: $el})">
-          <template x-if="$store.profileModal.therapist.personal_statement_q3">
-            <div class="text-[15px] md:text-[16px] leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q3"></div>
-          </template>
-          <template x-if="!$store.profileModal.therapist.personal_statement_q3">
-            <div class="flex flex-col gap-1" :class="can_edit ? 'animate-pulse' : ''">
-              <p class="text-[#116466] font-semibold text-sm tracking-wide">Personal Statement 3</p>
-              <p class="italic text-[#89B0AE] text-[12px] leading-snug">Your values / philosophy & an invitation to connect. (120–400 chars)</p>
-              <p class="italic text-[#89B0AE] text-[11px]">Click to start…</p>
-            </div>
-          </template>
-          {% if editable %}<button type="button" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-1 rounded bg-[#116466] text-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q3',current:$store.profileModal.therapist.personal_statement_q3||'', el: $el})">Edit</button>{% endif %}
-        </div>
-      </div>
-    </div>
-</template>
+  </template>
+  {# Removed duplicate PS2/PS3 blocks here to avoid duplication and fix ordering #}
 {% endif %}
 <!-- Personal Statement 1 -->
 <div x-show="editable || $store.profileModal.therapist.personal_statement_q1" x-cloak>
@@ -226,3 +189,21 @@
 {% if editable %}
 {% endif %}
 <!-- Personal Statement 3 -->
+<div x-show="editable || $store.profileModal.therapist.personal_statement_q3" x-cloak>
+  <div class="mb-8 rounded-xl p-5 md:p-6 bg-white/85 backdrop-blur-sm ring-2 ring-[#BEE3DB] shadow-lg relative overflow-hidden group" style="box-shadow:0 6px 24px -8px #555B6E33;">
+    <div class="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_24%_24%,#E5F4F2,transparent_60%),radial-gradient(circle_at_78%_78%,#FFDDD0,transparent_65%)]"></div>
+    <div class="group relative cursor-pointer" data-edit-wrapper data-field="personal_statement_q3" x-data="{can_edit: {{ editable|default:0|yesno:'true,false' }} }" role="button" tabindex="0" @click.stop="can_edit && $dispatch('edit-rich-text',{field:'personal_statement_q3',current:$store.profileModal.therapist.personal_statement_q3||'', el: $el})">
+      <template x-if="$store.profileModal.therapist.personal_statement_q3">
+        <div class="text-[15px] md:text-[16px] leading-relaxed font-light text-[#2e4a49] prose prose-sm max-w-none" x-html="$store.profileModal.therapist.personal_statement_q3"></div>
+      </template>
+      <template x-if="!$store.profileModal.therapist.personal_statement_q3">
+        <div class="flex flex-col gap-1" :class="can_edit ? 'animate-pulse' : ''">
+          <p class="text-[#116466] font-semibold text-sm tracking-wide">Personal Statement 3</p>
+          <p class="italic text-[#89B0AE] text-[12px] leading-snug">Your values / philosophy & an invitation to connect. (120–400 chars)</p>
+          <p class="italic text-[#89B0AE] text-[11px]">Click to start…</p>
+        </div>
+      </template>
+      {% if editable %}<button type="button" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition text-[10px] px-2 py-1 rounded bg-[#116466] text-white" @click.stop="$dispatch('edit-rich-text',{field:'personal_statement_q3',current:$store.profileModal.therapist.personal_statement_q3||'', el: $el})">Edit</button>{% endif %}
+    </div>
+  </div>
+</div>

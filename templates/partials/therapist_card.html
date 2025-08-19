@@ -51,6 +51,17 @@
       {% endif %}
     </div>
 
+    {# INTRO SNIPPET: use intro_note first, then intro_statement (no PS1 fallback) #}
+  {% if therapist.intro_note %}
+      <div class="text-sm leading-relaxed max-h-28 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
+    {{ therapist.intro_note|striptags|truncatechars:350 }}
+      </div>
+    {% elif therapist.intro_statement %}
+      <div class="text-sm leading-relaxed max-h-28 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
+    {{ therapist.intro_statement|striptags|truncatechars:350 }}
+      </div>
+    {% endif %}
+
     {# CHIP GROUPS #}
     <div class="flex flex-wrap gap-2 text-xs">
       {% for pt in therapist.participant_types.all %}
@@ -64,15 +75,9 @@
       {% endif %}{% endfor %}
     </div>
 
-    {# INTRO SNIPPET: uses intro_statement first, then personal_statement_q1 #}
-    {% if therapist.intro_statement %}
-      <div class="text-sm leading-relaxed max-h-28 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
-        {{ therapist.intro_statement|truncatechars:350 }}
-      </div>
-    {% elif therapist.personal_statement_q1 %}
-      <div class="text-sm leading-relaxed max-h-28 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
-        {{ therapist.personal_statement_q1|truncatechars:350 }}
-      </div>
+    {# PERSONAL STATEMENT 1 below chips #}
+    {% if therapist.personal_statement_q1 %}
+      <div class="mt-1 text-xs md:text-sm leading-relaxed text-[#555B6E]">{{ therapist.personal_statement_q1|striptags|truncatechars:220 }}</div>
     {% endif %}
 
     <div class="mt-auto flex flex-wrap items-center gap-4 pt-2">

@@ -400,13 +400,15 @@ def public_therapist_profile(request, slug):
         'name': f"{profile.first_name} {profile.last_name}".strip(),
         'title': profile.title.name if profile.title else None,
         'display_title': profile.display_title,
-        'intro_statement': profile.intro_statement,
+    # Short intro: explicitly include intro_note from DB for modal binding
+    'intro_note': getattr(profile, 'intro_note', ''),
+    'intro_statement': profile.intro_statement,
         'personal_statement_q1': profile.personal_statement_q1,
         'personal_statement_q2': profile.personal_statement_q2,
         'personal_statement_q3': profile.personal_statement_q3,
         'practice_name': profile.practice_name,
         'therapy_delivery_method': profile.therapy_delivery_method,
-        'practice_email': profile.practice_email,
+    'practice_email': profile.practice_email,
         'phone_number': profile.phone_number,
         'phone_extension': profile.phone_extension,
         'mobile_number': profile.mobile_number,
@@ -420,17 +422,20 @@ def public_therapist_profile(request, slug):
         'credentials_note': profile.credentials_note,
         'profile_photo_url': profile.profile_photo.url if profile.profile_photo else None,
     'practice_website_url': profile.practice_website_url,
-        'facebook_url': profile.facebook_url,
-        'instagram_url': profile.instagram_url,
-        'linkedin_url': profile.linkedin_url,
-        'twitter_url': profile.twitter_url,
-        'tiktok_url': profile.tiktok_url,
+    'show_website_on_public': getattr(profile, 'show_website_on_public', True),
+    'facebook_url': profile.facebook_url,
+    'instagram_url': profile.instagram_url,
+    'linkedin_url': profile.linkedin_url,
+    'twitter_url': profile.twitter_url,
+    'tiktok_url': profile.tiktok_url,
     'youtube_url': profile.youtube_url,
     'online_scheduling_url': getattr(profile, 'online_scheduling_url', ''),
     'show_online_scheduling': getattr(profile, 'show_online_scheduling', False),
     'receive_calls_from_client': getattr(profile, 'receive_calls_from_client', False),
     'receive_texts_from_clients': getattr(profile, 'receive_texts_from_clients', False),
     'receive_emails_from_clients': getattr(profile, 'receive_emails_from_clients', False),
+    'email_contact_destination': getattr(profile, 'email_contact_destination', 'therapist'),
+    'preferred_contact_method': getattr(profile, 'preferred_contact_method', ''),
     'receive_emails_when_client_calls': getattr(profile, 'receive_emails_when_client_calls', False),
         'youtube_url': profile.youtube_url,
         'therapy_types_note': profile.therapy_types_note,
@@ -549,6 +554,7 @@ def public_therapist_profile(request, slug):
     })
 
 @login_required
+@ensure_csrf_cookie
 def edit_profile(request):
     """Render unified edit interface (full public profile layout in edit mode)."""
     from users.models_profile import TherapistProfile
@@ -594,7 +600,9 @@ EDITABLE_SIMPLE_FIELDS = {
     'phone_extension': str,
     'mobile_number': str,
     'office_email': str,
+    'email_contact_destination': str,
     'practice_website_url': str,
+    'show_website_on_public': bool,
     'facebook_url': str,
     'instagram_url': str,
     'linkedin_url': str,
@@ -607,6 +615,7 @@ EDITABLE_SIMPLE_FIELDS = {
     'receive_texts_from_clients': bool,
     'receive_emails_from_clients': bool,
     'receive_emails_when_client_calls': bool,
+    'preferred_contact_method': str,
 }
 
 FIELD_ALIASES = {
@@ -769,7 +778,7 @@ def _profile_json(profile):
     'gender': profile.gender.name if getattr(profile, 'gender', None) else None,
     'title_options': title_options,
     'license_type_options': license_type_options,
-        'practice_name': profile.practice_name,
+    'practice_name': profile.practice_name,
         'therapy_delivery_method': profile.therapy_delivery_method,
     # Expose new fields; fall back to legacy if new empty
     'intro_note': profile.intro_note or profile.intro_statement or profile.personal_statement_01 or profile.personal_statement_q1,
@@ -826,7 +835,7 @@ def _profile_json(profile):
     'other_identities': other_identities,
     'additional_credentials': additional_credentials,
     'educations': educations,
-    'accepted_payment_methods': accepted_payment_methods,
+        'accepted_payment_methods': accepted_payment_methods,
     'areas_of_expertise': areas_of_expertise,
         # Will be appended below: insurance_details
         'completion': {
@@ -834,6 +843,20 @@ def _profile_json(profile):
             'details': completion.details,
         }
     }
+    # Contact & email routing fields for edit UI
+    data.update({
+        'phone_number': getattr(profile, 'phone_number', ''),
+        'mobile_number': getattr(profile, 'mobile_number', ''),
+        'practice_email': getattr(profile, 'practice_email', ''),
+        'office_email': getattr(profile, 'office_email', ''),
+        'practice_website_url': getattr(profile, 'practice_website_url', ''),
+        'show_website_on_public': getattr(profile, 'show_website_on_public', True),
+        'receive_calls_from_client': getattr(profile, 'receive_calls_from_client', False),
+        'receive_texts_from_clients': getattr(profile, 'receive_texts_from_clients', False),
+        'receive_emails_from_clients': getattr(profile, 'receive_emails_from_clients', False),
+        'email_contact_destination': getattr(profile, 'email_contact_destination', 'therapist'),
+    'preferred_contact_method': getattr(profile, 'preferred_contact_method', ''),
+    })
     # Insurance details (provider name + out_of_network flag)
     try:
         data['insurance_details'] = [
@@ -858,558 +881,630 @@ def api_profile_me(request):
 def api_profile_update(request):
     import json, traceback
     from users.models_profile import TherapistProfile
-    try:
-        # Fast-path: handle multipart (file upload) POST separately BEFORE touching request.body
-        if request.method == 'POST' and request.FILES:
-            profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
-            f = request.FILES.get('profile_photo') or request.FILES.get('file')
-            if not f:
-                return JsonResponse({'error': 'No file provided'}, status=400)
-            # Basic validations (mirror frontend constraints)
-            max_bytes = 5 * 1024 * 1024  # 5MB
-            if f.size > max_bytes:
-                return JsonResponse({'error': 'File too large (max 5MB)'}, status=400)
-            # Basic image signature validation using Pillow (if available)
-            kind_valid = True
-            try:
-                from PIL import Image
-                pos = f.tell()
-                img = Image.open(f)
-                img.verify()  # verifies but does not decode full image
-                fmt = (getattr(img, 'format', '') or '').upper()
-                if fmt not in {'JPEG','PNG'}:
-                    kind_valid = False
-                f.seek(pos)
-            except Exception:
-                kind_valid = False
-            if not kind_valid:
-                return JsonResponse({'error': 'Unsupported or corrupt image (use JPG or PNG)'}, status=400)
-            # Save
-            profile.profile_photo = f
-            profile.save(update_fields=['profile_photo'])
-            return JsonResponse(_profile_json(profile))
-
-        # JSON / PATCH pathway
-        try:
-            # Avoid RawPostDataException when request already parsed (e.g., multipart) by checking content type
-            if request.content_type and request.content_type.startswith('multipart/form-data'):
-                payload = {}
-            else:
-                payload = json.loads(request.body.decode('utf-8')) if request.body else {}
-        except json.JSONDecodeError:
-            return JsonResponse({'error':'Invalid JSON'}, status=400)
+    # Fast-path: handle multipart (file upload) POST separately BEFORE touching request.body
+    if request.method == 'POST' and request.FILES:
         profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
-        errors = {}
-        updated = False
-        # Optional manual re-verification trigger (does not modify fields)
-        reverify_requested = bool(payload.get('reverify_license'))
-        if 'reverify_license' in payload:
-            # Remove to avoid interfering with normal field loop below
+        f = request.FILES.get('profile_photo') or request.FILES.get('file')
+        if not f:
+            return JsonResponse({'error': 'No file provided'}, status=400)
+        # Basic validations (mirror frontend constraints)
+        max_bytes = 5 * 1024 * 1024  # 5MB
+        if f.size > max_bytes:
+            return JsonResponse({'error': 'File too large (max 5MB)'}, status=400)
+        # Basic image signature validation using Pillow (if available)
+        kind_valid = True
+        try:
+            from PIL import Image
+            pos = f.tell()
+            img = Image.open(f)
+            img.verify()  # verifies but does not decode full image
+            fmt = (getattr(img, 'format', '') or '').upper()
+            if fmt not in {'JPEG','PNG'}:
+                kind_valid = False
+            f.seek(pos)
+        except Exception:
+            kind_valid = False
+        if not kind_valid:
+            return JsonResponse({'error': 'Unsupported or corrupt image (use JPG or PNG)'}, status=400)
+        # Save
+        profile.profile_photo = f
+        profile.save(update_fields=['profile_photo'])
+        return JsonResponse(_profile_json(profile))
+
+    # JSON / PATCH pathway
+    try:
+        # Avoid RawPostDataException when request already parsed (e.g., multipart) by checking content type
+        if request.content_type and request.content_type.startswith('multipart/form-data'):
+            payload = {}
+        else:
+            payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({'error':'Invalid JSON'}, status=400)
+
+    profile, _ = TherapistProfile.objects.get_or_create(user=request.user)
+    errors = {}
+    updated = False
+    # Optional manual re-verification trigger (does not modify fields)
+    reverify_requested = bool(payload.get('reverify_license'))
+    if 'reverify_license' in payload:
+        # Remove to avoid interfering with normal field loop below
+        try:
+            del payload['reverify_license']
+        except KeyError:
+            pass
+    from users.models_profile import Title as TitleModel
+    race_ethnicities_new = faiths_new = lgbtqia_new = other_identities_new = None
+    gender_new = None
+    insurance_details_new = None  # capture full replacement list
+    therapy_types_new = None  # list of therapy type names (full replacement)
+    testing_types_new = None  # list of testing type names (full replacement)
+    specialties_new = None  # list of specialty names (full replacement)
+    top_specialties_new = None  # list of top specialty names (subset of specialties)
+    participant_types_new = None  # list of participant type names (full replacement)
+    age_groups_new = None  # list of age group names (full replacement)
+    license_fields_changed = False
+    orig_license_snapshot = {
+        'license_type': profile.license_type_id if getattr(profile, 'license_type', None) else None,
+        'license_number': profile.license_number,
+        'license_state': profile.license_state,
+        'license_first_name': profile.license_first_name,
+        'license_last_name': profile.license_last_name,
+    }
+    # Track specific pending validations that depend on multiple fields
+    receive_calls_new = None
+    phone_number_new = None
+    receive_emails_new = None
+    email_dest_new = None
+    for field, value in payload.items():
+        canonical = FIELD_ALIASES.get(field, field)
+        # Special handling: profile photo removal (set to blank string)
+        if canonical == 'profile_photo':
             try:
-                del payload['reverify_license']
-            except KeyError:
-                pass
-        from users.models_profile import Title as TitleModel
-        race_ethnicities_new = faiths_new = lgbtqia_new = other_identities_new = None
-        gender_new = None
-        insurance_details_new = None  # capture full replacement list
-        therapy_types_new = None  # list of therapy type names (full replacement)
-        testing_types_new = None  # list of testing type names (full replacement)
-        specialties_new = None  # list of specialty names (full replacement)
-        top_specialties_new = None  # list of top specialty names (subset of specialties)
-        participant_types_new = None  # list of participant type names (full replacement)
-        age_groups_new = None  # list of age group names (full replacement)
-        license_fields_changed = False
-        orig_license_snapshot = {
-            'license_type': profile.license_type_id if getattr(profile, 'license_type', None) else None,
-            'license_number': profile.license_number,
-            'license_state': profile.license_state,
-            'license_first_name': profile.license_first_name,
-            'license_last_name': profile.license_last_name,
-        }
-        for field, value in payload.items():
-            canonical = FIELD_ALIASES.get(field, field)
-            # Special handling: profile photo removal (set to blank string)
-            if canonical == 'profile_photo':
-                try:
-                    if (value or '') == '':
-                        if getattr(profile, 'profile_photo', None):
-                            try:
-                                profile.profile_photo.delete(save=False)
-                            except Exception:
-                                pass
-                        profile.profile_photo = None
-                        updated = True
-                except Exception:
-                    errors['profile_photo'] = 'Failed to remove photo'
+                if (value or '') == '':
+                    if getattr(profile, 'profile_photo', None):
+                        try:
+                            profile.profile_photo.delete(save=False)
+                        except Exception:
+                            pass
+                    profile.profile_photo = None
+                    updated = True
+            except Exception:
+                errors['profile_photo'] = 'Failed to remove photo'
+            continue
+        if canonical in ('race_ethnicities','faiths','lgbtqia_identities','other_identities'):
+            if isinstance(value, list):
+                if canonical == 'race_ethnicities': race_ethnicities_new = value
+                elif canonical == 'faiths': faiths_new = value
+                elif canonical == 'lgbtqia_identities': lgbtqia_new = value
+                elif canonical == 'other_identities': other_identities_new = value
+            continue
+        if canonical == 'gender':
+            if isinstance(value, str): gender_new = value
+            continue
+        if canonical == 'therapy_types':
+            if isinstance(value, list): therapy_types_new = value
+            continue
+        if canonical == 'offers_testing':
+            profile.offers_testing = bool(value)
+            updated = True
+            continue
+        if canonical == 'testing_types':
+            if isinstance(value, list): testing_types_new = value
+            continue
+        if canonical == 'specialties':
+            if isinstance(value, list): specialties_new = value
+            continue
+        if canonical == 'top_specialties':
+            if isinstance(value, list): top_specialties_new = value
+            continue
+        if canonical == 'insurance_details':
+            if isinstance(value, list):
+                insurance_details_new = value
+            continue
+        if canonical == 'participant_types':
+            if isinstance(value, list): participant_types_new = value
+            continue
+        if canonical == 'age_groups':
+            if isinstance(value, list): age_groups_new = value
+            continue
+        if canonical not in EDITABLE_SIMPLE_FIELDS:
+            continue
+        # Validations
+        if canonical == 'practice_name' and value and len(value) > 120:
+            errors[field] = 'Too long (max 120 chars).'; continue
+        if canonical in ('first_name','last_name') and value and len(value) > 64:
+            errors[field] = 'Too long (max 64 chars).'; continue
+        if canonical in ('license_first_name','license_last_name') and value and len(value) > 64:
+            errors[field] = 'Too long (max 64 chars).'; continue
+        if canonical == 'therapy_delivery_method' and value and value.lower() not in {'in person','online','telehealth','hybrid','in person & online','in-person','in-person & online'}:
+            errors[field] = 'Unrecognized delivery method.'; continue
+        if canonical in ('personal_statement_01','personal_statement_q1','personal_statement_q2','personal_statement_q3') and value:
+            max_len = 1000 if canonical=='personal_statement_01' else 650
+            if len(value) > max_len:
+                errors[field] = f'Too long (max {max_len} chars).'; continue
+        if canonical == 'credentials_note' and value and len(value) > 600:
+            errors[field] = 'Too long (max 600 chars).'; continue
+        if canonical == 'license_state' and value:
+            val = (value or '').strip().upper()
+            if len(val) != 2 or not val.isalpha():
+                errors[field] = 'Use 2-letter state code.'; continue
+            value = val
+        if canonical == 'license_expiration' and value:
+            import re
+            raw = value.strip().replace('-', '/').replace(' ', '')
+            # Accept M/YYYY or MM/YYYY where month 1-12; always normalize to MM/YYYY
+            m = re.match(r'^([0]?[1-9]|1[0-2])/(20\d\d)$', raw)
+            if not m:
+                errors[field] = 'Use MM/YYYY (e.g., 08/2026)'; continue
+            month = m.group(1)
+            if len(month) == 1:
+                month = '0' + month
+            value = f"{month}/{m.group(2)}"
+        if canonical == 'license_number' and value:
+            if len(value) > 32:
+                errors[field] = 'Too long (max 32 chars).'; continue
+        if canonical == 'accepting_new_clients':
+            normalized = ''
+            if isinstance(value, bool):
+                normalized = 'Accepting New Clients' if value else 'Not Accepting New Clients'
+            else:
+                raw = (value or '').strip().lower()
+                if raw in {'yes','y','accepting','accepting new clients','open','true'}: normalized='Accepting New Clients'
+                elif raw in {'no','n','not accepting','not accepting new clients','closed','false'}: normalized='Not Accepting New Clients'
+                elif 'wait' in raw: normalized='I Have a Waitlist'
+                elif raw == '': normalized=''
+                else:
+                    errors[field]='Invalid availability value.'; continue
+            value = normalized
+        if canonical == 'title':
+            if value:
+                if len(value) > 16: errors[field]='Too long (max 16 chars).'; continue
+                t_obj = TitleModel.objects.filter(name__iexact=value.strip()).first()
+                if not t_obj: errors[field]='Invalid title selection.'; continue
+                profile.title = t_obj
+            else:
+                profile.title = None
+            updated = True; continue
+        if canonical == 'license_type':
+            if value:
+                if len(value) > 64: errors[field]='Too long (max 64 chars).'; continue
+                from users.models_profile import LicenseType as LicenseTypeModel
+                lt_obj = LicenseTypeModel.objects.filter(name__iexact=value.strip()).first()
+                if not lt_obj: errors[field]='Invalid license type selection.'; continue
+                profile.license_type = lt_obj
+            else:
+                profile.license_type = None
+            updated = True; license_fields_changed = True; continue
+        # Capture potential dependencies for later validation
+        if canonical == 'phone_number':
+            phone_number_new = str(value) if value is not None else ''
+        if canonical == 'receive_calls_from_client':
+            receive_calls_new = bool(value)
+        if canonical == 'receive_emails_from_clients':
+            receive_emails_new = bool(value)
+        if canonical == 'email_contact_destination':
+            # Normalize and validate enum-like value early
+            val = (value or '').strip().lower()
+            if val not in {'therapist','office','both',''}:
+                errors[field] = 'Invalid email destination'
                 continue
-            if canonical in ('race_ethnicities','faiths','lgbtqia_identities','other_identities'):
-                if isinstance(value, list):
-                    if canonical == 'race_ethnicities': race_ethnicities_new = value
-                    elif canonical == 'faiths': faiths_new = value
-                    elif canonical == 'lgbtqia_identities': lgbtqia_new = value
-                    elif canonical == 'other_identities': other_identities_new = value
+            value = val or 'therapist'
+            # capture for cross-field validation later in this request
+            email_dest_new = value
+        if canonical == 'preferred_contact_method':
+            val = (value or '').strip().lower()
+            if val not in {'email','phone',''}:
+                errors[field] = 'Invalid preferred contact method'
                 continue
-            if canonical == 'gender':
-                if isinstance(value, str): gender_new = value
-                continue
-            if canonical == 'therapy_types':
-                if isinstance(value, list): therapy_types_new = value
-                continue
-            if canonical == 'offers_testing':
-                profile.offers_testing = bool(value)
+            value = val
+        setattr(profile, canonical, value); updated = True
+        if canonical in {'license_number','license_state','license_first_name','license_last_name'}:
+            license_fields_changed = True
+
+    # Post-field validations that require cross-field context
+    if receive_calls_new is True and 'receive_calls_from_client' not in errors:
+        try:
+            import re
+            raw_phone = phone_number_new if phone_number_new is not None else getattr(profile, 'phone_number', '')
+            digits = re.sub(r'\D', '', raw_phone or '')
+            if len(digits) < 10:
+                errors['receive_calls_from_client'] = 'A valid office phone number (10+ digits) is required to allow calls.'
+        except Exception:
+            errors['receive_calls_from_client'] = 'Invalid phone number'
+
+    # Email routing cross-field validation
+    if (receive_emails_new is True or (receive_emails_new is None and getattr(profile, 'receive_emails_from_clients', False))) and 'receive_emails_from_clients' not in errors:
+        # Determine destination
+        dest = (email_dest_new or getattr(profile, 'email_contact_destination', 'therapist') or 'therapist').lower()
+        # basic email validator
+        from django.core.validators import validate_email
+        from django.core.exceptions import ValidationError as _EmailVE
+        def has_valid(addr):
+            try:
+                if not addr: return False
+                validate_email(addr); return True
+            except _EmailVE:
+                return False
+        need_ther = dest in {'therapist','both'}
+        need_off = dest in {'office','both'}
+        ther_ok = has_valid(getattr(profile, 'practice_email', '') or getattr(profile.user, 'email', '')) if need_ther else True
+        off_ok = has_valid(getattr(profile, 'office_email', '')) if need_off else True
+        if not ther_ok or not off_ok:
+            msg = 'Add a valid '
+            if dest == 'therapist':
+                msg += 'therapist email (Account Email) to receive client emails.'
+            elif dest == 'office':
+                msg += 'office email to receive client emails.'
+            else:
+                msg += 'therapist and office email to receive client emails.'
+            errors['receive_emails_from_clients'] = msg
+
+    # Multi-select helpers
+    def process_multi(new_vals, rel_attr, model_cls_name, sel_cls_name, field_name, error_key):
+        """Generic full-replace handler for identity-style multi selects.
+        Accepts list of strings OR list of objects with a 'name' key.
+        Automatically creates new lookup records for unknown values instead of 400-ing.
+        Limits to 50 unique values (then truncates)."""
+        if new_vals is None or error_key in errors:
+            return
+        from users import models_profile as mp
+        try:
+            model_cls = getattr(mp, model_cls_name)
+            sel_cls = getattr(mp, sel_cls_name)
+            # Build map of existing names
+            existing_map = {r.name.lower(): r for r in model_cls.objects.all()}
+            cleaned=[]; seen=set()
+            for item in new_vals:
+                if isinstance(item, dict):
+                    val = (item.get('name') or '').strip()
+                else:
+                    val = (str(item) if isinstance(item, str) else '').strip()
+                if not val:
+                    continue
+                key = val.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                # Enforce length constraint defensively
+                if len(val) > 64:
+                    val = val[:64]
+                # Create lookup if missing (dynamic extend)
+                obj = existing_map.get(key)
+                if not obj:
+                    obj = model_cls.objects.create(name=val)
+                    existing_map[key] = obj
+                cleaned.append(obj)
+                if len(cleaned) >= 50:
+                    break
+            # Replace selections
+            from django.db import transaction as _tx
+            with _tx.atomic():
+                getattr(profile, rel_attr).all().delete()
+                for obj in cleaned[:12]:  # preserve previous 12-item cap
+                    sel_cls.objects.create(therapist=profile, **{field_name: obj})
+            nonlocal updated
+            updated = True
+        except Exception:
+            errors[error_key] = f"Failed to update {field_name.replace('_', ' ')}"
+
+    process_multi(race_ethnicities_new,'race_ethnicities','RaceEthnicity','RaceEthnicitySelection','race_ethnicity','race_ethnicities')
+    process_multi(faiths_new,'faiths','Faith','FaithSelection','faith','faiths')
+    process_multi(lgbtqia_new,'lgbtqia_identities','LGBTQIA','LGBTQIASelection','lgbtqia','lgbtqia_identities')
+    process_multi(other_identities_new,'other_identities','OtherIdentity','OtherIdentitySelection','other_identity','other_identities')
+
+    # Gender single
+    if gender_new is not None and 'gender' not in errors:
+        try:
+            from users.models_profile import Gender
+            if gender_new.strip()==''[0:]:
+                profile.gender=None; updated=True
+            else:
+                g = Gender.objects.filter(name__iexact=gender_new.strip()).first()
+                if not g: errors['gender']='Unknown gender selection'
+                else: profile.gender=g; updated=True
+        except Exception:
+            errors['gender']='Failed to update gender'
+
+    # Insurance details full replace (list of {provider, out_of_network})
+    if insurance_details_new is not None and 'insurance_details' not in errors:
+        try:
+            from users.models_profile import InsuranceProvider, InsuranceDetail
+            # Normalize entries
+            cleaned = []
+            seen = set()
+            for item in insurance_details_new:
+                if not isinstance(item, dict):
+                    continue
+                name = (item.get('provider') or '').strip()
+                if not name:
+                    continue
+                key = name.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                if len(name) > 256:
+                    name = name[:256]
+                oon = bool(item.get('out_of_network'))
+                cleaned.append({'name': name, 'out_of_network': oon})
+            if len(cleaned) > 40:
+                errors['insurance_details'] = 'Too many providers (max 40).'
+            if 'insurance_details' not in errors:
+                # Fetch existing providers map (case-insensitive)
+                existing = {p.name.lower(): p for p in InsuranceProvider.objects.all()}
+                provider_objs = []
+                for it in cleaned:
+                    p = existing.get(it['name'].lower())
+                    if not p:
+                        # Create new provider
+                        p = InsuranceProvider.objects.create(name=it['name'])
+                        existing[p.name.lower()] = p
+                    provider_objs.append((p, it['out_of_network']))
+                # Replace InsuranceDetail set
+                from django.db import transaction
+                with transaction.atomic():
+                    profile.insurance_details.all().delete()
+                    for prov, oon in provider_objs:
+                        InsuranceDetail.objects.create(therapist=profile, provider=prov, out_of_network=oon)
                 updated = True
-                continue
-            if canonical == 'testing_types':
-                if isinstance(value, list): testing_types_new = value
-                continue
-            if canonical == 'specialties':
-                if isinstance(value, list): specialties_new = value
-                continue
-            if canonical == 'top_specialties':
-                if isinstance(value, list): top_specialties_new = value
-                continue
-            if canonical == 'insurance_details':
-                if isinstance(value, list):
-                    insurance_details_new = value
-                continue
-            if canonical == 'participant_types':
-                if isinstance(value, list): participant_types_new = value
-                continue
-            if canonical == 'age_groups':
-                if isinstance(value, list): age_groups_new = value
-                continue
-            if canonical not in EDITABLE_SIMPLE_FIELDS:
-                continue
-            # Validations
-            if canonical == 'practice_name' and value and len(value) > 120:
-                errors[field] = 'Too long (max 120 chars).'; continue
-            if canonical in ('first_name','last_name') and value and len(value) > 64:
-                errors[field] = 'Too long (max 64 chars).'; continue
-            if canonical in ('license_first_name','license_last_name') and value and len(value) > 64:
-                errors[field] = 'Too long (max 64 chars).'; continue
-            if canonical == 'therapy_delivery_method' and value and value.lower() not in {'in person','online','telehealth','hybrid','in person & online','in-person','in-person & online'}:
-                errors[field] = 'Unrecognized delivery method.'; continue
-            if canonical in ('personal_statement_01','personal_statement_q1','personal_statement_q2','personal_statement_q3') and value:
-                max_len = 1000 if canonical=='personal_statement_01' else 650
-                if len(value) > max_len:
-                    errors[field] = f'Too long (max {max_len} chars).'; continue
-            if canonical == 'credentials_note' and value and len(value) > 600:
-                errors[field] = 'Too long (max 600 chars).'; continue
-            if canonical == 'license_state' and value:
-                val = (value or '').strip().upper()
-                if len(val) != 2 or not val.isalpha():
-                    errors[field] = 'Use 2-letter state code.'; continue
-                value = val
-            if canonical == 'license_expiration' and value:
-                import re
-                raw = value.strip().replace('-', '/').replace(' ', '')
-                # Accept M/YYYY or MM/YYYY where month 1-12; always normalize to MM/YYYY
-                m = re.match(r'^([0]?[1-9]|1[0-2])/(20\d\d)$', raw)
-                if not m:
-                    errors[field] = 'Use MM/YYYY (e.g., 08/2026)'; continue
-                month = m.group(1)
-                if len(month) == 1:
-                    month = '0' + month
-                value = f"{month}/{m.group(2)}"
-            if canonical == 'license_number' and value:
-                if len(value) > 32:
-                    errors[field] = 'Too long (max 32 chars).'; continue
-                # Allow duplicates across profiles (state + number not enforced). Any future
-                # dedup / conflict resolution will occur during verification logic instead.
-            if canonical == 'accepting_new_clients':
-                normalized = ''
-                if isinstance(value, bool):
-                    normalized = 'Accepting New Clients' if value else 'Not Accepting New Clients'
-                else:
-                    raw = (value or '').strip().lower()
-                    if raw in {'yes','y','accepting','accepting new clients','open','true'}: normalized='Accepting New Clients'
-                    elif raw in {'no','n','not accepting','not accepting new clients','closed','false'}: normalized='Not Accepting New Clients'
-                    elif 'wait' in raw: normalized='I Have a Waitlist'
-                    elif raw == '': normalized=''
-                    else:
-                        errors[field]='Invalid availability value.'; continue
-                value = normalized
-            if canonical == 'title':
-                if value:
-                    if len(value) > 16: errors[field]='Too long (max 16 chars).'; continue
-                    t_obj = TitleModel.objects.filter(name__iexact=value.strip()).first()
-                    if not t_obj: errors[field]='Invalid title selection.'; continue
-                    profile.title = t_obj
-                else:
-                    profile.title = None
-                updated = True; continue
-            if canonical == 'license_type':
-                if value:
-                    if len(value) > 64: errors[field]='Too long (max 64 chars).'; continue
-                    from users.models_profile import LicenseType as LicenseTypeModel
-                    lt_obj = LicenseTypeModel.objects.filter(name__iexact=value.strip()).first()
-                    if not lt_obj: errors[field]='Invalid license type selection.'; continue
-                    profile.license_type = lt_obj
-                else:
-                    profile.license_type = None
-                updated = True; license_fields_changed = True; continue
-            setattr(profile, canonical, value); updated = True
-            if canonical in {'license_number','license_state','license_first_name','license_last_name'}:
-                license_fields_changed = True
-        # Multi-select helpers
-        def process_multi(new_vals, rel_attr, model_cls_name, sel_cls_name, field_name, error_key):
-            """Generic full-replace handler for identity-style multi selects.
-            Accepts list of strings OR list of objects with a 'name' key.
-            Automatically creates new lookup records for unknown values instead of 400-ing.
-            Limits to 50 unique values (then truncates)."""
-            if new_vals is None or error_key in errors:
-                return
-            from users import models_profile as mp
-            try:
-                model_cls = getattr(mp, model_cls_name)
-                sel_cls = getattr(mp, sel_cls_name)
-                # Build map of existing names
-                existing_map = {r.name.lower(): r for r in model_cls.objects.all()}
-                cleaned=[]; seen=set()
-                for item in new_vals:
-                    if isinstance(item, dict):
-                        val = (item.get('name') or '').strip()
-                    else:
-                        val = (str(item) if isinstance(item, str) else '').strip()
-                    if not val:
-                        continue
-                    key = val.lower()
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    # Enforce length constraint defensively
-                    if len(val) > 64:
-                        val = val[:64]
-                    # Create lookup if missing (dynamic extend)
-                    obj = existing_map.get(key)
+        except Exception:
+            errors['insurance_details'] = 'Failed to update insurance details'
+
+    # Therapy Types full replacement
+    if therapy_types_new is not None and 'therapy_types' not in errors:
+        try:
+            from users.models_profile import TherapyType, TherapyTypeSelection
+            cleaned=[]; seen=set()
+            for name in therapy_types_new:
+                if not isinstance(name, str): continue
+                nm=name.strip()
+                if not nm: continue
+                key=nm.lower()
+                if key in seen: continue
+                seen.add(key)
+                if len(nm)>64: nm=nm[:64]
+                cleaned.append(nm)
+            if len(cleaned) > 60:
+                errors['therapy_types'] = 'Too many therapy types (max 60).'
+            if 'therapy_types' not in errors:
+                existing = {t.name.lower(): t for t in TherapyType.objects.all()}
+                objs=[]
+                for nm in cleaned:
+                    obj = existing.get(nm.lower())
                     if not obj:
-                        obj = model_cls.objects.create(name=val)
-                        existing_map[key] = obj
-                    cleaned.append(obj)
-                    if len(cleaned) >= 50:
-                        break
-                # Replace selections
+                        obj = TherapyType.objects.create(name=nm)
+                        existing[obj.name.lower()] = obj
+                    objs.append(obj)
                 from django.db import transaction as _tx
                 with _tx.atomic():
-                    getattr(profile, rel_attr).all().delete()
-                    for obj in cleaned[:12]:  # preserve previous 12-item cap
-                        sel_cls.objects.create(therapist=profile, **{field_name: obj})
-                nonlocal updated
+                    profile.types_of_therapy.all().delete()
+                    for obj in objs:
+                        TherapyTypeSelection.objects.create(therapist=profile, therapy_type=obj)
                 updated = True
-            except Exception:
-                errors[error_key] = f"Failed to update {field_name.replace('_', ' ')}"
-        process_multi(race_ethnicities_new,'race_ethnicities','RaceEthnicity','RaceEthnicitySelection','race_ethnicity','race_ethnicities')
-        process_multi(faiths_new,'faiths','Faith','FaithSelection','faith','faiths')
-        process_multi(lgbtqia_new,'lgbtqia_identities','LGBTQIA','LGBTQIASelection','lgbtqia','lgbtqia_identities')
-        process_multi(other_identities_new,'other_identities','OtherIdentity','OtherIdentitySelection','other_identity','other_identities')
-        # Gender single
-        if gender_new is not None and 'gender' not in errors:
+        except Exception:
+            errors['therapy_types'] = 'Failed to update therapy types'
+
+    # Testing Types full replacement (only if offers_testing true; otherwise clear)
+    if testing_types_new is not None and 'testing_types' not in errors:
+        try:
+            from users.models_profile import TestingType, TestingTypeSelection
+            cleaned=[]; seen=set()
+            for name in (testing_types_new if getattr(profile, 'offers_testing', False) else []):
+                if not isinstance(name, str): continue
+                nm=name.strip()
+                if not nm: continue
+                key=nm.lower()
+                if key in seen: continue
+                seen.add(key)
+                if len(nm)>64: nm=nm[:64]
+                cleaned.append(nm)
+            if len(cleaned) > 60:
+                errors['testing_types'] = 'Too many testing types (max 60).'
+            if 'testing_types' not in errors:
+                existing = {t.name.lower(): t for t in TestingType.objects.all()}
+                objs=[]
+                for nm in cleaned:
+                    obj = existing.get(nm.lower())
+                    if not obj:
+                        obj = TestingType.objects.create(name=nm)
+                        existing[obj.name.lower()] = obj
+                    objs.append(obj)
+                from django.db import transaction as _tx
+                with _tx.atomic():
+                    profile.testing_types.all().delete()
+                    for obj in objs:
+                        TestingTypeSelection.objects.create(therapist=profile, testing_type=obj)
+                updated = True
+        except Exception:
+            errors['testing_types'] = 'Failed to update testing types'
+
+    # Specialties full replacement (with top specialties subset)
+    if (specialties_new is not None or top_specialties_new is not None) and 'specialties' not in errors and 'top_specialties' not in errors:
+        try:
+            from users.models_profile import SpecialtyLookup
+            # If only updating tops, keep current specialties list
+            current_list = [s.specialty.name for s in profile.specialties.select_related('specialty').all() if s.specialty]
+            spec_source = specialties_new if specialties_new is not None else current_list
+            top_source = top_specialties_new if top_specialties_new is not None else [s.specialty.name for s in profile.specialties.filter(is_top_specialty=True).select_related('specialty').all() if s.specialty]
+            cleaned=[]; seen=set()
+            for name in spec_source or []:
+                if not isinstance(name, str): continue
+                nm=name.strip()
+                if not nm: continue
+                key=nm.lower();
+                if key in seen: continue
+                seen.add(key)
+                if len(nm)>64: nm=nm[:64]
+                cleaned.append(nm)
+            top_cleaned=[]; top_seen=set()
+            for name in top_source or []:
+                if not isinstance(name, str): continue
+                nm=name.strip()
+                if not nm: continue
+                key=nm.lower();
+                if key in top_seen: continue
+                top_seen.add(key)
+                if len(nm)>64: nm=nm[:64]
+                top_cleaned.append(nm)
+            if any(t.lower() not in {c.lower() for c in cleaned} for t in top_cleaned):
+                errors['top_specialties'] = 'Top specialties must be in specialties list.'
+            if len(top_cleaned) > 5:
+                errors['top_specialties'] = 'You can only mark up to 5 top specialties.'
+            if 'specialties' not in errors and 'top_specialties' not in errors:
+                # create lookups as needed
+                existing = {s.name.lower(): s for s in SpecialtyLookup.objects.all()}
+                lookups=[]
+                for nm in cleaned:
+                    obj = existing.get(nm.lower())
+                    if not obj:
+                        obj = SpecialtyLookup.objects.create(name=nm)
+                        existing[obj.name.lower()] = obj
+                    lookups.append(obj)
+                top_set = {t.lower() for t in top_cleaned}
+                from django.db import transaction as _tx
+                with _tx.atomic():
+                    profile.specialties.all().delete()
+                    for obj in lookups:
+                        profile.specialties.create(specialty=obj, is_top_specialty=(obj.name.lower() in top_set))
+                updated = True
+        except Exception:
+            errors['specialties'] = 'Failed to update specialties'
+
+    # Participant Types full replacement (direct M2M)
+    if participant_types_new is not None and 'participant_types' not in errors:
+        try:
+            from users.models_profile import ParticipantType
+            cleaned=[]; seen=set()
+            for name in participant_types_new:
+                if not isinstance(name, str): continue
+                nm=name.strip()
+                if not nm: continue
+                key=nm.lower()
+                if key in seen: continue
+                seen.add(key)
+                if len(nm)>32: nm=nm[:32]
+                cleaned.append(nm)
+            if len(cleaned) > 40:
+                errors['participant_types'] = 'Too many participant types (max 40).'
+            if 'participant_types' not in errors:
+                existing = {p.name.lower(): p for p in ParticipantType.objects.all()}
+                objs=[]
+                for nm in cleaned:
+                    obj = existing.get(nm.lower())
+                    if not obj:
+                        obj = ParticipantType.objects.create(name=nm)
+                        existing[obj.name.lower()] = obj
+                    objs.append(obj)
+                profile.participant_types.set(objs)
+                updated = True
+        except Exception:
+            errors['participant_types'] = 'Failed to update participant types'
+
+    # Age Groups full replacement (direct M2M)
+    if age_groups_new is not None and 'age_groups' not in errors:
+        try:
+            from users.models_profile import AgeGroup
+            cleaned=[]; seen=set()
+            for name in age_groups_new:
+                if not isinstance(name, str): continue
+                nm=name.strip()
+                if not nm: continue
+                key=nm.lower()
+                if key in seen: continue
+                seen.add(key)
+                if len(nm)>32: nm=nm[:32]
+                cleaned.append(nm)
+            if len(cleaned) > 40:
+                errors['age_groups'] = 'Too many age groups (max 40).'
+            if 'age_groups' not in errors:
+                existing = {a.name.lower(): a for a in AgeGroup.objects.all()}
+                objs=[]
+                for nm in cleaned:
+                    obj = existing.get(nm.lower())
+                    if not obj:
+                        obj = AgeGroup.objects.create(name=nm)
+                        existing[obj.name.lower()] = obj
+                    objs.append(obj)
+                profile.age_groups.set(objs)
+                updated = True
+        except Exception:
+            errors['age_groups'] = 'Failed to update age groups'
+
+    if errors:
+        # Helpful debug echo of attempted fields (excluding potential large text) for frontend troubleshooting
+        debug_fields = list(payload.keys())[:40]
+        return JsonResponse({'errors': errors, 'attempted_fields': debug_fields}, status=400)
+
+    if updated:
+        # Use db_transaction alias to avoid any accidental shadowing
+        with db_transaction.atomic():
+            profile.save()
+        # Attempt deferred subscription activation (license + minimal profile requirements)
+        try:
+            _attempt_subscription_activation(request.user)
+        except Exception:
+            # Silently ignore activation errors; user can continue editing
+            pass
+        # Trigger license verification if relevant fields changed
+        if license_fields_changed or reverify_requested:
             try:
-                from users.models_profile import Gender
-                if gender_new.strip()==''[0:]:
-                    profile.gender=None; updated=True
-                else:
-                    g = Gender.objects.filter(name__iexact=gender_new.strip()).first()
-                    if not g: errors['gender']='Unknown gender selection'
-                    else: profile.gender=g; updated=True
-            except Exception:
-                errors['gender']='Failed to update gender'
-        # Insurance details full replace (list of {provider, out_of_network})
-        if insurance_details_new is not None and 'insurance_details' not in errors:
-            try:
-                from users.models_profile import InsuranceProvider, InsuranceDetail
-                # Normalize entries
-                cleaned = []
-                seen = set()
-                for item in insurance_details_new:
-                    if not isinstance(item, dict):
-                        continue
-                    name = (item.get('provider') or '').strip()
-                    if not name:
-                        continue
-                    key = name.lower()
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    if len(name) > 256:
-                        name = name[:256]
-                    oon = bool(item.get('out_of_network'))
-                    cleaned.append({'name': name, 'out_of_network': oon})
-                if len(cleaned) > 40:
-                    errors['insurance_details'] = 'Too many providers (max 40).'
-                if 'insurance_details' not in errors:
-                    # Fetch existing providers map (case-insensitive)
-                    existing = {p.name.lower(): p for p in InsuranceProvider.objects.all()}
-                    provider_objs = []
-                    for it in cleaned:
-                        p = existing.get(it['name'].lower())
-                        if not p:
-                            # Create new provider
-                            p = InsuranceProvider.objects.create(name=it['name'])
-                            existing[p.name.lower()] = p
-                        provider_objs.append((p, it['out_of_network']))
-                    # Replace InsuranceDetail set
-                    from django.db import transaction
-                    with transaction.atomic():
-                        profile.insurance_details.all().delete()
-                        for prov, oon in provider_objs:
-                            InsuranceDetail.objects.create(therapist=profile, provider=prov, out_of_network=oon)
-                    updated = True
-            except Exception as ex:
-                errors['insurance_details'] = 'Failed to update insurance details'
-        # Therapy Types full replacement
-        if therapy_types_new is not None and 'therapy_types' not in errors:
-            try:
-                from users.models_profile import TherapyType, TherapyTypeSelection
-                cleaned=[]; seen=set()
-                for name in therapy_types_new:
-                    if not isinstance(name, str): continue
-                    nm=name.strip()
-                    if not nm: continue
-                    key=nm.lower()
-                    if key in seen: continue
-                    seen.add(key)
-                    if len(nm)>64: nm=nm[:64]
-                    cleaned.append(nm)
-                if len(cleaned) > 60:
-                    errors['therapy_types'] = 'Too many therapy types (max 60).'
-                if 'therapy_types' not in errors:
-                    existing = {t.name.lower(): t for t in TherapyType.objects.all()}
-                    objs=[]
-                    for nm in cleaned:
-                        obj = existing.get(nm.lower())
-                        if not obj:
-                            obj = TherapyType.objects.create(name=nm)
-                            existing[obj.name.lower()] = obj
-                        objs.append(obj)
-                    from django.db import transaction as _tx
-                    with _tx.atomic():
-                        profile.types_of_therapy.all().delete()
-                        for obj in objs:
-                            TherapyTypeSelection.objects.create(therapist=profile, therapy_type=obj)
-                    updated = True
-            except Exception:
-                errors['therapy_types'] = 'Failed to update therapy types'
-        # Testing Types full replacement (only if offers_testing true; otherwise clear)
-        if testing_types_new is not None and 'testing_types' not in errors:
-            try:
-                from users.models_profile import TestingType, TestingTypeSelection
-                cleaned=[]; seen=set()
-                for name in (testing_types_new if getattr(profile, 'offers_testing', False) else []):
-                    if not isinstance(name, str): continue
-                    nm=name.strip()
-                    if not nm: continue
-                    key=nm.lower()
-                    if key in seen: continue
-                    seen.add(key)
-                    if len(nm)>64: nm=nm[:64]
-                    cleaned.append(nm)
-                if len(cleaned) > 60:
-                    errors['testing_types'] = 'Too many testing types (max 60).'
-                if 'testing_types' not in errors:
-                    existing = {t.name.lower(): t for t in TestingType.objects.all()}
-                    objs=[]
-                    for nm in cleaned:
-                        obj = existing.get(nm.lower())
-                        if not obj:
-                            obj = TestingType.objects.create(name=nm)
-                            existing[obj.name.lower()] = obj
-                        objs.append(obj)
-                    from django.db import transaction as _tx
-                    with _tx.atomic():
-                        profile.testing_types.all().delete()
-                        for obj in objs:
-                            TestingTypeSelection.objects.create(therapist=profile, testing_type=obj)
-                    updated = True
-            except Exception:
-                errors['testing_types'] = 'Failed to update testing types'
-        # Specialties full replacement (with top specialties subset)
-        if (specialties_new is not None or top_specialties_new is not None) and 'specialties' not in errors and 'top_specialties' not in errors:
-            try:
-                from users.models_profile import SpecialtyLookup, Specialty
-                # If only updating tops, keep current specialties list
-                current_list = [s.specialty.name for s in profile.specialties.select_related('specialty').all() if s.specialty]
-                spec_source = specialties_new if specialties_new is not None else current_list
-                top_source = top_specialties_new if top_specialties_new is not None else [s.specialty.name for s in profile.specialties.filter(is_top_specialty=True).select_related('specialty').all() if s.specialty]
-                cleaned=[]; seen=set()
-                for name in spec_source or []:
-                    if not isinstance(name, str): continue
-                    nm=name.strip()
-                    if not nm: continue
-                    key=nm.lower();
-                    if key in seen: continue
-                    seen.add(key)
-                    if len(nm)>64: nm=nm[:64]
-                    cleaned.append(nm)
-                top_cleaned=[]; top_seen=set()
-                for name in top_source or []:
-                    if not isinstance(name, str): continue
-                    nm=name.strip()
-                    if not nm: continue
-                    key=nm.lower();
-                    if key in top_seen: continue
-                    top_seen.add(key)
-                    if len(nm)>64: nm=nm[:64]
-                    top_cleaned.append(nm)
-                if any(t.lower() not in {c.lower() for c in cleaned} for t in top_cleaned):
-                    errors['top_specialties'] = 'Top specialties must be in specialties list.'
-                if len(top_cleaned) > 5:
-                    errors['top_specialties'] = 'You can only mark up to 5 top specialties.'
-                if 'specialties' not in errors and 'top_specialties' not in errors:
-                    # create lookups as needed
-                    existing = {s.name.lower(): s for s in SpecialtyLookup.objects.all()}
-                    lookups=[]
-                    for nm in cleaned:
-                        obj = existing.get(nm.lower())
-                        if not obj:
-                            obj = SpecialtyLookup.objects.create(name=nm)
-                            existing[obj.name.lower()] = obj
-                        lookups.append(obj)
-                    top_set = {t.lower() for t in top_cleaned}
-                    from django.db import transaction as _tx
-                    with _tx.atomic():
-                        profile.specialties.all().delete()
-                        for obj in lookups:
-                            profile.specialties.create(specialty=obj, is_top_specialty=(obj.name.lower() in top_set))
-                    updated = True
-            except Exception:
-                errors['specialties'] = 'Failed to update specialties'
-        # Participant Types full replacement (direct M2M)
-        if participant_types_new is not None and 'participant_types' not in errors:
-            try:
-                from users.models_profile import ParticipantType
-                cleaned=[]; seen=set()
-                for name in participant_types_new:
-                    if not isinstance(name, str): continue
-                    nm=name.strip()
-                    if not nm: continue
-                    key=nm.lower()
-                    if key in seen: continue
-                    seen.add(key)
-                    if len(nm)>32: nm=nm[:32]
-                    cleaned.append(nm)
-                if len(cleaned) > 40:
-                    errors['participant_types'] = 'Too many participant types (max 40).'
-                if 'participant_types' not in errors:
-                    existing = {p.name.lower(): p for p in ParticipantType.objects.all()}
-                    objs=[]
-                    for nm in cleaned:
-                        obj = existing.get(nm.lower())
-                        if not obj:
-                            obj = ParticipantType.objects.create(name=nm)
-                            existing[obj.name.lower()] = obj
-                        objs.append(obj)
-                    profile.participant_types.set(objs)
-                    updated = True
-            except Exception:
-                errors['participant_types'] = 'Failed to update participant types'
-        # Age Groups full replacement (direct M2M)
-        if age_groups_new is not None and 'age_groups' not in errors:
-            try:
-                from users.models_profile import AgeGroup
-                cleaned=[]; seen=set()
-                for name in age_groups_new:
-                    if not isinstance(name, str): continue
-                    nm=name.strip()
-                    if not nm: continue
-                    key=nm.lower()
-                    if key in seen: continue
-                    seen.add(key)
-                    if len(nm)>32: nm=nm[:32]
-                    cleaned.append(nm)
-                if len(cleaned) > 40:
-                    errors['age_groups'] = 'Too many age groups (max 40).'
-                if 'age_groups' not in errors:
-                    existing = {a.name.lower(): a for a in AgeGroup.objects.all()}
-                    objs=[]
-                    for nm in cleaned:
-                        obj = existing.get(nm.lower())
-                        if not obj:
-                            obj = AgeGroup.objects.create(name=nm)
-                            existing[obj.name.lower()] = obj
-                        objs.append(obj)
-                    profile.age_groups.set(objs)
-                    updated = True
-            except Exception:
-                errors['age_groups'] = 'Failed to update age groups'
-        if errors:
-            # Helpful debug echo of attempted fields (excluding potential large text) for frontend troubleshooting
-            debug_fields = list(payload.keys())[:40]
-            return JsonResponse({'errors': errors, 'attempted_fields': debug_fields}, status=400)
-        if updated:
-            # Use db_transaction alias to avoid any accidental shadowing
-            with db_transaction.atomic():
-                profile.save()
-            # Attempt deferred subscription activation (license + minimal profile requirements)
-            try:
-                _attempt_subscription_activation(request.user)
-            except Exception:
-                # Silently ignore activation errors; user can continue editing
-                pass
-            # Trigger license verification if relevant fields changed
-            if license_fields_changed or reverify_requested:
-                try:
-                    # Run asynchronously so UI can show immediate 'pending' status
-                    if profile.license_number and profile.license_state and profile.license_type:
-                        # Only reset to pending if we are changing license fields OR status not already pending OR reverify explicitly requested
-                        if license_fields_changed or reverify_requested or profile.license_status != 'pending':
-                            profile.license_status = 'pending'
-                            profile.license_last_verified_at = None
-                            profile.license_verification_source_url = ''
-                            profile.license_verification_raw = {}
-                            profile.save(update_fields=['license_status','license_last_verified_at','license_verification_source_url','license_verification_raw'])
-                        def _bg_verify(pid):
-                            try:
-                                from users.utils.license_verification import verify_and_persist
-                                from users.models_profile import TherapistProfile as _TP
-                                p = _TP.objects.filter(pk=pid).first()
-                                if p:
-                                    verify_and_persist(p)
-                            except Exception:
-                                # If background thread errors, mark as error so UI doesn't spin forever
-                                try:
-                                    from users.models_profile import TherapistProfile as _TP2
-                                    p2 = _TP2.objects.filter(pk=pid).first()
-                                    if p2 and p2.license_status == 'pending':
-                                        p2.license_status = 'error'
-                                        p2.save(update_fields=['license_status'])
-                                except Exception:
-                                    pass
-                        def _bg_timeout(pid):
-                            # Safety: if still pending after 70s, mark timeout error
-                            import time
-                            time.sleep(70)
-                            try:
-                                from users.models_profile import TherapistProfile as _TP3
-                                p3 = _TP3.objects.filter(pk=pid).first()
-                                if p3 and p3.license_status == 'pending' and p3.license_last_verified_at is None:
-                                    p3.license_status = 'error'
-                                    # store simple timeout message if field exists
-                                    try:
-                                        p3.license_verification_source_url = (p3.license_verification_source_url or '')
-                                    except Exception:
-                                        pass
-                                    p3.save(update_fields=['license_status','license_verification_source_url'])
-                            except Exception:
-                                pass
-                        import threading as _th
-                        _th.Thread(target=_bg_verify, args=(profile.pk,), daemon=True).start()
-                        _th.Thread(target=_bg_timeout, args=(profile.pk,), daemon=True).start()
-                    else:
-                        # License fields incomplete/cleared: reset status to unverified
-                        profile.license_status = 'unverified'
+                # Run asynchronously so UI can show immediate 'pending' status
+                if profile.license_number and profile.license_state and profile.license_type:
+                    # Only reset to pending if we are changing license fields OR status not already pending OR reverify explicitly requested
+                    if license_fields_changed or reverify_requested or profile.license_status != 'pending':
+                        profile.license_status = 'pending'
                         profile.license_last_verified_at = None
                         profile.license_verification_source_url = ''
                         profile.license_verification_raw = {}
                         profile.save(update_fields=['license_status','license_last_verified_at','license_verification_source_url','license_verification_raw'])
-                except Exception:
-                    # swallow background scheduling errors
-                    pass
-        return JsonResponse(_profile_json(profile))
-    except Exception as ex:
-        traceback.print_exc()
-        return JsonResponse({'error':'Server error','detail':str(ex)}, status=500)
+                    def _bg_verify(pid):
+                        try:
+                            from users.utils.license_verification import verify_and_persist
+                            from users.models_profile import TherapistProfile as _TP
+                            p = _TP.objects.filter(pk=pid).first()
+                            if p:
+                                verify_and_persist(p)
+                        except Exception:
+                            # If background thread errors, mark as error so UI doesn't spin forever
+                            try:
+                                from users.models_profile import TherapistProfile as _TP2
+                                p2 = _TP2.objects.filter(pk=pid).first()
+                                if p2 and p2.license_status == 'pending':
+                                    p2.license_status = 'error'
+                                    p2.save(update_fields=['license_status'])
+                            except Exception:
+                                pass
+                    def _bg_timeout(pid):
+                        # Safety: if still pending after 70s, mark timeout error
+                        import time
+                        time.sleep(70)
+                        try:
+                            from users.models_profile import TherapistProfile as _TP3
+                            p3 = _TP3.objects.filter(pk=pid).first()
+                            if p3 and p3.license_status == 'pending' and p3.license_last_verified_at is None:
+                                p3.license_status = 'error'
+                                # store simple timeout message if field exists
+                                try:
+                                    p3.license_verification_source_url = (p3.license_verification_source_url or '')
+                                except Exception:
+                                    pass
+                                p3.save(update_fields=['license_status','license_verification_source_url'])
+                        except Exception:
+                            pass
+                    import threading as _th
+                    _th.Thread(target=_bg_verify, args=(profile.pk,), daemon=True).start()
+                    _th.Thread(target=_bg_timeout, args=(profile.pk,), daemon=True).start()
+                else:
+                    # License fields incomplete/cleared: reset status to unverified
+                    profile.license_status = 'unverified'
+                    profile.license_last_verified_at = None
+                    profile.license_verification_source_url = ''
+                    profile.license_verification_raw = {}
+                    profile.save(update_fields=['license_status','license_last_verified_at','license_verification_source_url','license_verification_raw'])
+            except Exception:
+                # swallow background scheduling errors
+                pass
+
+    return JsonResponse(_profile_json(profile))
 
 @login_required
 @require_http_methods(["GET"])
@@ -1990,13 +2085,14 @@ def api_full_profile(request, user_id):
         'name': f"{profile.first_name} {profile.last_name}".strip(),
         'title': profile.title.name if profile.title else None,
         'display_title': profile.display_title,
+    'intro_note': profile.intro_note,
         'intro_statement': profile.intro_statement,
         'personal_statement_q1': profile.personal_statement_q1,
         'personal_statement_q2': profile.personal_statement_q2,
         'personal_statement_q3': profile.personal_statement_q3,
         'practice_name': profile.practice_name,
     'therapy_delivery_method': profile.therapy_delivery_method,
-        'practice_email': profile.practice_email,
+    'practice_email': profile.practice_email,
         'phone_number': profile.phone_number,
         'phone_extension': profile.phone_extension,
         'mobile_number': profile.mobile_number,
@@ -2012,16 +2108,21 @@ def api_full_profile(request, user_id):
         'profile_photo_url': profile.profile_photo.url if profile.profile_photo else None,
     'title_options': list(TitleModel.objects.order_by('name').values_list('name', flat=True)),
     'practice_website_url': profile.practice_website_url,
+    'show_website_on_public': getattr(profile, 'show_website_on_public', True),
+    # Online scheduling (ensure modal parity with standalone public view)
+    'online_scheduling_url': getattr(profile, 'online_scheduling_url', ''),
+    'show_online_scheduling': getattr(profile, 'show_online_scheduling', False),
         'facebook_url': profile.facebook_url,
         'instagram_url': profile.instagram_url,
         'linkedin_url': profile.linkedin_url,
         'twitter_url': profile.twitter_url,
         'tiktok_url': profile.tiktok_url,
-    'youtube_url': profile.youtube_url,
     # Contact preferences (booleans)
     'receive_calls_from_client': getattr(profile, 'receive_calls_from_client', False),
     'receive_texts_from_clients': getattr(profile, 'receive_texts_from_clients', False),
     'receive_emails_from_clients': getattr(profile, 'receive_emails_from_clients', False),
+    'email_contact_destination': getattr(profile, 'email_contact_destination', 'therapist'),
+    'preferred_contact_method': getattr(profile, 'preferred_contact_method', ''),
     'receive_emails_when_client_calls': getattr(profile, 'receive_emails_when_client_calls', False),
         'therapy_types_note': profile.therapy_types_note,
         'specialties_note': profile.specialties_note,
