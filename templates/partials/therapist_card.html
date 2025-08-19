@@ -51,19 +51,19 @@
       {% endif %}
     </div>
 
-    {# INTRO SNIPPET: use intro_note first, then intro_statement (no PS1 fallback) #}
-  {% if therapist.intro_note %}
-      <div class="text-sm leading-relaxed max-h-28 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
-    {{ therapist.intro_note|striptags|truncatechars:350 }}
+    {# INTRO SNIPPET: use intro_note first, then intro_statement (no PS1 fallback). Constrain height for uniform cards. #}
+    {% if therapist.intro_note %}
+      <div class="text-sm leading-relaxed max-h-24 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 75%,transparent 100%); -webkit-mask-image:linear-gradient(to bottom,black 75%,transparent 100%);">
+        {{ therapist.intro_note|striptags|truncatechars:220 }}
       </div>
     {% elif therapist.intro_statement %}
-      <div class="text-sm leading-relaxed max-h-28 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 70%,transparent 100%);">
-    {{ therapist.intro_statement|striptags|truncatechars:350 }}
+      <div class="text-sm leading-relaxed max-h-24 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 75%,transparent 100%); -webkit-mask-image:linear-gradient(to bottom,black 75%,transparent 100%);">
+        {{ therapist.intro_statement|striptags|truncatechars:220 }}
       </div>
     {% endif %}
 
-    {# CHIP GROUPS #}
-    <div class="flex flex-wrap gap-2 text-xs">
+  {# CHIP GROUPS (cap height to prevent overflow differences) #}
+  <div class="flex flex-wrap gap-2 text-xs max-h-16 overflow-hidden relative" style="mask-image:linear-gradient(to bottom,black 85%,transparent 100%); -webkit-mask-image:linear-gradient(to bottom,black 85%,transparent 100%);">
       {% for pt in therapist.participant_types.all %}
         <span class="px-2 py-1 rounded-full bg-[#BEE3DB] text-[#444] font-semibold shadow-sm">{{ pt.name }}</span>
       {% endfor %}
@@ -75,10 +75,7 @@
       {% endif %}{% endfor %}
     </div>
 
-    {# PERSONAL STATEMENT 1 below chips #}
-    {% if therapist.personal_statement_q1 %}
-      <div class="mt-1 text-xs md:text-sm leading-relaxed text-[#555B6E]">{{ therapist.personal_statement_q1|striptags|truncatechars:220 }}</div>
-    {% endif %}
+  {# Personal Statement removed for uniform card height #}
 
     <div class="mt-auto flex flex-wrap items-center gap-4 pt-2">
       <button

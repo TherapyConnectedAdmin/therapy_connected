@@ -25,11 +25,13 @@ class Command(BaseCommand):
         parser.add_argument('--therapists', type=int, default=int(os.environ.get('SEED_THERAPIST_COUNT', '24')), help='How many therapists to create (default 24).')
         parser.add_argument('--blogs', type=int, default=int(os.environ.get('SEED_BLOG_COUNT', '16')), help='How many blog posts to create (default 16).')
         parser.add_argument('--fetch-media', action='store_true', help='Download images for therapists/blog/feed (default off).')
+        parser.add_argument('--purge', action='store_true', help='Purge previously seeded demo data before seeding (safe: targets example data).')
 
     def handle(self, *args, **opts):
         fetch_media = bool(opts.get('fetch_media'))
         therapist_count = opts['therapists']
         blog_count = opts['blogs']
+        purge = bool(opts.get('purge'))
 
         # 1) Ensure DB is migrated
         if not opts['skip_migrate']:
@@ -106,6 +108,9 @@ class Command(BaseCommand):
         self.stdout.write(f"Seeding {therapist_count} therapists …")
         try:
             args = ['--count', str(therapist_count), '--adult-only']
+            if purge:
+                # Purges prior example.com demo therapists before creating new ones
+                args.append('--purge')
             if fetch_media:
                 args.append('--fetch-media')
             call_command('seed_fake_therapists', *args)
@@ -116,6 +121,9 @@ class Command(BaseCommand):
         self.stdout.write(f"Seeding {blog_count} blog posts …")
         try:
             args = ['--count', str(blog_count), '--publish']
+            if purge:
+                # Purges prior generated/topic posts before creating new ones
+                args.append('--purge')
             if fetch_media:
                 args += ['--fetch-images', '--allow-placeholder']
             call_command('seed_fake_blog_posts', *args)
@@ -124,6 +132,22 @@ class Command(BaseCommand):
 
         # 7) Seed feed posts, media, reactions, comments, and connections among therapists
         self.stdout.write("Seeding feed activity and connections …")
+        # If purge requested, ensure any residual feed/connections from previous example data are gone
+        if purge:
+            try:
+                # Deletions here are defensive; most will already be cascaded via user purge above
+                User = get_user_model()
+                example_users = User.objects.filter(email__iendswith='@example.com')
+                # Delete feed and connections tied to example users explicitly (safe if none)
+                FeedReaction.objects.filter(post__author__in=example_users).delete()
+                FeedComment.objects.filter(post__author__in=example_users).delete()
+                FeedMedia.objects.filter(post__author__in=example_users).delete()
+                FeedPost.objects.filter(author__in=example_users).delete()
+                Connection.objects.filter(requester__in=example_users).delete()
+                Connection.objects.filter(addressee__in=example_users).delete()
+            except Exception:
+                pass
+
         self._seed_feed_and_connections(fetch_media=fetch_media)
 
         self.stdout.write(self.style.SUCCESS("All demo data seeded."))
